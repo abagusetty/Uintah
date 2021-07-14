@@ -9,6 +9,7 @@
       <artificial_viscosity_coeff1        spec="OPTIONAL DOUBLE" />
       <artificial_viscosity_coeff2        spec="OPTIONAL DOUBLE" />
       <refine_particles                   spec="OPTIONAL BOOLEAN" />
+	  <UseMPMICE2                         spec="OPTIONAL BOOLEAN" />
       <XPIC2                              spec="OPTIONAL BOOLEAN" />
       <axisymmetric                       spec="OPTIONAL BOOLEAN" />
       <AMR                                spec="OPTIONAL BOOLEAN" />
@@ -62,7 +63,7 @@
       <DoTransientImplicitHeatConduction  spec="OPTIONAL BOOLEAN" />  <!-- default value is true -->
       <delT_decrease_factor               spec="OPTIONAL DOUBLE" />
       <delT_increase_factor               spec="OPTIONAL DOUBLE" />
-      <RunMMSProblem                           spec="OPTIONAL STRING 'AxisAligned, GeneralizedVortex , ExpandingRing, AxisAligned3L'" /> <!-- MMS runtime option -->
+      <RunMMSProblem                      spec="OPTIONAL STRING 'AxisAligned, GeneralizedVortex , ExpandingRing, AxisAligned3L'" /> <!-- MMS runtime option -->
       <do_scalar_diffusion                spec="OPTIONAL BOOLEAN" />
       <do_auto_cycle_bc                   spec="OPTIONAL BOOLEAN" />
       <auto_cycle_use_minmax              spec="OPTIONAL BOOLEAN" />

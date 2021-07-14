@@ -100,6 +100,7 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_min_subcycles_for_F                =  1;
   d_min_mass_for_acceleration          =  0;            // Min mass to allow division by in computing acceleration
   d_max_vel                            =  3.e105;
+  d_use_mpmice2                        = false;
   d_with_ice                           =  false;
   d_with_arches                        =  false;
   d_myworld                            =  myworld;
@@ -237,6 +238,7 @@ MPMFlags::readMPMFlags(ProblemSpecP& ps, Output* dataArchive)
   mpm_flag_ps->get("minimum_mass_for_acc",              d_min_mass_for_acceleration);
   mpm_flag_ps->get("maximum_particle_velocity",         d_max_vel);
   mpm_flag_ps->get("UsePrescribedDeformation",          d_prescribeDeformation);
+  mpm_flag_ps->get("UseMPMICE2",                        d_use_mpmice2);
 
   if(d_prescribeDeformation){
     mpm_flag_ps->get("PrescribedDeformationFile",d_prescribedDeformationFile);
@@ -429,6 +431,7 @@ MPMFlags::outputProblemSpec(ProblemSpecP& ps)
   ps->appendElement("minimum_mass_for_acc",               d_min_mass_for_acceleration);
   ps->appendElement("maximum_particle_velocity",          d_max_vel);
   ps->appendElement("UsePrescribedDeformation",           d_prescribeDeformation);
+  ps->appendElement("UseMPMICE2",                         d_use_mpmice2);
 
   if(d_prescribeDeformation){
     ps->appendElement("PrescribedDeformationFile",d_prescribedDeformationFile);

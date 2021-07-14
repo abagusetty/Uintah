@@ -3034,6 +3034,15 @@ void SerialMPM::computeInternalForce(const ProcessorGroup*,
           stressvol  = pstress[idx]*pvol[idx];
           stresspress = pstress[idx] + Id*(p_pressure[idx] - p_q[idx]);
 
+          if (flags->d_use_mpmice2) {
+              // Because MPMICE2 consider pstress as effective stress so it is not neccessary
+              // to add p_pressure to compute the internal forces
+              stresspress = pstress[idx] + Id * (-p_q[idx]);
+          }
+          else {
+              stresspress = pstress[idx] + Id * (p_pressure[idx] - p_q[idx]);
+          }
+
           for (int k = 0; k < NN; k++){
             if(patch->containsNode(ni[k])){
               Vector div(d_S[k].x()*oodx[0],d_S[k].y()*oodx[1],
@@ -3057,7 +3066,15 @@ void SerialMPM::computeInternalForce(const ProcessorGroup*,
                                                    d_S,psize[idx]);
 
           stressvol   = pstress[idx]*pvol[idx];
-          stresspress = pstress[idx] + Id*(p_pressure[idx] - p_q[idx]);
+
+          if (flags->d_use_mpmice2) {
+              // Because MPMICE2 consider pstress as effective stress so it is not neccessary
+              // to add p_pressure to compute the internal forces
+              stresspress = pstress[idx] + Id * (-p_q[idx]);
+          }
+          else {
+              stresspress = pstress[idx] + Id * (p_pressure[idx] - p_q[idx]);
+          }
 
           // r is the x direction, z (axial) is the y direction
           double IFr=0.,IFz=0.;
