@@ -102,7 +102,6 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_max_vel                            =  3.e105;
   d_use_mpmice2                        = false;
   d_with_ice                           =  false;
-  d_with_arches                        =  false;
   d_myworld                            =  myworld;
   
   d_reductionVars = scinew reductionVars();

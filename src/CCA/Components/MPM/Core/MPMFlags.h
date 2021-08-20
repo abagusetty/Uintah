@@ -121,7 +121,6 @@ class Output;
     bool        d_use_mpmice2;
 
     bool        d_with_ice;
-    bool        d_with_arches;
     std::string d_mms_type;                                    // MMS Flag
 
    //********** Start Reactive Flow Section *********************
