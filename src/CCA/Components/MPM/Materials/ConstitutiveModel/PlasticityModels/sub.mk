@@ -45,6 +45,7 @@ SRCS   += \
 	$(SRCDIR)/HyperElasticEOS.cc \
 	$(SRCDIR)/MieGruneisenEOS.cc \
 	$(SRCDIR)/MieGruneisenEOSEnergy.cc \
+	$(SRCDIR)/BorjaEOS.cc \
 	$(SRCDIR)/FlowModel.cc \
 	$(SRCDIR)/FlowStressModelFactory.cc \
 	$(SRCDIR)/IsoHardeningFlow.cc \
@@ -58,6 +59,7 @@ SRCS   += \
 	$(SRCDIR)/YieldConditionFactory.cc \
 	$(SRCDIR)/GursonYield.cc \
 	$(SRCDIR)/VonMisesYield.cc \
+	$(SRCDIR)/CamClayYield.cc \
 	$(SRCDIR)/StabilityCheck.cc \
 	$(SRCDIR)/StabilityCheckFactory.cc \
 	$(SRCDIR)/BeckerCheck.cc \
@@ -71,6 +73,7 @@ SRCS   += \
 	$(SRCDIR)/NPShear.cc \
 	$(SRCDIR)/PTWShear.cc \
 	$(SRCDIR)/SCGShear.cc \
+	$(SRCDIR)/BorjaShear.cc \
 	$(SRCDIR)/SpecificHeatModel.cc \
 	$(SRCDIR)/SpecificHeatModelFactory.cc \
 	$(SRCDIR)/ConstantCp.cc \
@@ -95,4 +98,7 @@ SRCS   += \
 	$(SRCDIR)/DevStressModelFactory.cc \
 	$(SRCDIR)/HypoViscoElasticDevStress.cc \
 	$(SRCDIR)/HypoElasticDevStress.cc \
+	$(SRCDIR)/InternalVariableModelFactory.cc \
+	$(SRCDIR)/InternalVariableModel.cc \
+	$(SRCDIR)/InternalVar_BorjaPressure.cc \
 

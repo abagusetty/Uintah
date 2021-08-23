@@ -38,6 +38,7 @@ SRCS   += \
 		$(SRCDIR)/BBMMatrix.cc                  \
 		$(SRCDIR)/QADamage.cc                   \
 		$(SRCDIR)/BBMPoint.cc                   \
+		$(SRCDIR)/CamClay.cc                    \
 
      
 		

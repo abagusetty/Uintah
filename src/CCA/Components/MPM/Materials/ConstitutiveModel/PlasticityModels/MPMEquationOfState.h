@@ -104,11 +104,16 @@ namespace Uintah {
     virtual double computeBulkModulus(const double& rho_orig,
                                       const double& rho_cur) = 0;
 
+    virtual double computeInitialBulkModulus() = 0;
+
     ////////////////////////////////////////////////////////////////////////
     /*! Calculate the accumulated strain energy */
     ////////////////////////////////////////////////////////////////////////
     virtual double computeStrainEnergy(const double& rho_orig,
                                        const double& rho_cur) = 0;
+
+    // Compute strain energy
+    virtual double computeStrainEnergy(const PlasticityState* state) = 0;
 
     ////////////////////////////////////////////////////////////////////////
     /*! Calculate the mass density given a pressure */
@@ -116,6 +121,20 @@ namespace Uintah {
     virtual double computeDensity(const double& rho_orig,
                                   const double& pressure) = 0;
 
+    ////////////////////////////////////////////////////////////////////////
+/*! Calculate the derivative of p with respect to epse_v
+    where epse_v = tr(epse)
+          epse = total elastic strain */
+          ////////////////////////////////////////////////////////////////////////
+    virtual double computeDpDepse_v(const PlasticityState* state) const = 0;
+
+    ////////////////////////////////////////////////////////////////////////
+    /*! Calculate the derivative of p with respect to epse_s
+        where epse_s = sqrt{2}{3} ||ee||
+              ee = epse - 1/3 tr(epse) I
+              epse = total elastic strain */
+              ////////////////////////////////////////////////////////////////////////
+    virtual double computeDpDepse_s(const PlasticityState* state) const = 0;
   };
 } // End namespace Uintah
       

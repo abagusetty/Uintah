@@ -153,6 +153,83 @@ namespace Uintah {
                                double h_q1,
                                TangentModulusTensor& Cep);
 
+    //--------------------------------------------------------------
+   // Compute value of yield function
+   //--------------------------------------------------------------
+    double evalYieldCondition(const PlasticityState* state) { return 0.0; };
+    double evalYieldConditionMax(const PlasticityState* state) { return 0.0; };
+
+    //--------------------------------------------------------------
+    // Compute df/dp  where p = volumetric stress = 1/3 Tr(sigma)
+    //--------------------------------------------------------------
+    double computeVolStressDerivOfYieldFunction(const PlasticityState* state) { return 0.0; };
+
+    //--------------------------------------------------------------
+    // Compute df/dq  where q = sqrt(3 J_2), J_2 = 2nd invariant deviatoric stress
+    //--------------------------------------------------------------
+    double computeDevStressDerivOfYieldFunction(const PlasticityState* state) { return 0.0; };
+
+    //--------------------------------------------------------------
+    // Compute d/depse_v(df/dp)
+    //--------------------------------------------------------------
+    double computeVolStrainDerivOfDfDp(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) {
+        return 0.0;
+    };
+
+    //--------------------------------------------------------------
+    // Compute d/depse_s(df/dp)
+    //--------------------------------------------------------------
+    double computeDevStrainDerivOfDfDp(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) {
+        return 0.0;
+    };
+
+    //--------------------------------------------------------------
+    // Compute d/depse_v(df/dq)
+    //--------------------------------------------------------------
+    double computeVolStrainDerivOfDfDq(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) {
+        return 0.0;
+    };
+
+    //--------------------------------------------------------------
+    // Compute d/depse_s(df/dq)
+    //--------------------------------------------------------------
+    double computeDevStrainDerivOfDfDq(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) {
+        return 0.0;
+    };
+
+    //--------------------------------------------------------------
+    // Compute df/depse_v
+    //--------------------------------------------------------------
+    double computeVolStrainDerivOfYieldFunction(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) {
+        return 0.0;
+    };
+
+    //--------------------------------------------------------------
+    // Compute df/depse_s
+    //--------------------------------------------------------------
+    double computeDevStrainDerivOfYieldFunction(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) {
+        return 0.0;
+    };
+
+
   };
 
 } // End namespace Uintah

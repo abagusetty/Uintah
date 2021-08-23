@@ -152,12 +152,19 @@
     <ve_deviatoric_viscosity       spec="OPTIONAL DOUBLE" /> <!-- qwerty need_applies_to='type ALL' -->
     <EoverR                        spec="OPTIONAL DOUBLE" /> <!-- FIXME: what is this for? -->
     <equation_of_state             spec="OPTIONAL NO_DATA"
-                                     attribute1="type REQUIRED STRING 'default_hyper, default_hypo, mie_gruneisen, mie_gruneisen_energy'" >
+                                     attribute1="type REQUIRED STRING 'default_hyper, default_hypo, mie_gruneisen, mie_gruneisen_energy, borja_pressure'" >
       <C_0                         spec="OPTIONAL DOUBLE" />    <!-- FIXME: what is this? optional (DefaultHypoEOS.xml)? Default value? -->
       <Gamma_0                     spec="OPTIONAL DOUBLE" />
       <S_alpha                     spec="OPTIONAL DOUBLE" />
       <S_2                         spec="OPTIONAL DOUBLE" />
       <S_3                         spec="OPTIONAL DOUBLE" />
+
+		<!-- EOS for CamClay -->
+		<p0                         spec="OPTIONAL DOUBLE" />
+		<alpha                         spec="OPTIONAL DOUBLE" />
+		<kappatilde                         spec="OPTIONAL DOUBLE" />
+		<epse_v0                         spec="OPTIONAL DOUBLE" />
+		
     </equation_of_state>
     <evolve_damage                 spec="OPTIONAL BOOLEAN" />
     <evolve_porosity               spec="OPTIONAL BOOLEAN" />
@@ -338,7 +345,7 @@
     <RTau5                         spec="OPTIONAL DOUBLE" />
     <shear_modulus                 spec="OPTIONAL DOUBLE" />
     <shear_modulus_model           spec="OPTIONAL NO_DATA"
-                                     attribute1="type REQUIRED STRING 'constant_shear, mts_shear, np_shear, ptw_shear, scg_shear'" >
+                                     attribute1="type REQUIRED STRING 'constant_shear, mts_shear, np_shear, ptw_shear, scg_shear, borja_shear_modulus'" >
       <mu_0                        spec="OPTIONAL DOUBLE" />
       <A                           spec="OPTIONAL DOUBLE" />
       <B                           spec="OPTIONAL DOUBLE" />
@@ -350,6 +357,14 @@
       <zeta                        spec="OPTIONAL DOUBLE" />
       <alpha                       spec="OPTIONAL DOUBLE" />
       <alphap                      spec="OPTIONAL DOUBLE" />
+
+		<!-- Shear modulus for CamClay -->
+		<mu0                        spec="OPTIONAL DOUBLE" />
+		<p0                         spec="OPTIONAL DOUBLE" />
+		<!-- <alpha                      spec="OPTIONAL DOUBLE" /> -->
+		<kappatilde                 spec="OPTIONAL DOUBLE" />
+		<epse_v0                    spec="OPTIONAL DOUBLE" />
+		
     </shear_modulus_model>
     <specific_heat                 spec="OPTIONAL DOUBLE" />
     <specific_heat_model           spec="OPTIONAL NO_DATA"
@@ -403,12 +418,15 @@
     <volfracHE                     spec="OPTIONAL DOUBLE" />
     <volume_expansion_coeff        spec="OPTIONAL DOUBLE" />
     <yield_condition               spec="OPTIONAL NO_DATA"
-                                     attribute1="type REQUIRED STRING 'gurson, rousselier, vonMises'" >
+                                     attribute1="type REQUIRED STRING 'gurson, rousselier, vonMises, camclay_yield_function'" >
       <f_c                         spec="OPTIONAL DOUBLE" />   <!-- FIXME: really optional? -->
       <k                           spec="OPTIONAL DOUBLE" />   <!-- FIXME: really optional? -->
       <q1                          spec="OPTIONAL DOUBLE" />   <!-- FIXME: really optional? -->
       <q2                          spec="OPTIONAL DOUBLE" />   <!-- FIXME: really optional? -->
       <q3                          spec="OPTIONAL DOUBLE" />   <!-- FIXME: really optional? -->
+
+		<M                          spec="OPTIONAL DOUBLE" />  <!-- optional for CamClay -->
+		
     </yield_condition>
     <yield_stress                  spec="OPTIONAL DOUBLE" />
     <y1                            spec="OPTIONAL DOUBLE" />
@@ -421,6 +439,16 @@
     <Z                             spec="OPTIONAL DOUBLE" />   <!-- FIXME: what is this for? -->
     <zero_stress_upon_failure      spec="OPTIONAL BOOLEAN" />  <!-- FIXME: what is this for? -->
 
+	  <internal_variable_model               spec="OPTIONAL NO_DATA"
+								  attribute1="type REQUIRED STRING 'borja_consolidation_pressure'" >
+
+		  <!-- optional for CamClay -->
+		  <pc0                         spec="OPTIONAL DOUBLE" />
+		  <lambdatilde                           spec="OPTIONAL DOUBLE" />
+		  <kappatilde                          spec="OPTIONAL DOUBLE" />
+
+	  </internal_variable_model>
+	  
     <!-- KAYENTA MODEL [START] -->
     <hugeJ spec="OPTIONAL DOUBLE"/>
     <B0 spec="OPTIONAL DOUBLE"/>
@@ -890,6 +918,8 @@
 
     <!--______________________________________________________________________ -->
     <!-- For CamClay and related models developed by Biswajit for ONR_MURI -->
+
+	  <!--
     <pressure_model  spec="REQUIRED NO_DATA"
                      attribute1="type REQUIRED STRING 'borja_pressure'"
                      need_applies_to="type camclay">
@@ -919,7 +949,8 @@
       <lambdatilde spec="REQUIRED DOUBLE 'positive'" need_applies_to="type borja_consolidation_pressure"/>
       <kappatilde spec="REQUIRED DOUBLE 'positive'" need_applies_to="type borja_consolidation_pressure"/>
     </internal_variable_model>
-
+-->
+	  
     <!-- The following are for the TongeRamesh model -->
     <PTR_useDamage spec="OPTIONAL DOUBLE" need_applies_to="type TongeRameshPTR"/>
     <PTR_usePlasticity spec="OPTIONAL DOUBLE" need_applies_to="type TongeRameshPTR"/>

@@ -18,7 +18,7 @@
 
   <DataArchiver>
       <filebase>verify_camclay_1.uda</filebase>
-      <outputTimestepInterval>1</outputTimestepInterval>
+      <outputTimestepInterval>100</outputTimestepInterval>
       <save label = "p.x"/>
       <save label = "p.color"/>
       <save label = "p.velocity"/>
@@ -28,10 +28,7 @@
       <save label = "p.deformationMeasure"/>
       <save label = "g.acceleration"/>
 	  
-	        <save label = "p.epsf"/>
-      <save label = "p.plasticStrain"/>
-      <save label = "p.localized"/>
-      <save label = "p.yieldStress"/>
+	  <save label = "RigidReactionForce"/>
       <checkpoint cycle = "2" timestepInterval = "20"/>
   </DataArchiver>
 
@@ -45,7 +42,7 @@
     <artificial_damping_coeff>     0.0       </artificial_damping_coeff>
     <artificial_viscosity>         false     </artificial_viscosity>
     <artificial_viscosity_heating> false     </artificial_viscosity_heating>
-    <UseMomentumForm>              false     </UseMomentumForm>
+
     <withColor>                    true      </withColor>
     <UsePrescribedDeformation>     false     </UsePrescribedDeformation>
   </MPM>
@@ -71,7 +68,7 @@
             <max>[0.01,0.01,0.02]</max>
           </box>
           <res>[1,1,1]</res>
-          <velocity>[0.0,0.0,1.e-2]</velocity>
+          <velocity>[0.0,0.0,-2.e-2]</velocity>
           <temperature>300</temperature>
           <color>1</color>
         </geom_object>
@@ -80,30 +77,32 @@
       <material name="Clay Impactor">
         <density>2000.0</density>
         <thermal_conductivity>1.0</thermal_conductivity>
-        <specific_heat>1400.0</specific_heat>
+        <specific_heat>1400.0</specific_heat>	
+
         <constitutive_model type="camclay">
-          <pressure_model type="borja_pressure">
+          <equation_of_state type="borja_pressure">
             <p0> -9.0e4  </p0>
             <alpha> 60 </alpha>
             <kappatilde> 0.018 </kappatilde>
             <epse_v0> 0.0 </epse_v0>
-          </pressure_model>
-          <elastic_shear_modulus_model type="borja_shear_modulus">
+          </equation_of_state>
+          <shear_modulus_model type="borja_shear_modulus">
             <mu0> 5.4e6 </mu0>
             <p0> -9.0e4 </p0>
             <alpha> 60 </alpha>
             <kappatilde> 0.018 </kappatilde>
             <epse_v0> 0.0 </epse_v0>
-          </elastic_shear_modulus_model>
-          <plastic_yield_condition type="camclay_yield_function">
+          </shear_modulus_model>
+          <yield_condition type="camclay_yield_function">
             <M> 1.05 </M>
-          </plastic_yield_condition>
+          </yield_condition>
           <internal_variable_model type="borja_consolidation_pressure">
             <pc0> -9.0e4  </pc0>
             <lambdatilde> 0.13 </lambdatilde> 
             <kappatilde> 0.018 </kappatilde>
           </internal_variable_model>
         </constitutive_model>
+			
         <geom_object>
           <box label = "Impactor">
             <min>[0.0,0.0,0.0]</min>
@@ -116,11 +115,13 @@
         </geom_object>
       </material>
 
-      <contact>
-        <type>rigid</type>
-        <materials>[0,1]</materials>
-        <stop_time>999999.9 </stop_time>
-      </contact>
+        <contact>
+             <type>specified</type>
+             <filename>velocity.txt</filename>
+			 <materials> [0,1] </materials>
+             <direction>[0,0,1]</direction>
+           </contact>
+		   
 
     </MPM>
   </MaterialProperties>
@@ -155,7 +156,7 @@
     <Level>
       <Box label = "1">
         <lower>[0.0,0.0,0.0]</lower>
-        <upper>[.02,.02,0.03]</upper>
+        <upper>[.01,.01,0.03]</upper>
         <resolution>[2,2,3]</resolution>
         <patches>[1,1,1]</patches>
         <extraCells>[1,1,1]</extraCells>

@@ -22,8 +22,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __MIE_GRUNEISEN_EOS_MODEL_H__
-#define __MIE_GRUNEISEN_EOS_MODEL_H__
+#ifndef __BORJA_EOS_MODEL_H__
+#define __BORJA_EOS_MODEL_H__
 
 
 #include "MPMEquationOfState.h" 
@@ -33,67 +33,56 @@ namespace Uintah {
 
   ////////////////////////////////////////////////////////////////////////////
   /*!
-    \class MieGruneisenEOS
+    \class Pressure_Borja
    
-    \brief A Mie-Gruneisen type equation of state model
+    \brief The Borja model for calculating pressure
    
-    \author Biswajit Banerjee \n
-    C-SAFE and Department of Mechanical Engineering \n
-    University of Utah \n
-
-    Reference:
+    Reference:Borja, R.I. and Tamagnini, C.(1998) Cam-Clay plasticity Part III: 
+    Extension of the infinitesimal model to include finite strains,
+    Computer Methods in Applied Mechanics and Engineering, 155 (1-2),
+    pp. 73-95.
     
-    Zocher, Maudlin, Chen, Flower-Maudlin, 2000,
-    European Congress on Computational Methods in Applied Science 
-    and Engineering, ECOMAS 2000, Barcelona)
+    The pressure is given by
 
+    p = p0 beta exp[(epse_v - epse_v0)/kappatilde]
 
-    The equation of state is given by
-    \f[
-    p = \frac{\rho_0 C_0^2 \zeta 
-              \left[1 + \left(1-\frac{\Gamma_0}{2}\right)\zeta\right]}
-             {\left[1 - (S_{\alpha} - 1) \zeta\right]^2 } + \Gamma_0 C_p T
-    \f]
     where 
-    \f$ p\f$ = pressure \n
-    \f$ C_0 \f$= bulk speed of sound \n
-    \f$ \zeta = (\rho/\rho_0 - 1)\f$ \n
-    where \f$\rho\f$ = current density \n
-    \f$\rho_0\f$ = initial density \n
-    \f$ E\f$ = internal energy = \f$C_p T\f$ \n
-    where \f$C_p\f$ = specfic heat at constant pressure \n
-    \f$T\f$ = temperature \n
-    \f$\Gamma_0\f$ = Gruneisen's gamma at reference state \n
-    \f$S_{\alpha}\f$ = linear Hugoniot slope coefficient 
+   
+    p0 = constant
+    beta = 1 + 3/2 alpha/kappatilde epse_s^2
+    alpha = constant
+    kappatilde = constant
+    epse_s = sqrt(2/3) ||epse||
+    epse_v = tr(epse)
+    epse_v0 = constant
+    epse = elastic strain tensor
+
   */
   ////////////////////////////////////////////////////////////////////////////
 
-  class MieGruneisenEOS : public MPMEquationOfState {
-
-    // Create datatype for storing model parameters
-  public:
-    struct CMData {
-      double C_0;
-      double Gamma_0;
-      double S_alpha;
-    };   
+  class BorjaEOS : public MPMEquationOfState {
 
   private:
 
-    CMData d_const;
+    double d_p0;         // Reference pressure
+    double d_alpha;      // Pressure-shear coupling constant
+    double d_kappatilde; // Reference compressibility
+    double d_epse_v0;    // Volumetric strain at reference pressure
          
     // Prevent copying of this class
     // copy constructor
-    //MieGruneisenEOS(const MieGruneisenEOS &cm);
-    MieGruneisenEOS& operator=(const MieGruneisenEOS &cm);
+    BorjaEOS& operator=(const BorjaEOS&cm);
 
   public:
     // constructors
-    MieGruneisenEOS(ProblemSpecP& ps); 
-    MieGruneisenEOS(const MieGruneisenEOS* cm);
+      BorjaEOS(ProblemSpecP& ps);
+      BorjaEOS(const BorjaEOS* cm);
          
+    // Special operator for computing internal energy
+    double operator()(double eta) const;
+
     // destructor 
-    virtual ~MieGruneisenEOS();
+    virtual ~BorjaEOS();
 
     virtual void outputProblemSpec(ProblemSpecP& ps);
          
@@ -105,11 +94,24 @@ namespace Uintah {
                                    const Matrix3& deformGrad,
                                    const Matrix3& rateOfDeformation,
                                    const double& delT);
-  
+
+    // Compute the bulk modulus
+    double computeBulkModulus(const PlasticityState* state);
+
+    // Compute the volumetric strain energy 
+    double computeStrainEnergy(const PlasticityState* state);
+
     double eval_dp_dJ(const MPMMaterial* matl,
                       const double& delF,
                       const PlasticityState* state);
 
+    
+    // Calculate rate of temperature change due to compression/expansion
+    double computeIsentropicTemperatureRate(const double T,
+                                            const double rho_0,
+                                            const double rho_cur,
+                                            const double Dtrace);
+  
     // Compute pressure (option 1)
     double computePressure(const double& rho_orig,
                            const double& rho_cur);
@@ -122,31 +124,36 @@ namespace Uintah {
                          double& csquared);
 
     // Compute bulk modulus
+    void setInitialBulkModulus();
+    double computeInitialBulkModulus();
     double computeBulkModulus(const double& rho_orig,
                               const double& rho_cur);
-
-    double computeInitialBulkModulus() { return 0.0; };
 
     // Compute strain energy
     double computeStrainEnergy(const double& rho_orig,
                                const double& rho_cur);
 
-    // Compute strain energy
-    double computeStrainEnergy(const PlasticityState* state) { return 0.0; };
-
     // Compute density given pressure
     double computeDensity(const double& rho_orig,
                           const double& pressure);
 
+  private:
+
+    //  Pressure computation
+    double evalPressure(const double& epse_v, const double& epse_s) const;
+
+    //  Pressure derivative computation
+    double evalDpDepse_v(const double& epse_v, const double& epse_s) const;
+
+    //  Shear derivative computation
+    double evalDpDepse_s(const double& epse_v, const double& epse_s) const;
+
     ////////////////////////////////////////////////////////////////////////
-  /*! Calculate the derivative of p with respect to epse_v
-      where epse_v = tr(epse)
-            epse = total elastic strain */
-            ////////////////////////////////////////////////////////////////////////
-    double computeDpDepse_v(const PlasticityState* state) const
-    {
-        return 0.0;
-    };
+    /*! Calculate the derivative of p with respect to epse_v
+        where epse_v = tr(epse)
+              epse = total elastic strain */
+              ////////////////////////////////////////////////////////////////////////
+    double computeDpDepse_v(const PlasticityState* state) const;
 
     ////////////////////////////////////////////////////////////////////////
     /*! Calculate the derivative of p with respect to epse_s
@@ -154,13 +161,10 @@ namespace Uintah {
               ee = epse - 1/3 tr(epse) I
               epse = total elastic strain */
               ////////////////////////////////////////////////////////////////////////
-    double computeDpDepse_s(const PlasticityState* state) const
-    {
-        return 0.0;
-    };
-  };
+    double computeDpDepse_s(const PlasticityState* state) const;
 
+  };
 
 } // End namespace Uintah
 
-#endif  // __MIE_GRUNEISEN_EOS_MODEL_H__ 
+#endif  // __BORJA_EOS_MODEL_H__ 

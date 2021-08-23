@@ -64,6 +64,22 @@ namespace Uintah {
     double energy;
     Matrix3 backStress;
 
+    Matrix3 elasticStrain;
+    Matrix3 elasticStrainTrial;
+
+    double p;         // pressure = tr(sigma)
+    double q;         // shear = sqrt(3J2); J2 = 1/2 s:s; s = sigma - p I
+    double p_c;       // consolidation pressure
+    double p_c0;      // consolidation pressure at the beginning of time step
+
+    double epse_v;    // volumetric elastic strain = tr(epse)
+    double epse_s;    // deviatoric elastic strain = sqrt(2/3) ||ee||
+                      //  ee = epse - 1/3 epse_v I
+    double epse_v_tr; // trial volumetric elastic strain
+    double epse_s_tr; // trial deviatoric elastic strain 
+
+    double local_var[10]; // Keep aside 10 spaces for local scalar variables
+
     PlasticityState();
 
     PlasticityState(const PlasticityState& state);

@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- <!DOCTYPE Uintah_specification SYSTEM "input.dtd"> -->
+
+<!-- @version: Updated 7/31/00-->
+
+<Uintah_specification>
+
+   <Meta>
+       <title>triaxial</title>
+   </Meta>
+
+   <SimulationComponent type="mpm" />
+
+   <Time>
+       <maxTime>5.00</maxTime>
+       <initTime>0.0</initTime>
+       <delt_min>0.00001</delt_min>
+       <delt_max>0.00001</delt_max>
+       <timestep_multiplier>0.02</timestep_multiplier>
+   </Time>
+   <DataArchiver>
+       <filebase>triaxial.uda</filebase>
+       <outputInterval>.01</outputInterval>
+       <save label="p.x"/>
+       <save label="p.velocity"/>
+       <save label="p.volume"/>
+       <save label="p.stress"/>
+       <save label="p.particleID"/>
+       <save label="g.mass"/>
+       <save label="g.stressFS"/>
+       <save label="RigidReactionForce"/>
+       <save label="p.externalforce"/>   
+   </DataArchiver>
+
+    <MPM>
+       <time_integrator>explicit</time_integrator>
+       <use_load_curves>true</use_load_curves>
+       <interpolator>linear</interpolator>
+       <artificial_damping_coeff> 0.0 </artificial_damping_coeff>
+    </MPM>
+
+    <PhysicalConstants>
+       <gravity>[0,0,0]</gravity>
+    </PhysicalConstants>
+
+    <MaterialProperties>
+       <MPM>
+           <material>
+              <density>7850.0</density>
+                <constitutive_model type="rigid">
+                </constitutive_model>
+              <thermal_conductivity>1.0</thermal_conductivity>
+              <specific_heat>5</specific_heat>
+              <geom_object>
+                  <box label="piston">
+                     <min>[0.0,0.01,0.0]</min>
+                     <max>[0.03,0.02,0.03]</max>
+                  </box>
+                  <res>[1,1,1]</res>
+                  <velocity>[0.0,0.0,0]</velocity>
+                  <temperature>12</temperature>
+               </geom_object>
+           </material>
+
+           <material>
+              <density>1600.0</density>
+			  
+	     
+        <constitutive_model type="camclay">
+          <equation_of_state type="borja_pressure">
+            <p0> -9.0e4  </p0>
+            <alpha> 60 </alpha>
+            <kappatilde> 0.018 </kappatilde>
+            <epse_v0> 0.0 </epse_v0>
+          </equation_of_state>
+          <shear_modulus_model type="borja_shear_modulus">
+            <mu0> 5.4e6 </mu0>
+            <p0> -9.0e4 </p0>
+            <alpha> 60 </alpha>
+            <kappatilde> 0.018 </kappatilde>
+            <epse_v0> 0.0 </epse_v0>
+          </shear_modulus_model>
+          <yield_condition type="camclay_yield_function">
+            <M> 1.05 </M>
+          </yield_condition>
+          <internal_variable_model type="borja_consolidation_pressure">
+            <pc0> -9.0e4  </pc0>
+            <lambdatilde> 0.13 </lambdatilde> 
+            <kappatilde> 0.018 </kappatilde>
+          </internal_variable_model>
+        </constitutive_model>
+		
+              <thermal_conductivity>1.0</thermal_conductivity>
+              <specific_heat>5</specific_heat>
+
+              <geom_object>
+                  <box label="specimen_1">
+                     <min>[0.01,0.0,0.01]</min>
+                     <max>[0.02,0.01,0.02]</max>
+                  </box>
+                  <res>[1,1,1]</res>
+                  <velocity>[0.0,0.0,0]</velocity>
+                  <temperature>12</temperature>
+               </geom_object>
+           </material>
+
+	 <material>
+    		<density>1675</density>
+   	 	   
+        <constitutive_model type="camclay">
+          <equation_of_state type="borja_pressure">
+            <p0> -9.0e4  </p0>
+            <alpha> 60 </alpha>
+            <kappatilde> 0.018 </kappatilde>
+            <epse_v0> 0.0 </epse_v0>
+          </equation_of_state>
+          <shear_modulus_model type="borja_shear_modulus">
+            <mu0> 5.4e6 </mu0>
+            <p0> -9.0e4 </p0>
+            <alpha> 60 </alpha>
+            <kappatilde> 0.018 </kappatilde>
+            <epse_v0> 0.0 </epse_v0>
+          </shear_modulus_model>
+          <yield_condition type="camclay_yield_function">
+            <M> 1.05 </M>
+          </yield_condition>
+          <internal_variable_model type="borja_consolidation_pressure">
+            <pc0> -9.0e4  </pc0>
+            <lambdatilde> 0.13 </lambdatilde> 
+            <kappatilde> 0.018 </kappatilde>
+          </internal_variable_model>
+        </constitutive_model>
+
+
+ <!--               <constitutive_model type="comp_neo_hook">
+		<shear_modulus>1888888</shear_modulus>
+		 <bulk_modulus>1416666</bulk_modulus>
+      		</constitutive_model> -->
+
+                <thermal_conductivity>1</thermal_conductivity>
+                <specific_heat>1</specific_heat>
+
+              <geom_object>
+
+                  <box label="firstx-">
+                     <min>[0.0,0.0,0.01]</min>
+                     <max>[0.01,0.01,0.02]</max>
+                  </box>
+
+  		  <box label="secondx+">
+                     <min>[0.02,0.0,0.01]</min>
+                     <max>[0.03,0.01,0.02]</max>
+                  </box>
+
+		  <box label="thirdz-">
+                     <min>[0.01,0.0,0.0]</min>
+                     <max>[0.02,0.01,0.01]</max>
+                  </box>
+
+		  <box label="fourthz+">
+                     <min>[0.01,0.0,0.02]</min>
+                     <max>[0.02,0.01,0.03]</max>
+                  </box>
+
+                  <res>[1,1,1]</res>
+                  <velocity>[0.0,0.0,0]</velocity>
+                  <temperature>12</temperature>
+               </geom_object>
+
+           </material>
+
+<!--     	   <material>
+              <density>1675.0</density>
+                  <constitutive_model type="comp_neo_hook">
+		<shear_modulus>1888888</shear_modulus>
+		 <bulk_modulus>1416666</bulk_modulus>
+      		</constitutive_model>
+              <thermal_conductivity>1.0</thermal_conductivity>
+              <specific_heat>5</specific_heat>
+
+              <geom_object>
+
+                  <box label="1corner">
+                     <min>[0.0,0.0,0.0]</min>
+                     <max>[0.01,0.01,0.01]</max>
+                  </box>
+
+      		  <box label="2corner">
+                     <min>[0.0,0.0,0.02]</min>
+                     <max>[0.01,0.01,0.03]</max>
+                  </box>
+
+  		 <box label="3corner">
+                     <min>[0.02,0.0,0.02]</min>
+                     <max>[0.03,0.01,0.03]</max>
+                  </box>
+
+ 		 <box label="4corner">
+                     <min>[0.02,0.0,0.0]</min>
+                     <max>[0.03,0.01,0.01]</max>
+                  </box>
+
+
+                  <res>[1,1,1]</res>
+                  <velocity>[0.0,0.0,0]</velocity>
+                  <temperature>12</temperature>
+               </geom_object>
+           </material> -->
+
+
+           <contact>
+             <type>rigid</type>
+             <filename>rigid_tri_IS.txt</filename>
+	     <master_material>0</master_material>
+             <direction>[0,1,0]</direction>
+	     <materials>[0,1]</materials>
+           </contact> 
+
+      	   <contact>
+             <type>single_velocity</type>
+	     <materials>[1,2]</materials>
+           </contact>
+
+       </MPM>
+    </MaterialProperties>
+
+    <PhysicalBC>
+     <MPM>
+
+	   
+       <pressure>
+	 <outward_normal>true</outward_normal>
+         <geom_object>
+            <box label="x-face">
+              <min>[0,0.0,0.01]</min>
+              <max>[0.001,0.01,0.02]</max>
+            </box>
+         </geom_object>
+         <load_curve>
+           <id>1</id>
+           <time_point>
+             <time> 0 </time>
+             <load> 0 </load>
+           </time_point>
+           <time_point>
+             <time> 0.5   </time>
+             <load> 10000 </load>
+           </time_point>
+           <time_point>
+             <time> 100.0   </time>
+             <load> 10000 </load>
+           </time_point>
+         </load_curve>
+       </pressure>
+
+       <pressure>
+	<outward_normal>true</outward_normal>
+         <geom_object>
+            <box label="x+face">
+              <min>[0.029,0.0,0.01]</min>
+              <max>[0.03,0.01,0.02]</max>
+            </box>
+         </geom_object>
+         <load_curve>
+           <id>2</id>
+           <time_point>
+             <time> 0 </time>
+             <load> 0 </load>
+           </time_point>
+           <time_point>
+             <time> 0.5</time>
+             <load> -10000 </load>
+           </time_point>
+           <time_point>
+             <time> 50.0   </time>
+             <load> -10000  </load>
+           </time_point>
+         </load_curve>
+       </pressure>
+
+       <pressure>
+         <geom_object>
+            <box label="z-face">
+              <min>[0.01,0.0,0.0]</min>
+              <max>[0.02,0.01,0.001]</max>
+            </box>
+         </geom_object>
+         <load_curve>
+           <id>3</id>
+           <time_point>
+             <time> 0 </time>
+             <load> 0 </load>
+           </time_point>
+           <time_point>
+             <time> 0.5 </time>
+             <load> 10000 </load>
+           </time_point>
+           <time_point>
+             <time> 50.0   </time>
+             <load> 10000 </load>
+           </time_point>
+         </load_curve>
+       </pressure>
+
+       <pressure>
+         <geom_object>
+            <box label="z+face">
+              <min>[0.01,0.0,0.029]</min>
+              <max>[0.02,0.01,0.03]</max>
+            </box>
+         </geom_object>
+         <load_curve>
+           <id>4</id>
+           <time_point>
+             <time> 0 </time>
+             <load> 0 </load>
+           </time_point>
+           <time_point>
+             <time> 0.5 </time>
+             <load> -10000 </load>
+           </time_point>
+           <time_point>
+             <time> 50.0   </time>
+             <load> -10000 </load>
+           </time_point>
+         </load_curve>
+       </pressure>
+
+     </MPM>
+   </PhysicalBC>
+
+       
+    <Grid>
+       <BoundaryConditions>
+
+          <Face side = "x-">
+             <BCType id = "all" label = "Symmetric" var = "symmetry"> </BCType>
+           </Face>                  
+          <Face side = "x+">
+             <BCType id = "all" label = "Symmetric" var = "symmetry"> </BCType>
+           </Face>
+           <Face side = "y-">
+             <BCType id = "all" label = "Symmetric" var = "symmetry"> </BCType>
+           </Face>                  
+          <Face side = "y+">
+             <BCType id = "all" label = "Symmetric" var = "symmetry"> </BCType>
+           </Face>
+           <Face side = "z-">
+             <BCType id = "all" label = "Symmetric" var = "symmetry"> </BCType>
+           </Face>
+           <Face side = "z+">
+             <BCType id = "all" label = "Symmetric" var = "symmetry"> </BCType>
+           </Face>         
+                  
+       </BoundaryConditions>
+       <Level>
+           <Box label="1">
+              <lower>[-0.01,0.0,-0.01]</lower>
+              <upper>[0.04,0.03,0.04]</upper>
+              <patches>[1,1,1]</patches>
+              <extraCells>[0,0,0]</extraCells>
+	      <resolution>[5,3,5]</resolution>
+           </Box>
+       </Level>
+    </Grid>
+
+</Uintah_specification>

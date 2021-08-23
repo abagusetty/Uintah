@@ -22,56 +22,76 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __NP_SHEAR_MODEL_H__
-#define __NP_SHEAR_MODEL_H__
+#ifndef __BORJA_SHEAR_MODEL_H__
+#define __BORJA_SHEAR_MODEL_H__
 
 #include "ShearModulusModel.h"
 #include <Core/ProblemSpec/ProblemSpecP.h>
 
 namespace Uintah {
 
-  /*! \class NPShear
-   *  \brief The shear modulus model given by Nadal and LePoac
-   *  \author Biswajit Banerjee, 
-   *  \author C-SAFE and Department of Mechanical Engineering,
-   *  \author University of Utah.
+  /*! 
+    \class BorjaShear
+   
+    \brief The Borja model for calculating shear stress
+   
+    Reference:Borja, R.I. and Tamagnini, C.(1998) Cam-Clay plasticity Part III: 
+    Extension of the infinitesimal model to include finite strains,
+    Computer Methods in Applied Mechanics and Engineering, 155 (1-2),
+    pp. 73-95.
+    
+    The sheear stress magnitude is given by
+
+    q = 3 mu epse_s
+
+    where 
+   
+    mu = mu0 + alpha p0 exp[(epse_v - epse_v0)/kappatilde]
+    mu0 = constant
+    alpha = constant
+    p0 = constant
+    kappatilde = constant
+    epse_s = sqrt(2/3) ||epse||
+    epse_v = tr(epse)
+    epse_v0 = constant
+    epse = elastic strain tensor
    *
   */
-  class NPShear : public ShearModulusModel {
+  class BorjaShear : public ShearModulusModel {
 
   private:
 
-    double d_mu0;    // Material constant 
-    double d_zeta;   // Material constant 
-    double d_slope_mu_p_over_mu0; // Material constant
-    double d_C;      // Material constant
-    double d_m;      // atomic mass
+    double d_mu0;        // Reference shear modulus
+    double d_alpha;      // Coupling constant (shear-pressure)
+    double d_p0;         // Reference pressure
+    double d_kappatilde; // Reference compressibility
+    double d_epse_v0;    // Reference volume strain
 
-    NPShear& operator=(const NPShear &smm);
+    BorjaShear& operator=(const BorjaShear&smm);
 
   public:
          
     /*! Construct a constant shear modulus model. */
-    NPShear(ProblemSpecP& ps);
+      BorjaShear(Uintah::ProblemSpecP& ps);
 
     /*! Construct a copy of constant shear modulus model. */
-    NPShear(const NPShear* smm);
+      BorjaShear(const BorjaShear* smm);
 
     /*! Destructor of constant shear modulus model.   */
-    virtual ~NPShear();
+    virtual ~BorjaShear();
 
-    virtual void outputProblemSpec(ProblemSpecP& ps);
+    virtual void outputProblemSpec(Uintah::ProblemSpecP& ps);
          
     /*! Compute the shear modulus */
-    double computeShearModulus(const PlasticityState* state);
-
-    double computeInitialShearModulus() { return 0.0; };
+    double computeInitialShearModulus();
+    double computeShearModulus(const PlasticityState* state) ;
+    double computeShearModulus(const PlasticityState* state) const;
 
     /*! Compute the shear strain energy */
-    double computeStrainEnergy(const PlasticityState* state) { return 0.0; };
+    double computeStrainEnergy(const PlasticityState* state);
 
     /////////////////////////////////////////////////////////////////////////
-    /*
+    /* 
       Compute q = 3 mu epse_s
          where mu = shear modulus
                epse_s = sqrt{2/3} ||ee||
@@ -80,32 +100,37 @@ namespace Uintah {
                epse_v = tr(epse)
     */
     /////////////////////////////////////////////////////////////////////////
-    double computeQ(const PlasticityState* state) const
-    {
-        return 0.0;
-    };
+    double computeQ(const PlasticityState* state) const;
 
     /////////////////////////////////////////////////////////////////////////
-    /*
-      Compute dq/depse_s
+    /* 
+      Compute dq/depse_s 
     */
     /////////////////////////////////////////////////////////////////////////
-    double computeDqDepse_s(const PlasticityState* state) const
-    {
-        return 0.0;
-    };
+    double computeDqDepse_s(const PlasticityState* state) const;
 
     /////////////////////////////////////////////////////////////////////////
-    /*
-      Compute dq/depse_v
+    /* 
+      Compute dq/depse_v 
     */
     /////////////////////////////////////////////////////////////////////////
-    double computeDqDepse_v(const PlasticityState* state) const
-    {
-        return 0.0;
-    };
+    double computeDqDepse_v(const PlasticityState* state) const;
+
+  private:
+
+    //  Compute shear modulus (volume strain dependent)
+    double evalShearModulus(const double& epse_v) const;
+
+    //  Shear stress magnitude computation
+    double evalQ(const double& epse_v, const double& epse_s) const;
+
+    //  Shear stress volume strain derivative computation
+    double evalDqDepse_v(const double& epse_v, const double& epse_s) const;
+
+    //  Shear stress shear strain derivative computation
+    double evalDqDepse_s(const double& epse_v, const double& epse_s) const;
   };
 } // End namespace Uintah
       
-#endif  // __NP_SHEAR_MODEL_H__
+#endif  // __BORJA_SHEAR_MODEL_H__
 

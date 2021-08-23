@@ -28,6 +28,7 @@
 #include "SCGShear.h"
 #include "PTWShear.h"
 #include "NPShear.h"
+#include "BorjaShear.h"
 #include <Core/Exceptions/ProblemSetupException.h>
 #include <Core/Parallel/Parallel.h>
 #include <Core/ProblemSpec/ProblemSpec.h>
@@ -64,6 +65,8 @@ ShearModulusModel* ShearModulusModelFactory::create(ProblemSpecP& ps)
       return(scinew PTWShear(child));
    else if (mat_type == "np_shear")
       return(scinew NPShear(child));
+   else if (mat_type == "borja_shear_modulus")
+       return(scinew BorjaShear(child));
    else {
       proc0cout << "**WARNING** Creating default (constant shear modulus) model" << endl;
       return(scinew ConstantShear(child));
@@ -85,6 +88,8 @@ ShearModulusModelFactory::createCopy(const ShearModulusModel* smm)
       return(scinew PTWShear(dynamic_cast<const PTWShear*>(smm)));
    else if (dynamic_cast<const NPShear*>(smm))
       return(scinew NPShear(dynamic_cast<const NPShear*>(smm)));
+   else if (dynamic_cast<const BorjaShear*>(smm))
+       return(scinew BorjaShear(dynamic_cast<const BorjaShear*>(smm)));
    else {
       proc0cout << "**WARNING** Creating copy of default (constant shear modulus) model" << endl;
       return(scinew ConstantShear(dynamic_cast<const ConstantShear*>(smm)));

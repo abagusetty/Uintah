@@ -26,6 +26,7 @@
 #include "MPMEquationOfStateFactory.h"
 #include "DefaultHypoElasticEOS.h"
 #include "HyperElasticEOS.h"
+#include "BorjaEOS.h"
 #include "MieGruneisenEOSEnergy.h"
 #include <Core/Exceptions/ProblemSetupException.h>
 #include <Core/Parallel/Parallel.h>
@@ -60,6 +61,9 @@ MPMEquationOfState* MPMEquationOfStateFactory::create(ProblemSpecP& ps)
       return(scinew DefaultHypoElasticEOS(child));
    else if (mat_type == "default_hyper")
       return(scinew HyperElasticEOS(child));
+   else if (mat_type == "borja_pressure")
+       return(scinew BorjaEOS(child));
+
    else {
       proc0cout << "**WARNING** Creating default hyperelastic equation of state" << endl;
       return(scinew HyperElasticEOS(child));
@@ -78,6 +82,9 @@ MPMEquationOfStateFactory::createCopy(const MPMEquationOfState* eos)
 
    else if (dynamic_cast<const DefaultHypoElasticEOS*>(eos))
       return(scinew DefaultHypoElasticEOS(dynamic_cast<const DefaultHypoElasticEOS*>(eos)));
+
+   else if (dynamic_cast<const BorjaEOS*>(eos))
+       return(scinew BorjaEOS(dynamic_cast<const BorjaEOS*>(eos)));
 
    else {
       proc0cout << "**WARNING** Creating a copy of the default hyperelastic equation of state" << endl;

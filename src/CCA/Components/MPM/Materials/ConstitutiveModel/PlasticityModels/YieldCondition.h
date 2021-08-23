@@ -31,6 +31,9 @@
 #include <Core/ProblemSpec/ProblemSpec.h>
 #include <Core/Math/TangentModulusTensor.h>
 #include <CCA/Components/MPM/Materials/ConstitutiveModel/PlasticityModels/PlasticityState.h>
+#include <CCA/Components/MPM/Materials/ConstitutiveModel/PlasticityModels/MPMEquationOfState.h>
+#include <CCA/Components/MPM/Materials/ConstitutiveModel/PlasticityModels/ShearModulusModel.h>
+#include <CCA/Components/MPM/Materials/ConstitutiveModel/PlasticityModels/InternalVariableModel.h>
 
 namespace Uintah {
 
@@ -132,6 +135,74 @@ namespace Uintah {
                                                const double& dp_dJ,
                                                const PlasticityState* state,
                                                TangentModulusTensor& Cep);
+
+    //--------------------------------------------------------------
+   // Compute value of yield function
+   //--------------------------------------------------------------
+    virtual double evalYieldCondition(const PlasticityState* state) = 0;
+
+    //--------------------------------------------------------------
+    // Compute max value of yield function for convergence tolerance check
+    //--------------------------------------------------------------
+    virtual double evalYieldConditionMax(const PlasticityState* state) = 0;
+
+    //--------------------------------------------------------------
+    // Compute df/dp  where p = volumetric stress = 1/3 Tr(sigma)
+    //--------------------------------------------------------------
+    virtual double computeVolStressDerivOfYieldFunction(const PlasticityState* state) = 0;
+
+    //--------------------------------------------------------------
+    // Compute df/dq  where q = sqrt(3 J_2), J_2 = 2nd invariant deviatoric stress
+    //--------------------------------------------------------------
+    virtual double computeDevStressDerivOfYieldFunction(const PlasticityState* state) = 0;
+
+    //--------------------------------------------------------------
+    // Compute d/depse_v(df/dp)
+    //--------------------------------------------------------------
+    virtual double computeVolStrainDerivOfDfDp(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) = 0;
+
+    //--------------------------------------------------------------
+    // Compute d/depse_s(df/dp)
+    //--------------------------------------------------------------
+    virtual double computeDevStrainDerivOfDfDp(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) = 0;
+
+    //--------------------------------------------------------------
+    // Compute d/depse_v(df/dq)
+    //--------------------------------------------------------------
+    virtual double computeVolStrainDerivOfDfDq(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) = 0;
+
+    //--------------------------------------------------------------
+    // Compute d/depse_s(df/dq)
+    //--------------------------------------------------------------
+    virtual double computeDevStrainDerivOfDfDq(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) = 0;
+
+    //--------------------------------------------------------------
+    // Compute df/depse_v
+    //--------------------------------------------------------------
+    virtual double computeVolStrainDerivOfYieldFunction(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) = 0;
+
+    //--------------------------------------------------------------
+    // Compute df/depse_s
+    //--------------------------------------------------------------
+    virtual double computeDevStrainDerivOfYieldFunction(const PlasticityState* state,
+        const MPMEquationOfState* eos,
+        const ShearModulusModel* shear,
+        const InternalVariableModel* intvar) = 0;
 
   };
 } // End namespace Uintah

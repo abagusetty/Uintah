@@ -48,6 +48,17 @@ PlasticityState::PlasticityState()
   porosity = 0.0;
   energy = 0.0;
   backStress = Matrix3(0.0);
+
+  p = 0.0;
+  q = 0.0;
+  p_c = 0.0;
+  p_c0 = 0.0;
+  epse_v = 0.0;
+  epse_s = 0.0;
+  epse_v_tr = 0.0;
+  epse_s_tr = 0.0;
+  elasticStrain = Uintah::Matrix3(0.0);
+  elasticStrainTrial = Uintah::Matrix3(0.0);
 }
 
 PlasticityState::PlasticityState(const PlasticityState& state)
@@ -73,6 +84,17 @@ PlasticityState::PlasticityState(const PlasticityState& state)
   porosity = state.porosity;
   energy = state.energy;
   backStress = state.backStress;
+
+  p = state.p;
+  q = state.q;
+  p_c = state.p_c;
+  p_c0 = state.p_c0;
+  epse_v = state.epse_v;
+  epse_s = state.epse_s;
+  epse_v_tr = state.epse_v_tr;
+  epse_s_tr = state.epse_s_tr;
+  elasticStrain = state.elasticStrain;
+  elasticStrainTrial = state.elasticStrainTrial;
 }
 
 PlasticityState::PlasticityState(const PlasticityState* state)
@@ -98,6 +120,17 @@ PlasticityState::PlasticityState(const PlasticityState* state)
   porosity = state->porosity;
   energy = state->energy;
   backStress = state->backStress;
+
+  p = state->p;
+  q = state->q;
+  p_c = state->p_c;
+  p_c0 = state->p_c0;
+  epse_v = state->epse_v;
+  epse_s = state->epse_s;
+  epse_v_tr = state->epse_v_tr;
+  epse_s_tr = state->epse_s_tr;
+  elasticStrain = state->elasticStrain;
+  elasticStrainTrial = state->elasticStrainTrial;
 }
 
 PlasticityState::~PlasticityState()
@@ -129,6 +162,18 @@ PlasticityState::operator=(const PlasticityState& state)
   porosity = state.porosity;
   energy = state.energy;
   backStress = state.backStress;
+
+  p = state.p;
+  q = state.q;
+  p_c = state.p_c;
+  p_c0 = state.p_c0;
+  epse_v = state.epse_v;
+  epse_s = state.epse_s;
+  epse_v_tr = state.epse_v_tr;
+  epse_s_tr = state.epse_s_tr;
+  elasticStrain = state.elasticStrain;
+  elasticStrainTrial = state.elasticStrainTrial;
+
   return *this;
 }
 
@@ -157,5 +202,18 @@ PlasticityState::operator=(const PlasticityState* state)
   porosity = state->porosity;
   energy = state->energy;
   backStress = state->backStress;
+
+  p = state->p;
+  q = state->q;
+  p_c = state->p_c;
+  p_c0 = state->p_c0;
+  epse_v = state->epse_v;
+  epse_s = state->epse_s;
+  epse_v_tr = state->epse_v_tr;
+  epse_s_tr = state->epse_s_tr;
+  elasticStrain = state->elasticStrain;
+  elasticStrainTrial = state->elasticStrainTrial;
+  for (int ii = 0; ii < 10; ii++) local_var[ii] = state->local_var[ii];
+
   return this;
 }

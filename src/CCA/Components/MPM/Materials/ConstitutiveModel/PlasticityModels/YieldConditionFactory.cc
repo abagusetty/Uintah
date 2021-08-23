@@ -25,6 +25,7 @@
 #include "YieldConditionFactory.h"
 #include "VonMisesYield.h"
 #include "GursonYield.h"
+#include "CamClayYield.h"
 #include <Core/Exceptions/ProblemSetupException.h>
 #include <Core/ProblemSpec/ProblemSpec.h>
 #include <Core/Malloc/Allocator.h>
@@ -61,6 +62,10 @@ YieldCondition* YieldConditionFactory::create(ProblemSpecP& ps, const bool using
     }
     return(scinew GursonYield(child));
   }
+  
+  else if (mat_type == "camclay_yield_function")
+      return(scinew CamClayYield(child));
+
   else 
     throw ProblemSetupException("MPM::ConstitutiveModel:Unknown Yield Condition ("+mat_type+")",
                                  __FILE__, __LINE__);
@@ -74,6 +79,10 @@ YieldConditionFactory::createCopy(const YieldCondition* yc)
 
    else if (dynamic_cast<const GursonYield*>(yc))
       return(scinew GursonYield(dynamic_cast<const GursonYield*>(yc)));
+
+   else if (dynamic_cast<const CamClayYield*>(yc))
+       return(scinew CamClayYield(dynamic_cast<const CamClayYield*>(yc)));
+
 
    else 
       throw ProblemSetupException("Cannot create copy of unknown yield condition", __FILE__, __LINE__);

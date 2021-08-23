@@ -97,13 +97,39 @@ namespace Uintah {
     double computeBulkModulus(const double& rho_orig,
                               const double& rho_cur);
 
+    double computeInitialBulkModulus() { return 0.0; };
+
     // Compute strain energy
     double computeStrainEnergy(const double& rho_orig,
                                const double& rho_cur);
 
+    // Compute strain energy
+    double computeStrainEnergy(const PlasticityState* state) { return 0.0; };
+
     // Compute density given pressure
     double computeDensity(const double& rho_orig,
                           const double& pressure);
+
+    ////////////////////////////////////////////////////////////////////////
+  /*! Calculate the derivative of p with respect to epse_v
+      where epse_v = tr(epse)
+            epse = total elastic strain */
+            ////////////////////////////////////////////////////////////////////////
+    double computeDpDepse_v(const PlasticityState* state) const
+    {
+        return 0.0;
+    };
+
+    ////////////////////////////////////////////////////////////////////////
+    /*! Calculate the derivative of p with respect to epse_s
+        where epse_s = sqrt{2}{3} ||ee||
+              ee = epse - 1/3 tr(epse) I
+              epse = total elastic strain */
+              ////////////////////////////////////////////////////////////////////////
+    double computeDpDepse_s(const PlasticityState* state) const
+    {
+        return 0.0;
+    };
   };
 
 } // End namespace Uintah

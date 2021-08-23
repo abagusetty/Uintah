@@ -59,6 +59,37 @@ namespace Uintah {
     */
     /////////////////////////////////////////////////////////////////////////
     virtual double computeShearModulus(const PlasticityState* state) = 0;
+
+    virtual double computeInitialShearModulus() = 0;
+
+    /*! Compute the shear strain energy */
+    virtual double computeStrainEnergy(const PlasticityState* state) = 0;
+
+    /////////////////////////////////////////////////////////////////////////
+    /*
+      Compute q = 3 mu epse_s
+         where mu = shear modulus
+               epse_s = sqrt{2/3} ||ee||
+               ee = deviatoric part of elastic strain = epse - 1/3 epse_v I
+               epse = total elastic strain
+               epse_v = tr(epse)
+    */
+    /////////////////////////////////////////////////////////////////////////
+    virtual double computeQ(const PlasticityState* state) const = 0;
+
+    /////////////////////////////////////////////////////////////////////////
+    /*
+      Compute dq/depse_s
+    */
+    /////////////////////////////////////////////////////////////////////////
+    virtual double computeDqDepse_s(const PlasticityState* state) const = 0;
+
+    /////////////////////////////////////////////////////////////////////////
+    /*
+      Compute dq/depse_v
+    */
+    /////////////////////////////////////////////////////////////////////////
+    virtual double computeDqDepse_v(const PlasticityState* state) const = 0;
   };
 } // End namespace Uintah
       
