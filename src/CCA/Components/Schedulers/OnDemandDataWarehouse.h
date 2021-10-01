@@ -477,10 +477,10 @@ public:
   virtual void finalize();
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   static int getNumDevices();
-  static void uintahSetCudaDevice(int deviceNum);
+  static void uintahSetGpuDevice(int deviceNum);
   static size_t getTypeDescriptionSize(const TypeDescription::Type& type);
   static GPUGridVariableBase* createGPUGridVariable(const TypeDescription::Type& type);
   static GPUPerPatchBase* createGPUPerPatch(const TypeDescription::Type& type);
@@ -671,6 +671,22 @@ public:
       return KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getCCVariable( const VarLabel         * label
+               ,       int                matlIndex
+               , const Patch            * patch
+               ,       Ghost::GhostType   gtype         = Ghost::None
+               ,       int                numGhostCells = 0
+               )
+  {
+    if ( matlIndex != -999 ) {
+      return this->getGPUDW()->getKokkosView<T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
+    }
+  }
 #endif
 
   template <typename T, typename MemSpace>
@@ -721,6 +737,22 @@ public:
       return this->getGPUDW()->getKokkosView<const T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
     } else {
       return KokkosView3<const T, Kokkos::CudaSpace>();
+    }
+  }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getConstCCVariable( const VarLabel         * label
+                    ,       int                matlIndex
+                    , const Patch            * patch
+                    ,       Ghost::GhostType   gtype
+                    ,       int                numGhostCells
+                    )
+  {
+    if ( matlIndex != -999 ) {
+      return this->getGPUDW()->getKokkosView<const T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      return KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
     }
   }
 #endif
@@ -785,6 +817,22 @@ public:
       return KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getNCVariable( const VarLabel         * label
+               ,       int                matlIndex
+               , const Patch            * patch
+               ,       Ghost::GhostType   gtype         = Ghost::None
+               ,       int                numGhostCells = 0
+               )
+  {
+    if ( matlIndex != -999 ) {
+      return this->getGPUDW()->getKokkosView<T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
+    }
+  }
 #endif
 
   template <typename T, typename MemSpace>
@@ -835,6 +883,22 @@ public:
       return this->getGPUDW()->getKokkosView<const T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
     } else {
       return KokkosView3<const T, Kokkos::CudaSpace>();
+    }
+  }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getConstNCVariable( const VarLabel         * label
+                    ,       int                matlIndex
+                    , const Patch            * patch
+                    ,       Ghost::GhostType   gtype
+                    ,       int                numGhostCells
+                    )
+  {
+    if ( matlIndex != -999 ) {
+      return this->getGPUDW()->getKokkosView<const T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      return KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
     }
   }
 #endif
@@ -900,6 +964,23 @@ public:
       return KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename grid_T,typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getGridVariable( const VarLabel         * label
+                 ,       int                matlIndex
+                 , const Patch            * patch
+                 ,       Ghost::GhostType   gtype           = Ghost::None
+                 ,       int                numGhostCells   = 0
+                 ,       bool               l_getModifiable = false
+                 )
+  {
+    if ( matlIndex != -999 ) {
+      return this->getGPUDW()->getKokkosView<T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
+    }
+  }
 #endif
 
   template <typename grid_CT,typename T, typename MemSpace>
@@ -950,6 +1031,22 @@ public:
       return this->getGPUDW()->getKokkosView<const T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
     } else {
       return KokkosView3<const T, Kokkos::CudaSpace>();
+    }
+  }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename grid_CT,typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getConstGridVariable( const VarLabel         * label
+                      ,       int                matlIndex
+                      , const Patch            * patch
+                      ,       Ghost::GhostType   gtype
+                      ,       int                numGhostCells
+                      )
+  {
+    if ( matlIndex != -999 ) {
+      return this->getGPUDW()->getKokkosView<const T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      return KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
     }
   }
 #endif
@@ -1014,6 +1111,24 @@ public:
       var = this->getGPUDW()->getKokkosView<T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
     } else {
       var = KokkosView3<T, Kokkos::CudaSpace>();
+    }
+  }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename grid_T,typename T, typename MemSpace>
+  inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, void >::type
+  assignGridVariable(       KokkosView3<T, MemSpace> & var
+                    , const VarLabel                 * label
+                    ,       int                        matlIndex
+                    , const Patch                    * patch
+                    ,       Ghost::GhostType           gtype           = Ghost::None
+                    ,       int                        numGhostCells   = 0
+                    ,       bool                       l_getModifiable = false
+                    )
+  {
+    if ( matlIndex != -999 ) {
+      var = this->getGPUDW()->getKokkosView<T>( label->getName().c_str(), patch->getID(),  matlIndex, patch->getLevel()->getID() );
+    } else {
+      var = KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
     }
   }
 #endif
@@ -1170,7 +1285,7 @@ private:
                             , const Patch    * patch
                             ,       int        line
                             );
-                                
+
   void printDebuggingPutInfo( const VarLabel * label
                             ,       int        matlIndex
                             , const Level    * level
@@ -1178,7 +1293,7 @@ private:
                             );
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   std::map<Patch*, bool> assignedPatches; // indicates where a given patch should be stored in an accelerator
 

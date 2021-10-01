@@ -61,7 +61,7 @@
 #include <Core/Util/FancyAssert.h>
 #include <Core/Util/ProgressiveWarning.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
   #include <Core/Grid/Variables/GPUStencil7.h>
   #include <Core/Geometry/GPUVector.h>
@@ -85,7 +85,7 @@ namespace Uintah {
 
   extern Dout g_mpi_dbg;
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   extern DebugStream gpudbg;
 #endif
 
@@ -146,11 +146,25 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
 
   varLock = new Uintah::MasterLock{};
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   if (Uintah::Parallel::usingDevice()) {
-    int numDevices;
+    int numDevices = 0;
+#ifdef HAVE_CUDA
     CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
+#elif HAVE_SYCL
+    sycl::platform platform(sycl::gpu_selector{});
+    auto const& gpu_devices = platform.get_devices();
+    for (int i = 0; i < gpu_devices.size(); i++) {
+      if (gpu_devices[i].is_gpu()) {
+        if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+            sycl::info::partition_affinity_domain::numa);
+          numDevices += SubDevicesDomainNuma.size();
+        }
+      }
+    }
+#endif
 
     for (int i = 0; i < numDevices; i++) {
       //those gpuDWs should only live host side.
@@ -213,7 +227,7 @@ OnDemandDataWarehouse::clear()
   m_running_tasks.clear();
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   if (Uintah::Parallel::usingDevice()) {
     //clear out the host side GPU Datawarehouses.  This does NOT touch the task DWs.
@@ -426,10 +440,10 @@ OnDemandDataWarehouse::getReductionVariable( const VarLabel * label
   }
 }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
 void
-OnDemandDataWarehouse::uintahSetCudaDevice(int deviceNum) {
+OnDemandDataWarehouse::uintahSetGpuDevice(int deviceNum) {
   //  CUDA_RT_SAFE_CALL( cudaSetDevice(deviceNum) );
 }
 
@@ -441,8 +455,22 @@ OnDemandDataWarehouse::getNumDevices() {
     numDevices = 1;
   }
 
+#ifdef HAVE_CUDA
   //if multiple devices are desired, use this:
    CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
+#elif HAVE_SYCL
+   sycl::platform platform(sycl::gpu_selector{});
+   auto const& gpu_devices = platform.get_devices();
+   for (int i = 0; i < gpu_devices.size(); i++) {
+     if (gpu_devices[i].is_gpu()) {
+       if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+         auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+           sycl::info::partition_affinity_domain::numa);
+         numDevices += SubDevicesDomainNuma.size();
+       }
+     }
+   }
+#endif
 
   return numDevices;
 }
@@ -3378,7 +3406,7 @@ OnDemandDataWarehouse::transferFrom(       DataWarehouse                        
           }
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
           if (Uintah::Parallel::usingDevice()) {
             //See if it's in the GPU.  Both the source and destination must be in the GPU data warehouse,
@@ -3391,14 +3419,14 @@ OnDemandDataWarehouse::transferFrom(       DataWarehouse                        
             GPUGridVariableBase* device_var_source = OnDemandDataWarehouse::createGPUGridVariable(label->typeDescription()->getSubType()->getType());
             GPUGridVariableBase* device_var_dest = OnDemandDataWarehouse::createGPUGridVariable(label->typeDescription()->getSubType()->getType());
             if(!execObj.getStream()) {
-              std::cout << "ERROR! transferFrom() does not have access to the task and its associated CUDA stream."
+              std::cout << "ERROR! transferFrom() does not have access to the task and its associated CUDA/SYCL stream."
                         << " You need to update the task's callback function to include more parameters which supplies this information."
                         << " Then you need to pass that detailed task pointer into the transferFrom method."
                         << " As an example, please see the parameters for Poisson1::timeAdvanceUnified."   << std::endl;
-              throw InternalError("transferFrom() needs access to the task's pointer and its associated CUDA stream.\n", __FILE__, __LINE__);
+              throw InternalError("transferFrom() needs access to the task's pointer and its associated CUDA/SYCL stream.\n", __FILE__, __LINE__);
             }
             //The GPU assigns streams per task.  For transferFrom to work, it *must* know which correct stream to use
-            bool foundGPU = getGPUDW(0)->transferFrom((cudaStream_t*)execObj.getStream(),
+            bool foundGPU = getGPUDW(0)->transferFrom((gpuStream_t*)execObj.getStream(),
                                                       *device_var_source, *device_var_dest,
                                                       from->getGPUDW(0),
                                                       label->getName().c_str(), patchID, matl, levelID);

@@ -874,7 +874,7 @@ Ray::rayTrace( const PatchSubset* patches,
 //        RT_flags.startCell = (i/static_cast<double>(numKernels)) * numCells;
 //        RT_flags.endCell = ((i+1)/static_cast<double>(numKernels)) * numCells;
 //        RT_flags.cellsPerGroup = hiRange.x();
-//        range.setValues((cudaStream_t*)dtask->getCudaStreamForThisTask(i), IntVector(0,0,0), IntVector(RT_flags.cellsPerGroup,0,0) );
+//        range.setValues((cudaStream_t*)dtask->getGpuStreamForThisTask(i), IntVector(0,0,0), IntVector(RT_flags.cellsPerGroup,0,0) );
 //        rayTrace_solveDivQFunctor< T, Kokkos::Random_XorShift1024_Pool<Kokkos::Cuda>   >
 //#else
 //      {

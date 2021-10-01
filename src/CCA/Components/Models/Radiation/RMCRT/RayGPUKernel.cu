@@ -1786,15 +1786,15 @@ __host__ void launchRayTraceKernel(DetailedTask* dtask,
   curandState* randNumStates;
   int numStates = dimGrid.x * dimGrid.y * dimGrid.z * dimBlock.x * dimBlock.y * dimBlock.z;
   
-  randNumStates = (curandState*)GPUMemoryPool::allocateCudaSpaceFromPool(0, numStates * sizeof(curandState));
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, randNumStates);
+  randNumStates = (curandState*)GPUMemoryPool::allocateGpuSpaceFromPool(0, numStates * sizeof(curandState));
+  dtask->addTempGpuMemoryToBeFreedOnCompletion(0, randNumStates);
 
   //Create a host array, load it with data, and send it over to the GPU
   int nRandNums = 512;
   double* d_debugRandNums;
   size_t randNumsByteSize = nRandNums * sizeof(double);
-  d_debugRandNums = (double*)GPUMemoryPool::allocateCudaSpaceFromPool(0, randNumsByteSize);
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, d_debugRandNums);
+  d_debugRandNums = (double*)GPUMemoryPool::allocateGpuSpaceFromPool(0, randNumsByteSize);
+  dtask->addTempGpuMemoryToBeFreedOnCompletion(0, d_debugRandNums);
 
   //Making sure we have kernel/mem copy overlapping
   double* h_debugRandNums = new double[nRandNums];
@@ -1857,11 +1857,11 @@ __host__ void launchRayTraceDataOnionKernel( DetailedTask* dtask,
   int3* dev_regionHi;
   
   size_t size = d_MAXLEVELS * sizeof(int3);
-  dev_regionLo = (int3*)GPUMemoryPool::allocateCudaSpaceFromPool(0, size);
-  dev_regionHi = (int3*)GPUMemoryPool::allocateCudaSpaceFromPool(0, size);
+  dev_regionLo = (int3*)GPUMemoryPool::allocateGpuSpaceFromPool(0, size);
+  dev_regionHi = (int3*)GPUMemoryPool::allocateGpuSpaceFromPool(0, size);
 
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, dev_regionLo);
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, dev_regionHi);
+  dtask->addTempGpuMemoryToBeFreedOnCompletion(0, dev_regionLo);
+  dtask->addTempGpuMemoryToBeFreedOnCompletion(0, dev_regionHi);
   
   //More GPU stuff to allow kernel/copy overlapping
   int3 * myLo = new int3[d_MAXLEVELS];
@@ -1889,8 +1889,8 @@ __host__ void launchRayTraceDataOnionKernel( DetailedTask* dtask,
   int numStates = dimGrid.x * dimGrid.y * dimGrid.z * dimBlock.x * dimBlock.y * dimBlock.z;
 
   curandState* randNumStates;
-  randNumStates = (curandState*)GPUMemoryPool::allocateCudaSpaceFromPool(0, numStates * sizeof(curandState));
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, randNumStates);
+  randNumStates = (curandState*)GPUMemoryPool::allocateGpuSpaceFromPool(0, numStates * sizeof(curandState));
+  dtask->addTempGpuMemoryToBeFreedOnCompletion(0, randNumStates);
   
   rayTraceDataOnionKernel< T ><<< dimGrid, dimBlock, 0, *stream >>>( dimGrid,
                                                                      dimBlock,

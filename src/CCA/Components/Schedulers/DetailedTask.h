@@ -260,13 +260,13 @@ public:
 
   std::map<unsigned int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setCudaStreamForThisTask( unsigned int deviceNum, cudaStream_t * s );
+  void setGpuStreamForThisTask( unsigned int deviceNum, cudaStream_t * s );
 
-  void clearCudaStreamsForThisTask();
+  void clearGpuStreamsForThisTask();
 
-  bool checkCudaStreamDoneForThisTask( unsigned int deviceNum ) const;
+  bool checkGpuStreamDoneForThisTask( unsigned int deviceNum ) const;
 
-  bool checkAllCudaStreamsDoneForThisTask() const;
+  bool checkAllGpuStreamsDoneForThisTask() const;
 
   void setTaskGpuDataWarehouse( unsigned int       deviceNum
                               , Task::WhichDW      DW
@@ -277,7 +277,7 @@ public:
 
   void deleteTaskGpuDataWarehouses();
 
-  cudaStream_t*        getCudaStreamForThisTask( unsigned int deviceNum ) const;
+  cudaStream_t*        getGpuStreamForThisTask( unsigned int deviceNum ) const;
 
   DeviceGridVariables& getDeviceVars() { return deviceVars; }
 
@@ -298,7 +298,7 @@ public:
 
   void addTempHostMemoryToBeFreedOnCompletion( void * ptr );
 
-  void addTempCudaMemoryToBeFreedOnCompletion( unsigned int device_ptr, void * ptr );
+  void addTempGpuMemoryToBeFreedOnCompletion( unsigned int device_ptr, void * ptr );
 
   void deleteTemporaryTaskVars();
 
@@ -371,7 +371,7 @@ private:
   unsigned int deviceNum_{0};
 
   std::set<unsigned int>                deviceNums_;
-  std::map<unsigned int, cudaStream_t*> d_cudaStreams;
+  std::map<unsigned int, cudaStream_t*> d_gpuStreams;
 
   // Store information about each set of grid variables.
   // This will help later when we figure out the best way to store data into the GPU.
@@ -416,7 +416,7 @@ private:
     }
   };
 
-  std::vector<gpuMemoryPoolDevicePtrItem> taskCudaMemoryPoolItems;
+  std::vector<gpuMemoryPoolDevicePtrItem> taskGpuMemoryPoolItems;
   std::queue<void*>                       taskHostMemoryPoolItems;
 
   std::vector<labelPatchMatlLevelDw> varsNeededOnHost;

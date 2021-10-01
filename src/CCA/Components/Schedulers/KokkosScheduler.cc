@@ -40,6 +40,7 @@
 #include <Core/Util/Timers/Timers.hpp>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #ifdef HAVE_CUDA
   #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
@@ -65,6 +66,19 @@
   - Update myRankThread with partition equivalent
 ______________________________________________________________________*/
 
+
+#ifdef HAVE_SYCL
+auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
+    for (std::exception_ptr const& e : exceptions) {
+        try {
+            std::rethrow_exception(e);
+        } catch (sycl::exception const& ex) {
+            std::cout << "Caught asynchronous SYCL exception:" << std::endl
+            << ex.what() << ", OpenCL code: " << ex.get_cl_code() << std::endl;
+        }
+    }
+};
+#endif
 
 using namespace Uintah;
 
@@ -96,7 +110,7 @@ namespace {
 } // namespace
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
 extern Uintah::MasterLock cerrLock;
 
@@ -134,13 +148,13 @@ KokkosScheduler::KokkosScheduler( const ProcessorGroup  * myworld
 
 #ifdef HAVE_CUDA
   //__________________________________
-  //    
+  //
   if ( Uintah::Parallel::usingDevice() ) {
     gpuInitialize();
 
     // we need one of these for each GPU, as each device will have it's own CUDA context
     //for (int i = 0; i < m_num_devices; i++) {
-    //  GPUMemoryPool::getCudaStreamFromPool(i);
+    //  GPUMemoryPool::getGpuStreamFromPool(i);
     //}
 
     // disable memory windowing on variables.  This will ensure that
@@ -171,6 +185,27 @@ KokkosScheduler::KokkosScheduler( const ProcessorGroup  * myworld
 
 #endif
 
+#ifdef HAVE_SYCL
+  //__________________________________
+  //
+  if ( Uintah::Parallel::usingDevice() ) {
+    gpuInitialize();
+
+    // we need one of these for each GPU, as each device will have it's own SYCL context
+    //for (int i = 0; i < m_num_devices; i++) {
+    //  GPUMemoryPool::getGpuStreamFromPool(i);
+    //}
+
+    // disable memory windowing on variables.  This will ensure that
+    // each variable is allocated its own memory on each patch,
+    // precluding memory blocks being defined across multiple patches.
+    Uintah::OnDemandDataWarehouse::s_combine_memory = false;
+
+    // abagusetty: Peer-2-Peer access using SYCL is not yet setup/clear
+  }  // using Device
+
+#endif // HAVE_SYCL
+
 }
 
 
@@ -187,7 +222,7 @@ int
 KokkosScheduler::verifyAnyGpuActive()
 {
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   // Attempt to access the zeroth GPU
   cudaError_t errorCode = cudaSetDevice(0);
   if (errorCode == cudaSuccess) {
@@ -284,6 +319,42 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
       }
     }
 #endif
+
+#ifdef HAVE_SYCL
+    if ( !g_gpu_ids && Uintah::Parallel::usingDevice() ) {
+      int availableDevices=0;
+      sycl::platform platform(sycl::gpu_selector{});
+      auto const& gpu_devices = platform.get_devices();
+      for (int i = 0; i < gpu_devices.size(); i++) {
+        if (gpu_devices[i].is_gpu()) {
+          if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+            auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+              sycl::info::partition_affinity_domain::numa);
+            availableDevices += SubDevicesDomainNuma.size();
+          }
+        }
+      }
+      std::cout << "   Using " << m_num_devices << "/" << availableDevices
+                << " available GPU(s)" << std::endl;
+
+      int tmp_device_id=0;
+      for (int device_id = 0; i < gpu_devices.size(); i++) {
+        if (gpu_devices[device_id].is_gpu()) {
+          if(gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+            auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+              sycl::info::partition_affinity_domain::numa);
+            for (const auto &tile : SubDevicesDomainNuma) {
+              std::cout << "   GPU Device " << tmp_device_id << " "
+                        << tile.get_info<sycl::info::device::name>()
+                        << " with compute capability [" << tile.get_backend()
+                        << "] v:" << tile.get_info<sycl::info::device::driver_version>()
+                        << std::endl;
+            }
+          }
+        }
+      }
+    }
+#endif
   }
 
 #ifdef HAVE_CUDA
@@ -309,9 +380,49 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
   }
 #endif
 
+#ifdef HAVE_SYCL
+  if ( g_gpu_ids && Uintah::Parallel::usingDevice() ) {
+    int availableDevices=0;
+    std::ostringstream message;
+    sycl::platform platform(sycl::gpu_selector{});
+    auto const& gpu_devices = platform.get_devices();
+    for (int i = 0; i < gpu_devices.size(); i++) {
+      if (gpu_devices[i].is_gpu()) {
+        if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+            sycl::info::partition_affinity_domain::numa);
+          availableDevices += SubDevicesDomainNuma.size();
+        }
+      }
+    }
+    message << "   Rank-" << d_myworld->myRank()
+            << " using " << m_num_devices << "/" << availableDevices
+            << " available GPU(s)\n";
+
+    int tmp_device_id=0;
+    for (int device_id = 0; i < gpu_devices.size(); i++) {
+      if (gpu_devices[device_id].is_gpu()) {
+        if(gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+          auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+            sycl::info::partition_affinity_domain::numa);
+          for (const auto &tile : SubDevicesDomainNuma) {
+            message << "   Rank-" << d_myworld->myRank()
+                    << " using GPU Device " << tmp_device_id
+                    << ": \"" << tile.get_info<sycl::info::device::name>() << "\""
+                    << " with compute capability " << tile.get_info<sycl::info::device::driver_version>()
+                    << " on backend " << tile.get_backend() << std::endl;
+            tmp_device_id++;
+          }
+        }
+      }
+    }
+    DOUT(true, message.str());
+  }
+#endif // HAVE_SYCL
+
   SchedulerCommon::problemSetup(prob_spec, materialManager);
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   // Now pick out the materials out of the file.  This is done with an assumption that there
   // will only be ICE or MPM problems, and no problem will have both ICE and MPM materials in it.
   // I am unsure if this assumption is correct.
@@ -359,7 +470,7 @@ KokkosScheduler::runTask( DetailedTask  * dtask
 {
   // Only execute CPU or GPU tasks.  Don't execute postGPU tasks a second time.
   if ( event == CallBackEvent::CPU || event == CallBackEvent::GPU) {
-    
+
     if (m_tracking_vars_print_location & SchedulerCommon::PRINT_BEFORE_EXEC) {
       printTrackedVars(dtask, SchedulerCommon::PRINT_BEFORE_EXEC);
     }
@@ -370,8 +481,8 @@ KokkosScheduler::runTask( DetailedTask  * dtask
     }
 
     DOUT(g_task_run, myRankThread() << " Running task:   " << *dtask);
-  
-#ifdef HAVE_CUDA
+
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     //DS: 10312019: If GPU task is going to modify any variable, mark that variable as invalid on CPU.
     if (event == CallBackEvent::GPU) {
       markHostAsInvalid(dtask);
@@ -388,7 +499,7 @@ KokkosScheduler::runTask( DetailedTask  * dtask
   // For CPU and postGPU task runs, post MPI sends and call task->done;
   if (event == CallBackEvent::CPU || event == CallBackEvent::postGPU) {
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     if (Uintah::Parallel::usingDevice()) {
 
       //DS: 10312019: If CPU task is going to modify any variable, mark that variable as invalid on GPU.
@@ -442,7 +553,7 @@ KokkosScheduler::runTask( DetailedTask  * dtask
 
   MPIScheduler::postMPISends(dtask, iteration);
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     if (Uintah::Parallel::usingDevice()) {
       dtask->deleteTaskGpuDataWarehouses();
     }
@@ -543,7 +654,7 @@ KokkosScheduler::execute( int tgnum       /* = 0 */
 
   if( m_runtimeStats )
     (*m_runtimeStats)[RuntimeStatsEnum::NumTasks] += m_num_tasks;
-                   
+
   for (int i = 0; i < m_num_tasks; i++) {
     m_detailed_tasks->localTask(i)->resetDependencyCounts();
   }
@@ -622,7 +733,7 @@ KokkosScheduler::execute( int tgnum       /* = 0 */
     if ( g_have_hypre_task ) {
       DOUT( g_dbg, " Exited runTasks to run a " << g_HypreTask->getTask()->getType() << " task" );
       runTask(g_HypreTask, m_curr_iteration, 0, g_hypre_task_event);
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
       if(g_hypre_task_event == CallBackEvent::GPU)
         m_detailed_tasks->addDeviceExecutionPending(g_HypreTask);
 #endif
@@ -743,7 +854,7 @@ KokkosScheduler::runTasks( int thread_id )
 
     bool havework = false;
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     bool usingDevice = Uintah::Parallel::usingDevice();
     bool gpuInitReady = false;
     bool gpuValidateRequiresAndModifiesCopies = false;
@@ -790,7 +901,7 @@ KokkosScheduler::runTasks( int thread_id )
           readyTask = m_phase_sync_task[m_curr_phase];
           havework = true;
           markTaskConsumed(m_num_tasks_done, m_curr_phase, m_num_phases, readyTask);
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
           cpuRunReady = true;
 #endif
         }
@@ -810,7 +921,7 @@ KokkosScheduler::runTasks( int thread_id )
        */
       else if ((readyTask = m_detailed_tasks->getNextExternalReadyTask())) {
         havework = true;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
         /*
          * (1.2.1)
          *
@@ -870,7 +981,7 @@ KokkosScheduler::runTasks( int thread_id )
          }
       }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
       else if (usingDevice){
         /*
          * (1.4)
@@ -1070,7 +1181,7 @@ KokkosScheduler::runTasks( int thread_id )
       if (readyTask->getTask()->getType() == Task::Reduction) {
         MPIScheduler::initiateReduction(readyTask);
       }
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
       else if (gpuInitReady) {
         // prepare to run a GPU task.
 
@@ -1164,12 +1275,12 @@ KokkosScheduler::runTasks( int thread_id )
         runTask(readyTask, m_curr_iteration, thread_id, CallBackEvent::postGPU);
 
         // recycle this task's stream
-        GPUMemoryPool::reclaimCudaStreamsIntoPool(readyTask);
+        GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
       }
 #endif
       else {
         // prepare to run a CPU task.
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
         if (cpuInitReady) {
 
           //Some CPU tasks still interact with the GPU.  For example, DataArchiver,::ouputVariables, or
@@ -1182,7 +1293,7 @@ KokkosScheduler::runTasks( int thread_id )
           assignDevicesAndStreams(readyTask);
 
           // Run initiateD2H on all tasks in case the data we need is in GPU memory but not in host memory.
-          // The exception being we don't run an output task in a non-output timestep.  
+          // The exception being we don't run an output task in a non-output timestep.
           // (It would be nice if the task graph didn't have this OutputVariables task if
           // it wasn't going to output data, but that would require more task graph recompilations,
           // which can be even costlier overall.  So we do the check here.)
@@ -1209,7 +1320,7 @@ KokkosScheduler::runTasks( int thread_id )
             if (allHostVarsProcessingReady(readyTask)) {
               m_detailed_tasks->addHostReadyToExecute(readyTask);
               //runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
-              //GPUMemoryPool::reclaimCudaStreamsIntoPool(readyTask);
+              //GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
             } else {
               m_detailed_tasks->addHostCheckIfExecutable(readyTask);
             }
@@ -1224,7 +1335,7 @@ KokkosScheduler::runTasks( int thread_id )
           if (allHostVarsProcessingReady(readyTask)) {
             m_detailed_tasks->addHostReadyToExecute(readyTask);
             //runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
-            //GPUMemoryPool::reclaimCudaStreamsIntoPool(readyTask);
+            //GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
           } else {
             m_detailed_tasks->addHostCheckIfExecutable(readyTask);
           }
@@ -1232,7 +1343,7 @@ KokkosScheduler::runTasks( int thread_id )
           if (allHostVarsProcessingReady(readyTask)) {
             m_detailed_tasks->addHostReadyToExecute(readyTask);
             //runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
-            //GPUMemoryPool::reclaimCudaStreamsIntoPool(readyTask);
+            //GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
           }  else {
             // Some vars aren't valid and ready,  We must be waiting on another task to finish
             // copying in some of the variables we need.
@@ -1249,10 +1360,10 @@ KokkosScheduler::runTasks( int thread_id )
           }
           runTask(readyTask, m_curr_iteration, thread_id, CallBackEvent::CPU);
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
           //See note above near cpuInitReady.  Some CPU tasks may internally interact
           //with GPUs without modifying the structure of the data warehouse.
-          //GPUMemoryPool::reclaimCudaStreamsIntoPool(readyTask);
+          //GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
         }
 #endif
       }
@@ -1267,7 +1378,7 @@ KokkosScheduler::runTasks( int thread_id )
 }
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
 
 //______________________________________________________________________
@@ -1313,7 +1424,7 @@ KokkosScheduler::prepareGpuDependencies( DetailedTask          * dtask
   //Go through all toTasks
   for (std::list<DetailedTask*>::const_iterator iter = dep->m_to_tasks.begin(); iter != dep->m_to_tasks.end(); ++iter) {
     toTask = (*iter);
-    
+
     constHandle<PatchSubset> patches = toTask->getPatches();
     const int numPatches = patches->size();
     //const Patch* toPatch = toTask->getPatches()->get(0);
@@ -1470,7 +1581,7 @@ KokkosScheduler::prepareGpuDependencies( DetailedTask          * dtask
 void
 KokkosScheduler::gpuInitialize( bool reset )
 {
-
+#ifdef HAVE_CUDA
   cudaError_t retVal;
   int numDevices = 0;
   CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
@@ -1486,6 +1597,31 @@ KokkosScheduler::gpuInitialize( bool reset )
   // set it back to the 0th device
   CUDA_RT_SAFE_CALL(retVal = cudaSetDevice(0));
   m_current_device = 0;
+#endif
+
+#ifdef HAVE_SYCL
+  int numDevices = 0;
+  sycl::platform platform(sycl::gpu_selector{});
+  auto const& gpu_devices = platform.get_devices();
+  for (int i = 0; i < gpu_devices.size(); i++) {
+    if (gpu_devices[i].is_gpu()) {
+      if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+	auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
+	  sycl::info::partition_affinity_domain::numa);
+	numDevices += SubDevicesDomainNuma.size();
+
+	for (const auto &tile : SubDevicesDomainNuma) {
+	  m_sycl_context.push_back( new sycl::context(tile, sycl_asynchandler) );
+	}
+      }
+    }
+  }
+  m_num_devices = numDevices;
+
+  // set it back to the 0th device
+  m_current_device = 0;
+#endif
+
 }
 
 
@@ -1503,7 +1639,7 @@ void KokkosScheduler::turnIntoASuperPatch( GPUDataWarehouse* const gpudw
 {
 
   //Handle superpatch stuff
-  //This was originally designed for the use case of turning an entire level into a variable.  
+  //This was originally designed for the use case of turning an entire level into a variable.
   //We need to set up the equivalent of a super patch.
   //For example, suppose a simulation has 8 patches and 2 ranks and 1 level, and this rank owns
   //patches 0, 1, 2, and 3.  Further suppose this scheduler thread is checking
@@ -1513,19 +1649,19 @@ void KokkosScheduler::turnIntoASuperPatch( GPUDataWarehouse* const gpudw
   //patch 1 is needed on the GPU, and this is the first thread to process this situation.
   //This thread's job should be to claim it is responsible for processing the variable for
   //patches 0, 1, 2, and 3.  Four GPU data warehouse entries should be created, one for each
-  //patch.  
+  //patch.
 
   //Patches 0, 1, 2, and 3 should be given the same pointer, same low, same high, (TODO: but different offsets).
-  //In order to avoid concurrency problems when marking all patches in the superpatch region as 
-  //belonging to the superpatch, we need to avoid Dining Philosophers problem.  That is accomplished 
+  //In order to avoid concurrency problems when marking all patches in the superpatch region as
+  //belonging to the superpatch, we need to avoid Dining Philosophers problem.  That is accomplished
   //by claiming patches in *sorted* order, and no scheduler thread can attempt to claim any later patch
   //if it hasn't yet claimed a former patch.  The first thread to claim all will have claimed the
   //"superpatch" region.
-  
+
   //Superpatches essentially are just windows into a shared variable, it uses shared_ptrs behind the scenes
-  //With this later only one alloaction or H2D transfer can be done.  This method's job is just 
-  //to concurrently set up all the underlying shared_ptr work.  
- 
+  //With this later only one alloaction or H2D transfer can be done.  This method's job is just
+  //to concurrently set up all the underlying shared_ptr work.
+
   //Note: Superpatch approaches won't work if for some reason a prior task copied a patch in a non-superpatch
   //manner, at the current moment no known simulation will ever do this.  It is also why we try to prepare
   //the superpatch a bit upstream before concurrency checks start, and not down in prepareDeviceVars(). Brad P - 8/6/2016
@@ -1539,9 +1675,9 @@ void KokkosScheduler::turnIntoASuperPatch( GPUDataWarehouse* const gpudw
 
 
   //Get all patches in the superpatch. Assuming our superpatch is the entire level.
-  //This also sorts the neighbor patches by ID for us.  Note that if the current patch is 
+  //This also sorts the neighbor patches by ID for us.  Note that if the current patch is
   //smaller than all the neighbors, we have to work that in too.
-  
+
   Patch::selectType neighbors;
   //IntVector low, high;
   //level->computeVariableExtents(type, low, high);  //Get the low and high for the level
@@ -1569,11 +1705,11 @@ void KokkosScheduler::turnIntoASuperPatch( GPUDataWarehouse* const gpudw
   //At this point the patch has been marked as a superpatch.
 
   if (thisThreadHandlesSuperPatchWork) {
-    
-    gpudw->setSuperPatchLowAndSize(label_cstr, firstPatchInSuperPatch->getID(), matlIndx, levelID, 
-                                   make_int3(low.x(), low.y(), low.z()), 
-                                   make_int3(high.x() - low.x(), high.y() - low.y(), high.z() - low.z())); 
-    
+
+    gpudw->setSuperPatchLowAndSize(label_cstr, firstPatchInSuperPatch->getID(), matlIndx, levelID,
+                                   make_int3(low.x(), low.y(), low.z()),
+                                   make_int3(high.x() - low.x(), high.y() - low.y(), high.z() - low.z()));
+
     //This thread turned the lowest ID'd patch in the region into a superpatch.  Go through *neighbor* patches
     //in the superpatch region and flag them as being a superpatch as well (the copySuperPatchInfo call below
     //can also flag it as a superpatch.
@@ -1586,8 +1722,8 @@ void KokkosScheduler::turnIntoASuperPatch( GPUDataWarehouse* const gpudw
 
         //TODO: Ensure these variables weren't yet allocated, in use, being copied in, etc. At the time of
         //writing, this scenario didn't exist.  Some ways to solve this include 1) An "I'm using this" reference counter.
-        //2) Moving superpatch creation to the start of a timestep, and not at the start of initiateH2D, or 
-        //3) predetermining at the start of a timestep what superpatch regions will be, and then we can just form 
+        //2) Moving superpatch creation to the start of a timestep, and not at the start of initiateH2D, or
+        //3) predetermining at the start of a timestep what superpatch regions will be, and then we can just form
         //them together here
 
         //Shallow copy this neighbor patch into the superaptch
@@ -1675,7 +1811,7 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
   varIter = vars.begin();
   if (varIter != vars.end()) {
     device_id = GpuUtilities::getGpuIndexForPatch(varIter->second->getPatchesUnderDomain(dtask->getPatches())->get(0));
-    OnDemandDataWarehouse::uintahSetCudaDevice(device_id);
+    OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
   }
 
   // Go through each unique dependent var and see if we should allocate space and/or queue it to be copied H2D.
@@ -1791,16 +1927,16 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
         // Otherwise the var's status is left alone (perhaps the ghost cells were already processed by another task a while ago)
         bool gatherGhostCells = false;
         if (curDependency->m_gtype != Ghost::None && curDependency->m_num_ghost_cells > 0) {
-          
-          if(uses_SHRT_MAX) { 
+
+          if(uses_SHRT_MAX) {
             //Turn this into a superpatch if not already done so:
             turnIntoASuperPatch(gpudw, level, low, high, curDependency->m_var, patch, matlID, levelID);
-  
-            //At the moment superpatches are gathered together through an upcoming getRegionModifiable() call.  So we 
+
+            //At the moment superpatches are gathered together through an upcoming getRegionModifiable() call.  So we
             //still need to mark it as AWAITING_GHOST_CELLS. It should trigger as one of the simpler scenarios
             //below where it knows it can gather the ghost cells host-side before sending it into GPU memory.
           }
-          
+
           //See if we get to be the lucky thread that processes all ghost cells for this simulation variable
           gatherGhostCells = gpudw->compareAndSwapAwaitingGhostDataOnGPU(curDependency->m_var->getName().c_str(), patchID, matlID, levelID);
         }
@@ -2123,7 +2259,7 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
             || type == TypeDescription::SFCXVariable
             || type == TypeDescription::SFCYVariable
             || type == TypeDescription::SFCZVariable) {
-          
+
           dtask->getDeviceVars().add(patch, matlID, levelID, false, host_size, memSize, elementDataSize, low, curDependency,
                                      curDependency->m_gtype, curDependency->m_num_ghost_cells, deviceIndex, nullptr,
                                      GpuUtilities::sameDeviceSameMpiRank);
@@ -2429,8 +2565,8 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
 
                   //Perform the copy!
 
-                  cudaStream_t* stream = dtask->getCudaStreamForThisTask(whichGPU);
-                  OnDemandDataWarehouse::uintahSetCudaDevice(whichGPU);
+                  gpuStream_t* stream = dtask->getGpuStreamForThisTask(whichGPU);
+                  OnDemandDataWarehouse::uintahSetGpuDevice(whichGPU);
                   if (it->second.m_varMemSize == 0) {
                     printf("ERROR: For variable %s patch %d material %d level %d staging %s attempting to copy zero bytes to the GPU.\n",
                         label_cstr, patchID, matlIndx, levelID, staging ? "true" : "false" );
@@ -2453,7 +2589,13 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
                   } else {
 //                      printf("%s task: %s, prepareDeviceVars - copying %s %d %d %d %d: %d\n",myRankThread().c_str(), dtask->getName().c_str(), it->first.m_label.c_str(),
 //                                                    it->first.m_patchID, it->first.m_matlIndx, it->first.m_levelIndx, it->first.m_dataWarehouse, numGhostCells);
+		    #ifdef HAVE_CUDA
                     CUDA_RT_SAFE_CALL(cudaMemcpyAsync(device_ptr, host_ptr, it->second.m_varMemSize, cudaMemcpyHostToDevice, *stream));
+		    #endif
+		    #ifdef HAVE_SYCL
+                    stream->memcpy(device_ptr, host_ptr, it->second.m_varMemSize);
+		    #endif
+
 
                     // Tell this task that we're managing the copies for this variable.
 
@@ -2491,7 +2633,7 @@ KokkosScheduler::copyDelayedDeviceVars( DetailedTask * dtask )
     GpuUtilities::LabelPatchMatlLevelDw lpmld = it->lpmld;
     DeviceGridVariableInfo devGridVarInfo = it->devGridVarInfo;
 
-    cudaStream_t* stream = dtask->getCudaStreamForThisTask(devGridVarInfo.m_whichGPU);
+    gpuStream_t* stream = dtask->getGpuStreamForThisTask(devGridVarInfo.m_whichGPU);
 
     void * device_ptr = it->device_ptr;
     void * host_ptr = it->host_ptr;
@@ -2501,7 +2643,12 @@ KokkosScheduler::copyDelayedDeviceVars( DetailedTask * dtask )
 //    printf("%s task: %s, delayed copying %s %d %d %d %d\n",myRankThread().c_str(), dtask->getName().c_str(), lpmld.m_label.c_str(),
 //          lpmld.m_patchID, lpmld.m_matlIndx, lpmld.m_levelIndx, lpmld.m_dataWarehouse);
 
+    #ifdef HAVE_CUDA
     CUDA_RT_SAFE_CALL(cudaMemcpyAsync(device_ptr, host_ptr, size, cudaMemcpyHostToDevice, *stream));
+    #endif
+    #ifdef HAVE_SYCL // Host to Device
+    stream->memcpy(device_ptr, host_ptr, size);
+    #endif
 
     // Tell this task that we're managing the copies for this variable.
     dtask->getVarsBeingCopiedByTask().getMap().insert(std::pair<GpuUtilities::LabelPatchMatlLevelDw, DeviceGridVariableInfo>(lpmld, devGridVarInfo));
@@ -3349,8 +3496,8 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
 
           const unsigned int deviceNum = GpuUtilities::getGpuIndexForPatch(patch);
           GPUDataWarehouse * gpudw = dw->getGPUDW(deviceNum);
-          OnDemandDataWarehouse::uintahSetCudaDevice(deviceNum);
-          cudaStream_t* stream = dtask->getCudaStreamForThisTask(deviceNum);
+          OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
+          gpuStream_t* stream = dtask->getGpuStreamForThisTask(deviceNum);
 
           if (gpudw != nullptr) {
 
@@ -3422,9 +3569,13 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
                         && device_size.y   == host_size.y()
                         && device_size.z   == host_size.z()) {
 
+#ifdef HAVE_CUDA
                       cudaError_t retVal;
                       CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
-
+#endif
+#ifdef HAVE_SYCL // device to host
+		      stream->memcpy(host_ptr, device_ptr, host_bytes);
+#endif
 
                       IntVector temp(0,0,0);
                       dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
@@ -3436,13 +3587,13 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
                                                             gtype, numGhostCells,  deviceNum,
                                                             gridVar, GpuUtilities::sameDeviceSameMpiRank);
 
-
+#ifdef HAVE_CUDA
                       if (retVal == cudaErrorLaunchFailure) {
                         SCI_THROW(InternalError("Detected CUDA kernel execution failure on Task: "+ dtask->getName(), __FILE__, __LINE__));
                       } else {
                         CUDA_RT_SAFE_CALL(retVal);
                       }
-
+#endif
                     }
                     delete gridVar;
                   }
@@ -3453,7 +3604,7 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
                   warn << "  ERROR: KokkosScheduler::initiateD2HForHugeGhostCells (" << dtask->getName() << ") variable: "
                        << comp->m_var->getName() << " not implemented " << std::endl;
                   SCI_THROW(InternalError( warn.str() , __FILE__, __LINE__));
-                  
+
               }
             }
           }
@@ -3634,15 +3785,15 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
     }
 
     GPUDataWarehouse * gpudw = dw->getGPUDW(deviceNum);
-    OnDemandDataWarehouse::uintahSetCudaDevice(deviceNum);
-    cudaStream_t* stream = dtask->getCudaStreamForThisTask(deviceNum);
+    OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
+    gpuStream_t* stream = dtask->getGpuStreamForThisTask(deviceNum);
 
     const std::string varName = dependantVar->m_var->getName();
 
     // TODO: Titan production hack.  A clean hack, but should be fixed. Brad P Dec 1 2016
-    // There currently exists a race condition.  Suppose cellType is in both host and GPU 
+    // There currently exists a race condition.  Suppose cellType is in both host and GPU
     // memory.  Currently the GPU data warehouse knows it is in GPU memory, but it doesn't
-    // know if it's in host memory (the GPU DW doesn't track lifetimes of host DW vars).  
+    // know if it's in host memory (the GPU DW doesn't track lifetimes of host DW vars).
     // Thread 2 - Task A requests a requires var for cellType for the host newDW, and gets it.
     // Thread 3 - Task B invokes the initiateD2H check, thinks there is no host instance of cellType,
     //            so it initiates a D2H, which performs another host allocateAndPut, and the subsequent put
@@ -4009,8 +4160,6 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                 host_ptr = gridVar->getBasePointer();
                 host_bytes = gridVar->getDataSize();
 
-                cudaError_t retVal;
-
                 if (host_bytes == 0) {
                   printf("ERROR:\nKokkosScheduler::initiateD2H() - Transfer bytes is listed as zero.\n");
                   SCI_THROW( InternalError("KokkosScheduler::initiateD2H() - Transfer bytes is listed as zero.", __FILE__, __LINE__));
@@ -4020,7 +4169,13 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                   SCI_THROW( InternalError("KokkosScheduler::initiateD2H() - Invalid host pointer, it was nullptr.", __FILE__, __LINE__));
                 }
 
+#ifdef HAVE_CUDA
+                cudaError_t retVal;
                 CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
+#endif
+#ifdef HAVE_SYCL
+                stream->memcpy(host_ptr, device_ptr, host_bytes);
+#endif
 
                 IntVector temp(0,0,0);
                 dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
@@ -4032,12 +4187,13 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                                                       gtype, numGhostCells,  deviceNum,
                                                       gridVar, GpuUtilities::sameDeviceSameMpiRank);
 
-
+#ifdef HAVE_CUDA
                 if (retVal == cudaErrorLaunchFailure) {
                   SCI_THROW(InternalError("Detected CUDA kernel execution failure on Task: "+ dtask->getName(), __FILE__, __LINE__));
                 } else {
                   CUDA_RT_SAFE_CALL(retVal);
                 }
+#endif
               }
               //delete gridVar;
             }
@@ -4067,7 +4223,12 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
 
               // TODO: Verify no memory leaks
               if (host_bytes == device_bytes) {
+		#ifdef HAVE_CUDA
                 CUDA_RT_SAFE_CALL(cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
+		#endif
+		#ifdef HAVE_SYCL
+                stream->memcpy(host_ptr, device_ptr, host_bytes);
+		#endif
                 dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
                                                       host_bytes, host_bytes,
                                                       dependantVar,
@@ -4105,7 +4266,12 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
               delete gpuReductionVar;
 
               if (host_bytes == device_bytes) {
+		#ifdef HAVE_CUDA
                 CUDA_RT_SAFE_CALL(cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
+		#endif
+		#ifdef HAVE_SYCL
+                stream->memcpy(host_ptr, device_ptr, host_bytes);
+		#endif
                 dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
                                                       host_bytes, host_bytes,
                                                       dependantVar,
@@ -4199,13 +4365,13 @@ KokkosScheduler::assignDevicesAndStreams( DetailedTask * dtask )
     int index = GpuUtilities::getGpuIndexForPatch(patch);
     if (index >= 0) {
       for (int i = 0; i < dtask->getTask()->maxStreamsPerTask(); i++) {
-        if (dtask->getCudaStreamForThisTask(i) == nullptr) {
-          dtask->assignDevice(0); 
-          cudaStream_t* stream = GPUMemoryPool::getCudaStreamFromPool(i);
-          dtask->setCudaStreamForThisTask(i, stream);
+        if (dtask->getGpuStreamForThisTask(i) == nullptr) {
+          dtask->assignDevice(0);
+          gpuStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(i);
+          dtask->setGpuStreamForThisTask(i, stream);
         }
       }
-    
+
     } else {
       cerrLock.lock();
       {
@@ -4233,10 +4399,10 @@ KokkosScheduler::assignDevicesAndStreams( DetailedTask * dtask )
       int index = GpuUtilities::getGpuIndexForPatch(patch);
       if (index >= 0) {
         // See if this task doesn't yet have a stream for this GPU device.
-        if (dtask->getCudaStreamForThisTask(index) == nullptr) {
+        if (dtask->getGpuStreamForThisTask(index) == nullptr) {
           dtask->assignDevice(index);
-          cudaStream_t* stream = GPUMemoryPool::getCudaStreamFromPool(index);
-          dtask->setCudaStreamForThisTask(index, stream);
+          gpuStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(index);
+          dtask->setGpuStreamForThisTask(index, stream);
         }
       } else {
         cerrLock.lock();
@@ -4258,9 +4424,9 @@ KokkosScheduler::assignDevicesAndStreamsFromGhostVars( DetailedTask * dtask )
   std::set<unsigned int> & destinationDevices = dtask->getGhostVars().getDestinationDevices();
   for (std::set<unsigned int>::iterator iter = destinationDevices.begin(); iter != destinationDevices.end(); ++iter) {
     // see if this task was already assigned a stream.
-    if (dtask->getCudaStreamForThisTask(*iter) == nullptr) {
+    if (dtask->getGpuStreamForThisTask(*iter) == nullptr) {
       dtask->assignDevice(*iter);
-      dtask->setCudaStreamForThisTask(*iter, GPUMemoryPool::getCudaStreamFromPool(*iter));
+      dtask->setGpuStreamForThisTask(*iter, GPUMemoryPool::getGpuStreamFromPool(*iter));
     }
   }
 }
@@ -4331,15 +4497,15 @@ KokkosScheduler::findIntAndExtGpuDependencies( DetailedTask * dtask
         // snyc now. I.e. turned on just before it happens rather than
         // turned on before the task graph execution.  As such, one
         // should also be checking:
-        
+
         // m_application->activeReductionVariable( "outputInterval" );
         // m_application->activeReductionVariable( "checkpointInterval" );
-        
+
         // However, if active the code below would be called regardless
         // if an output or checkpoint time step or not. Not sure that is
         // desired but not sure of the effect of not calling it and doing
         // an out of sync output or checkpoint.
-        
+
         if (req->m_to_tasks.front()->getTask()->getType() == Task::Output && !m_output->isOutputTimeStep() && !m_output->isCheckpointTimeStep()) {
           continue;
         }
@@ -4390,11 +4556,11 @@ KokkosScheduler::syncTaskGpuDWs( DetailedTask * dtask )
     const unsigned int currentDevice = *deviceNums_it;
     taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice,Task::OldDW);
     if (taskgpudw) {
-      taskgpudw->syncto_device(dtask->getCudaStreamForThisTask(currentDevice));
+      taskgpudw->syncto_device(dtask->getGpuStreamForThisTask(currentDevice));
     }
     taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice,Task::NewDW);
     if (taskgpudw) {
-      taskgpudw->syncto_device(dtask->getCudaStreamForThisTask(currentDevice));
+      taskgpudw->syncto_device(dtask->getGpuStreamForThisTask(currentDevice));
     }
   }
 }
@@ -4413,11 +4579,11 @@ KokkosScheduler::performInternalGhostCellCopies( DetailedTask * dtask )
     const unsigned int currentDevice = *deviceNums_it;
     if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW) != nullptr
         && dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)->ghostCellCopiesNeeded()) {
-      dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)->copyGpuGhostCellsToGpuVarsInvoker(dtask->getCudaStreamForThisTask(currentDevice));
+      dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)->copyGpuGhostCellsToGpuVarsInvoker(dtask->getGpuStreamForThisTask(currentDevice));
     }
     if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW) != nullptr
         && dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)->ghostCellCopiesNeeded()) {
-      dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)->copyGpuGhostCellsToGpuVarsInvoker(dtask->getCudaStreamForThisTask(currentDevice));
+      dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)->copyGpuGhostCellsToGpuVarsInvoker(dtask->getGpuStreamForThisTask(currentDevice));
     }
   }
 }
@@ -4483,10 +4649,16 @@ KokkosScheduler::copyAllGpuToGpuDependences( DetailedTask * dtask )
       // destination stream can then process.
       //   Note: If we move to UVA, then we could just do a straight memcpy
 
-      cudaStream_t* stream = dtask->getCudaStreamForThisTask(it->second.m_destDeviceNum);
-      OnDemandDataWarehouse::uintahSetCudaDevice(it->second.m_destDeviceNum);
+      gpuStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_destDeviceNum);
+      OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_destDeviceNum);
 
+      #ifdef HAVE_CUDA
       CUDA_RT_SAFE_CALL(cudaMemcpyPeerAsync(device_dest_ptr, it->second.m_destDeviceNum, device_source_ptr, it->second.m_sourceDeviceNum, memSize, *stream));
+      #endif
+      #ifdef HAVE_SYCL
+      SCI_THROW(InternalError("Error - SYCL peer-peer(async/sync) device calls are not yet supported.  Cannot copy peer D2D", __FILE__, __LINE__));
+      #endif
+
     }
   }
 }
@@ -4563,10 +4735,15 @@ KokkosScheduler::copyAllExtGpuDependenciesToHost( DetailedTask * dtask )
             && device_size.z == host_size.z()) {
 
           // Since we know we need a stream, obtain one.
-          cudaStream_t* stream = dtask->getCudaStreamForThisTask(it->second.m_sourceDeviceNum);
-          OnDemandDataWarehouse::uintahSetCudaDevice(it->second.m_sourceDeviceNum);
+          gpuStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_sourceDeviceNum);
+          OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_sourceDeviceNum);
 
+	  #ifdef HAVE_CUDA
           CUDA_RT_SAFE_CALL(cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
+	  #endif
+	  #ifdef HAVE_SYCL
+	  stream->memcpy(host_ptr, device_ptr, host_bytes);
+	  #endif
           copiesExist = true;
         } else {
           std::cerr << "unifiedSCheduler::GpuDependenciesToHost() - Error - The host and device variable sizes did not match.  Cannot copy D2H." << std::endl;
@@ -4585,7 +4762,7 @@ KokkosScheduler::copyAllExtGpuDependenciesToHost( DetailedTask * dtask )
     // Wait until all streams are done
     // Further optimization could be to check each stream one by one and make copies before waiting for other streams to complete.
     // TODO: There's got to be a better way to do this.
-    while (!dtask->checkAllCudaStreamsDoneForThisTask()) {
+    while (!dtask->checkAllGpuStreamsDoneForThisTask()) {
       // TODO - Let's figure this out soon, APH 06/09/16
       //sleep?
       //printf("Sleeping\n");

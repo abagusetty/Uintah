@@ -27,13 +27,14 @@
 
 #include <CCA/Components/Schedulers/MPIScheduler.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
   #include <CCA/Components/Schedulers/GPUMemoryPool.h>
 #endif
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #include <map>
 #include <string>
@@ -220,11 +221,11 @@ class KokkosScheduler : public MPIScheduler  {
 
     bool allGPUVarsProcessingReady( DetailedTask * dtask );
 
-    void reclaimCudaStreamsIntoPool( DetailedTask * dtask );
+    void reclaimGpuStreamsIntoPool( DetailedTask * dtask );
 
     void freeCudaStreamsFromPool();
 
-    cudaStream_t* getCudaStreamFromPool( int device );
+    gpuStream_t* getGpuStreamFromPool( int device );
 
     cudaError_t freeDeviceRequiresMem();
 
@@ -308,6 +309,10 @@ class KokkosScheduler : public MPIScheduler  {
         Task::DepType m_depType;
     };
 
+#endif
+
+#ifdef HAVE_SYCL
+    std::vector<sycl::context *>             m_sycl_context;
 #endif
 };
 

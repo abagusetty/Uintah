@@ -818,7 +818,7 @@ GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var, char const* label, in
   //Now allocate it
   if (allocationNeeded) {
 
-    OnDemandDataWarehouse::uintahSetCudaDevice(d_device_id);
+    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
 
     unsigned int memSize = var.getMemSize();
 
@@ -826,7 +826,7 @@ GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var, char const* label, in
       cerrLock.lock();
       {
         gpu_stats << UnifiedScheduler::myRankThread()
-           << " GPUDataWarehouse::allocateAndPut(), calling GPUMemoryPool::allocateCudaSpaceFromPool"
+           << " GPUDataWarehouse::allocateAndPut(), calling GPUMemoryPool::allocateGpuSpaceFromPool"
            << " for " << label
            << " patch " << patchID
            << " material " <<  matlIndx
@@ -847,7 +847,7 @@ GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var, char const* label, in
       cerrLock.unlock();
     }
 
-    addr = GPUMemoryPool::allocateCudaSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::allocateGpuSpaceFromPool(d_device_id, memSize);
 
     // Also update the var object itself
     var.setArray3(offset, size, addr);
@@ -1174,7 +1174,7 @@ GPUDataWarehouse::allocate(const char* indexID, size_t size)
   //chunk of memory, only one malloc and one copy to device should be needed.
   double *d_ptr = nullptr;
   double *h_ptr = nullptr;
-  OnDemandDataWarehouse::uintahSetCudaDevice(d_device_id);
+  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
 
   printf("Allocated GPU buffer of size %lu \n", (unsigned long)size);
 
@@ -1453,14 +1453,14 @@ GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase& var, char const* labe
      var.setData(addr);
   } else {
     //We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetCudaDevice(d_device_id);
+    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     size_t memSize = var.getMemSize();
 
     if (gpu_stats.active()) {
       cerrLock.lock();
       {
         gpu_stats << UnifiedScheduler::myRankThread()
-            << " GPUDataWarehouse::allocateAndPut(), calling GPUMemoryPool::allocateCudaSpaceFromPool"
+            << " GPUDataWarehouse::allocateAndPut(), calling GPUMemoryPool::allocateGpuSpaceFromPool"
             << " for reduction variable " << label
             << " patch " << patchID
             << " material " <<  matlIndx
@@ -1474,7 +1474,7 @@ GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase& var, char const* labe
       cerrLock.unlock();
     }
 
-    addr = GPUMemoryPool::allocateCudaSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::allocateGpuSpaceFromPool(d_device_id, memSize);
 
     //Also update the var object itself
     var.setData(addr);
@@ -1566,14 +1566,14 @@ GPUDataWarehouse::allocateAndPut(GPUPerPatchBase& var, char const* label, int pa
      var.setData(addr);
   } else {
     //We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetCudaDevice(d_device_id);
+    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     size_t memSize = var.getMemSize();
 
     if (gpu_stats.active()) {
       cerrLock.lock();
       {
             gpu_stats << UnifiedScheduler::myRankThread()
-            << " GPUDataWarehouse::allocateAndPut(), calling GPUMemoryPool::allocateCudaSpaceFromPool"
+            << " GPUDataWarehouse::allocateAndPut(), calling GPUMemoryPool::allocateGpuSpaceFromPool"
             << " for PerPatch variable " << label
             << " patch " << patchID
             << " material " <<  matlIndx
@@ -1587,7 +1587,7 @@ GPUDataWarehouse::allocateAndPut(GPUPerPatchBase& var, char const* label, int pa
       cerrLock.unlock();
     }
 
-    addr = GPUMemoryPool::allocateCudaSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::allocateGpuSpaceFromPool(d_device_id, memSize);
 
     //Also update the var object itself
     var.setData(addr);
@@ -1761,16 +1761,16 @@ GPUDataWarehouse::init_device(size_t objectSizeInBytes, unsigned int d_maxdVarDB
 {
   this->objectSizeInBytes = objectSizeInBytes;
   this->d_maxdVarDBItems = d_maxdVarDBItems;
-  OnDemandDataWarehouse::uintahSetCudaDevice( d_device_id );
+  OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
   void* temp = nullptr;
   //CUDA_RT_SAFE_CALL(cudaMalloc(&temp, objectSizeInBytes));
-  temp = GPUMemoryPool::allocateCudaSpaceFromPool(d_device_id, objectSizeInBytes);
+  temp = GPUMemoryPool::allocateGpuSpaceFromPool(d_device_id, objectSizeInBytes);
   if (gpu_stats.active()) {
     cerrLock.lock();
     {
      gpu_stats << UnifiedScheduler::myRankThread()
          << " GPUDataWarehouse::init_device() -"
-         << " requested GPU space from GPUMemoryPool::allocateCudaSpaceFromPool for Task DW of size " << objectSizeInBytes
+         << " requested GPU space from GPUMemoryPool::allocateGpuSpaceFromPool for Task DW of size " << objectSizeInBytes
          << " bytes at " << temp
          << " on device " << d_device_id
          << " the host GPUDW is at " << this
@@ -1799,7 +1799,7 @@ GPUDataWarehouse::syncto_device(void *cuda_stream)
   varLock->lock();
 
   if (d_dirty){
-    OnDemandDataWarehouse::uintahSetCudaDevice( d_device_id );
+    OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
     //Even though this is in a writeLock state on the CPU, the nature of multiple threads
     //each with their own stream copying to a GPU means that one stream might seemingly go out
     //of order.  This is ok for two reasons. 1) Nothing should ever be *removed* from a gpu data warehouse
@@ -1839,7 +1839,7 @@ __host__ void
 GPUDataWarehouse::clear()
 {
 
-  OnDemandDataWarehouse::uintahSetCudaDevice( d_device_id );
+  OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
 
   varLock->lock();
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator varIter;
@@ -1919,7 +1919,7 @@ __host__ void
 GPUDataWarehouse::deleteSelfOnDevice()
 {
   if ( d_device_copy ) {
-    OnDemandDataWarehouse::uintahSetCudaDevice( d_device_id );
+    OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
     if (gpu_stats.active()) {
       cerrLock.lock();
       {
@@ -2180,7 +2180,7 @@ GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker(cudaStream_t* stream)
   //see if this GPU datawarehouse has ghost cells in it.
   if (numGhostCellCopiesNeeded > 0) {
     //call a kernel which gets the copy process started.
-    OnDemandDataWarehouse::uintahSetCudaDevice(d_device_id);
+    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
 
 #if 0               // compiler warnings
     const int BLOCKSIZE = 1;

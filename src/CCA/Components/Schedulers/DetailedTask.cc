@@ -151,7 +151,7 @@ DetailedTask::doit( const ProcessorGroup                      * pg
   // GPU tasks need streams.  CPU tasks can also use streams (for D2H copies or transferFrom calls)
   int numStreams = m_task->maxStreamsPerTask();
   for (int i = 0; i < numStreams; i++) {
-    uintahParams.setStream(this->getCudaStreamForThisTask(i));
+    uintahParams.setStream(this->getGpuStreamForThisTask(i));
   }
 #endif
 
@@ -164,7 +164,7 @@ DetailedTask::doit( const ProcessorGroup                      * pg
     //for (std::set<unsigned int>::const_iterator deviceNums_it = deviceNums_.begin(); deviceNums_it != deviceNums_.end(); ++deviceNums_it) {
     //  const unsigned int currentDevice = *deviceNums_it;
       int currentDevice = 0;
-      OnDemandDataWarehouse::uintahSetCudaDevice(currentDevice);
+      OnDemandDataWarehouse::uintahSetGpuDevice(currentDevice);
       GPUDataWarehouse* host_oldtaskdw = getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
       GPUDataWarehouse* device_oldtaskdw = nullptr;
       if (host_oldtaskdw) {
@@ -725,11 +725,11 @@ DetailedTask::getDeviceNums() const
 //_____________________________________________________________________________
 //
 cudaStream_t*
-DetailedTask::getCudaStreamForThisTask( unsigned int device_id ) const
+DetailedTask::getGpuStreamForThisTask( unsigned int device_id ) const
 {
   std::map <unsigned int, cudaStream_t*>::const_iterator it;
-  it = d_cudaStreams.find(device_id);
-  if (it != d_cudaStreams.end()) {
+  it = d_gpuStreams.find(device_id);
+  if (it != d_gpuStreams.end()) {
     return it->second;
   }
   return nullptr;
@@ -738,18 +738,18 @@ DetailedTask::getCudaStreamForThisTask( unsigned int device_id ) const
 //_____________________________________________________________________________
 //
 void
-DetailedTask::setCudaStreamForThisTask( unsigned int   device_id
+DetailedTask::setGpuStreamForThisTask( unsigned int   device_id
                                       , cudaStream_t * stream
                                       )
 {
   if (stream == nullptr) {
-    printf("ERROR! - DetailedTask::setCudaStreamForThisTask() - A request was made to assign a stream at address nullptr into this task %s\n", getName().c_str());
+    printf("ERROR! - DetailedTask::setGpuStreamForThisTask() - A request was made to assign a stream at address nullptr into this task %s\n", getName().c_str());
     SCI_THROW(InternalError("A request was made to assign a stream at address nullptr into this task :"+ getName() , __FILE__, __LINE__));
   } else {
-    if (d_cudaStreams.find(device_id) == d_cudaStreams.end()) {
-      d_cudaStreams.insert(std::pair<unsigned int, cudaStream_t*>(device_id, stream));
+    if (d_gpuStreams.find(device_id) == d_gpuStreams.end()) {
+      d_gpuStreams.insert(std::pair<unsigned int, cudaStream_t*>(device_id, stream));
     } else {
-      printf("ERROR! - DetailedTask::setCudaStreamForThisTask() - This task %s already had a stream assigned for device %d\n", getName().c_str(), device_id);
+      printf("ERROR! - DetailedTask::setGpuStreamForThisTask() - This task %s already had a stream assigned for device %d\n", getName().c_str(), device_id);
       SCI_THROW(InternalError("Detected CUDA kernel execution failure on task: "+ getName() , __FILE__, __LINE__));
 
     }
@@ -759,31 +759,31 @@ DetailedTask::setCudaStreamForThisTask( unsigned int   device_id
 //_____________________________________________________________________________
 //
 void
-DetailedTask::clearCudaStreamsForThisTask() {
-  d_cudaStreams.clear();
+DetailedTask::clearGpuStreamsForThisTask() {
+  d_gpuStreams.clear();
 }
 
 //_____________________________________________________________________________
 //
 bool
-DetailedTask::checkCudaStreamDoneForThisTask( unsigned int device_id ) const
+DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
 {
 
   // sets the CUDA context, for the call to cudaEventQuery()
   cudaError_t retVal;
   //if (device_id != 0) {
-  //  printf("Error, DetailedTask::checkCudaStreamDoneForThisTask is %u\n", device_id);
+  //  printf("Error, DetailedTask::checkGpuStreamDoneForThisTask is %u\n", device_id);
   //  exit(-1);
   //}
-  OnDemandDataWarehouse::uintahSetCudaDevice(device_id);
-  std::map<unsigned int, cudaStream_t*>::const_iterator it= d_cudaStreams.find(device_id);
-  if (it == d_cudaStreams.end()) {
-    printf("ERROR! - DetailedTask::checkCudaStreamDoneForThisTask() - Request for stream information for device %d, but this task wasn't assigned any streams for this device.  For task %s\n", device_id,  getName().c_str());
+  OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
+  std::map<unsigned int, cudaStream_t*>::const_iterator it= d_gpuStreams.find(device_id);
+  if (it == d_gpuStreams.end()) {
+    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask() - Request for stream information for device %d, but this task wasn't assigned any streams for this device.  For task %s\n", device_id,  getName().c_str());
     SCI_THROW(InternalError("Request for stream information for a device, but it wasn't assigned any streams for that device.  For task: " + getName() , __FILE__, __LINE__));
     return false;
   }
   if (it->second == nullptr) {
-    printf("ERROR! - DetailedTask::checkCudaStreamDoneForThisTask() - Stream pointer with nullptr address for task %s\n", getName().c_str());
+    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask() - Stream pointer with nullptr address for task %s\n", getName().c_str());
     SCI_THROW(InternalError("Stream pointer with nullptr address for task: " + getName() , __FILE__, __LINE__));
     return false;
   }
@@ -796,7 +796,7 @@ DetailedTask::checkCudaStreamDoneForThisTask( unsigned int device_id ) const
     return false;
   }
   else if (retVal ==  cudaErrorLaunchFailure) {
-    printf("ERROR! - DetailedTask::checkCudaStreamDoneForThisTask(%d) - CUDA kernel execution failure on Task: %s\n", device_id, getName().c_str());
+    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask(%d) - CUDA kernel execution failure on Task: %s\n", device_id, getName().c_str());
     SCI_THROW(InternalError("Detected CUDA kernel execution failure on Task: " + getName() , __FILE__, __LINE__));
     return false;
   } else { //other error
@@ -818,7 +818,7 @@ DetailedTask::checkCudaStreamDoneForThisTask( unsigned int device_id ) const
 //_____________________________________________________________________________
 //
 bool
-DetailedTask::checkAllCudaStreamsDoneForThisTask() const
+DetailedTask::checkAllGpuStreamsDoneForThisTask() const
 {
   //A task can have multiple streams (such as an output task pulling from multiple GPUs).
   //Check all streams to see if they are done.  If any one stream isn't done, return false.  If
@@ -826,8 +826,8 @@ DetailedTask::checkAllCudaStreamsDoneForThisTask() const
 
   bool retVal = false;
 
-  for (std::map<unsigned int ,cudaStream_t*>::const_iterator it=d_cudaStreams.begin(); it!=d_cudaStreams.end(); ++it){
-    retVal = checkCudaStreamDoneForThisTask(it->first);
+  for (std::map<unsigned int ,cudaStream_t*>::const_iterator it=d_gpuStreams.begin(); it!=d_gpuStreams.end(); ++it){
+    retVal = checkGpuStreamDoneForThisTask(it->first);
     if (retVal == false) {
       return retVal;
     }
@@ -918,12 +918,12 @@ DetailedTask::addTempHostMemoryToBeFreedOnCompletion( void * ptr )
 //_____________________________________________________________________________
 //
 void
-DetailedTask::addTempCudaMemoryToBeFreedOnCompletion( unsigned int   device_id
+DetailedTask::addTempGpuMemoryToBeFreedOnCompletion( unsigned int   device_id
                                                     , void         * ptr
                                                     )
 {
   gpuMemoryPoolDevicePtrItem gpuItem(device_id, ptr);
-  taskCudaMemoryPoolItems.push_back(gpuItem);
+  taskGpuMemoryPoolItems.push_back(gpuItem);
 }
 
 //_____________________________________________________________________________
@@ -940,10 +940,10 @@ DetailedTask::deleteTemporaryTaskVars()
   }
 
   // and the device
-  for (auto p : taskCudaMemoryPoolItems) {
+  for (auto p : taskGpuMemoryPoolItems) {
     GPUMemoryPool::freeCudaSpaceFromPool(p.device_id, p.ptr);
   }
-  taskCudaMemoryPoolItems.clear();
+  taskGpuMemoryPoolItems.clear();
 }
 
 #endif // HAVE_CUDA

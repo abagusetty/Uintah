@@ -1215,7 +1215,7 @@ DetailedTasks::getDeviceValidateRequiresAndModifiesCopiesTask(DetailedTask *& dt
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_validateRequiresAndModifiesCopies_pool_iter = device_validateRequiresAndModifiesCopies_pool.find_any(ready_request);
 
   if (device_validateRequiresAndModifiesCopies_pool_iter) {
@@ -1238,7 +1238,7 @@ DetailedTasks::getDevicePerformGhostCopiesTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_performGhostCopies_pool_iter = device_performGhostCopies_pool.find_any(ready_request);
 
   if (device_performGhostCopies_pool_iter) {
@@ -1261,7 +1261,7 @@ DetailedTasks::getDeviceValidateGhostCopiesTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_validateGhostCopies_pool_iter = device_validateGhostCopies_pool.find_any(ready_request);
 
   if (device_validateGhostCopies_pool_iter) {
@@ -1285,7 +1285,7 @@ DetailedTasks::getDeviceCheckIfExecutableTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_checkIfExecutable_pool_iter = device_checkIfExecutable_pool.find_any(ready_request);
   if (device_checkIfExecutable_pool_iter) {
     dtask = *device_checkIfExecutable_pool_iter;
@@ -1307,7 +1307,7 @@ DetailedTasks::getDeviceReadyToExecuteTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_readyToExecute_pool_iter = device_readyToExecute_pool.find_any(ready_request);
   if (device_readyToExecute_pool_iter) {
     dtask = *device_readyToExecute_pool_iter;
@@ -1344,7 +1344,7 @@ DetailedTasks::getDeviceExecutionPendingTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_executionPending_pool_iter = device_executionPending_pool.find_any(ready_request);
   if (device_executionPending_pool_iter) {
     dtask = *device_executionPending_pool_iter;
@@ -1366,7 +1366,7 @@ DetailedTasks::getHostValidateRequiresAndModifiesCopiesTask(DetailedTask *& dtas
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator host_validateRequiresAndModifiesCopies_pool_iter = host_validateRequiresAndModifiesCopies_pool.find_any(ready_request);
 
   if (host_validateRequiresAndModifiesCopies_pool_iter) {
@@ -1389,7 +1389,7 @@ DetailedTasks::getHostCheckIfExecutableTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator host_checkIfExecutable_pool_iter = host_checkIfExecutable_pool.find_any(ready_request);
   if (host_checkIfExecutable_pool_iter) {
     dtask = *host_checkIfExecutable_pool_iter;
@@ -1411,7 +1411,7 @@ DetailedTasks::getHostReadyToExecuteTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator host_readyToExecute_pool_iter = host_readyToExecute_pool.find_any(ready_request);
   if (host_readyToExecute_pool_iter) {
     dtask = *host_readyToExecute_pool_iter;

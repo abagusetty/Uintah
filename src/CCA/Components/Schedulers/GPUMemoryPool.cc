@@ -58,7 +58,7 @@ namespace Uintah {
 //______________________________________________________________________
 //
 void*
-GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize) {
+GPUMemoryPool::allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize) {
 
   //Right now the memory pool assumes that each time step is going to be using variables of the same size as the previous time step
   //So for that reason there should be 100% recycling after the 2nd timestep or so.
@@ -67,7 +67,6 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
   void * addr = nullptr;
   {
     pool_monitor pool_write_lock{ Uintah::CrowdMonitor<pool_tag>::WRITER };
-    cudaError_t err;
 
     gpuMemoryPoolDeviceSizeItem item(device_id, memSize);
 
@@ -80,7 +79,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
       cerrLock.lock();
       {
         gpu_stats << UnifiedScheduler::UnifiedScheduler::myRankThread()
-            << " GPUMemoryPool::allocateCudaSpaceFromPool() -"
+            << " GPUMemoryPool::allocateGpuSpaceFromPool() -"
             << " reusing space starting at " << addr
             << " on device " << device_id
             << " with size " << memSize
@@ -97,20 +96,30 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
     } else {
       //There wasn't one
       //Set the device
-      OnDemandDataWarehouse::uintahSetCudaDevice(device_id);
+      OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
 
       //Allocate the memory.
+#ifdef HAVE_CUDA
+      cudaError_t err;
       err = cudaMalloc(&addr, memSize);
       if (err == cudaErrorMemoryAllocation) {
         printf("The GPU memory pool is full.  Need to clear!\n");
         exit(-1);
       }
+#endif
+#ifdef HAVE_SYCL
+      addr = sycl::malloc_device(memSize);
+      if (addr == nullptr) {
+        printf("The SYCL GPU memory pool allocation failed!\n");
+        exit(-1);
+      }
+#endif
 
       if (gpu_stats.active()) {
         cerrLock.lock();
         {
           gpu_stats << UnifiedScheduler::UnifiedScheduler::myRankThread()
-              << " GPUMemoryPool::allocateCudaSpaceFromPool() -"
+              << " GPUMemoryPool::allocateGpuSpaceFromPool() -"
               << " allocated GPU space starting at " << addr
               << " on device " << device_id
               << " with size " << memSize
@@ -214,7 +223,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
 
      for (std::map<unsigned int, std::queue<cudaStream_t*> >::const_iterator it = s_idle_streams->begin(); it != s_idle_streams->end(); ++it) {
        unsigned int device = it->first;
-       OnDemandDataWarehouse::uintahSetCudaDevice(device);
+       OnDemandDataWarehouse::uintahSetGpuDevice(device);
 
        while (!s_idle_streams->operator[](device).empty()) {
          cudaStream_t* stream = s_idle_streams->operator[](device).front();
@@ -248,7 +257,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
  //______________________________________________________________________
  //
  cudaStream_t *
- GPUMemoryPool::getCudaStreamFromPool( int device )
+ GPUMemoryPool::getGpuStreamFromPool( int device )
  {
    cudaError_t retVal;
    cudaStream_t* stream;
@@ -269,7 +278,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
          cerrLock.unlock();
        }
      } else {  // shouldn't need any more than the queue capacity, but in case
-       OnDemandDataWarehouse::uintahSetCudaDevice(device);
+       OnDemandDataWarehouse::uintahSetGpuDevice(device);
 
        // this will get put into idle stream queue and ultimately deallocated after final timestep
        stream = ((cudaStream_t*) malloc(sizeof(cudaStream_t)));
@@ -300,7 +309,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
  //For this reason we let each task own a stream, as we want one task to be able to run
  //if it is able to do so even if another task is not yet ready.
  void
- GPUMemoryPool::reclaimCudaStreamsIntoPool( DetailedTask * dtask )
+ GPUMemoryPool::reclaimGpuStreamsIntoPool( DetailedTask * dtask )
  {
 
 
@@ -321,7 +330,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
    std::set<unsigned int> deviceNums = dtask->getDeviceNums();
    for (std::set<unsigned int>::iterator iter = deviceNums.begin(); iter != deviceNums.end(); ++iter) {
 
-     cudaStream_t* stream = dtask->getCudaStreamForThisTask(*iter);
+     cudaStream_t* stream = dtask->getGpuStreamForThisTask(*iter);
      if (stream != nullptr) {
 
         idle_streams_mutex.lock();
@@ -343,7 +352,7 @@ GPUMemoryPool::allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize)
       }
       // It seems that task objects persist between timesteps.  So make sure we remove
       // all knowledge of any formerly used streams.
-      dtask->clearCudaStreamsForThisTask();
+      dtask->clearGpuStreamsForThisTask();
     }
   }
 }

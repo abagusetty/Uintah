@@ -22,23 +22,15 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef SCI_CUDA_DEFS_H
-#define SCI_CUDA_DEFS_H
+#ifndef SCI_SYCL_DEFS_H
+#define SCI_SYCL_DEFS_H
 
-@DEF_CUDA@
-#define SCI_CUDA_ASSERTION_LEVEL @ASSERTION_LEVEL@
+@DEF_SYCL@
+#define SCI_SYCL_ASSERTION_LEVEL @ASSERTION_LEVEL@
 
-#ifdef HAVE_CUDA
+#ifdef HAVE_SYCL
 
-#  include <cuda.h>
-#  include <cuda_runtime.h>
-#  include <cuda_runtime_api.h>
-
-#  ifdef __CUDACC__
-#    define HOST_DEVICE __host__ __device__
-#  else
-#    define HOST_DEVICE
-#  endif
+#  include <CL/sycl.hpp>
 
 #  ifdef __cplusplus
 extern "C" {
@@ -46,8 +38,8 @@ extern "C" {
 
 #  include <stdio.h>
 
-using gpuStream_t = cudaStream_t;
-
+  using gpuStream_t = sycl::queue;
+  
 // Allow easy indexing into deice-side 3D array
 #  define INDEX3D(dx,dy,i,j,k) ((i) + ((j)*dx) + ((k)*dx*dy))
 
@@ -77,10 +69,10 @@ using gpuStream_t = cudaStream_t;
         fprintf(stderr, "cuRand error %i in file '%s' on line %i.\n\n",        \
                 status, __FILE__, __LINE__ );                                  \
         exit(EXIT_FAILURE);                                                    \
-    } }
+    } } 
 
 // int3 bound checking
-#  if SCI_CUDA_ASSERTION_LEVEL >= 3
+#  if SCI_SYCL_ASSERTION_LEVEL >= 3
 #    define CHECK_INSIDE( idx, offset, size ) {                                                          \
        if (idx.x < offset.x || idx.y< offset.y || idx.z < offset.z ||                                    \
            idx.x > offset.x + size.x || idx.y > offset.y + size.y || idx.z > offset.z + size.z)          \
@@ -88,11 +80,11 @@ using gpuStream_t = cudaStream_t;
                       idx.x, idx.y, idx.z, offset.x, offset.y, offset.z,                                 \
                       offset.x+size.x, offset.y+size.y, offset.z+size.z);                                \
      }
-#  else
+#  else 
 #    define  CHECK_INSIDE( idx, offset, size )
 #  endif
 
-#  if SCI_CUDA_ASSERTION_LEVEL >= 3
+#  if SCI_SYCL_ASSERTION_LEVEL >= 3
 #    define CHECK_INSIDE3( x, y, z, offset, size ) {                                                      \
        if (x < offset.x || y< offset.y || z < offset.z ||                                                 \
            x > offset.x + size.x || y > offset.y + size.y || z > offset.z + size.z)                       \
@@ -100,24 +92,25 @@ using gpuStream_t = cudaStream_t;
                      x, y, z, offset.x, offset.y, offset.z,                                               \
                      offset.x+size.x, offset.y+size.y, offset.z+size.z);                                  \
      }
-#  else
+#  else 
 #    define  CHECK_INSIDE3( x, y, z, offset, size )
 #  endif
 
-#  if SCI_CUDA_ASSERTION_LEVEL >= 3
+#  if SCI_SYCL_ASSERTION_LEVEL >= 3
 #    define CHECK_RANGE( idx, low, high ) {                                                    \
         if (idx < low || idx > high )                                                            \
               printf ("GPU INDEX_OUT_OF_RANGE ERROR: index (%d) not in range [%d, %d] \n",       \
                       idx, low, high);                                                           \
      }
-#  else
+#  else 
 #    define CHECK_RANGE( idx, low, high )
 #  endif
 
 #  ifdef __cplusplus
 }
-#  endif
+#  endif       
 
-#endif // HAVE_CUDA
+#endif // HAVE_SYCL
 
-#endif // SCI_CUDA_DEFS_H
+#endif // SCI_SYCL_DEFS_H
+

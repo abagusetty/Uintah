@@ -27,6 +27,7 @@
 #define CCA_COMPONENTS_SCHEDULERS_GPUMEMORYPOOL_H
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <CCA/Components/Schedulers/DetailedTasks.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h> //For myRankThread()
 #include <map>
@@ -94,15 +95,15 @@ public:
     }
   };
 
-  static void* allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize);
+  static void* allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize);
 
   static bool freeCudaSpaceFromPool(unsigned int device_id, void* addr);
 
-  static void reclaimCudaStreamsIntoPool( DetailedTask * dtask );
+  static void reclaimGpuStreamsIntoPool( DetailedTask * dtask );
 
   static void freeCudaStreamsFromPool();
 
-  static cudaStream_t* getCudaStreamFromPool( int device );
+  static gpuStream_t* getGpuStreamFromPool( int device );
 
 private:
 
@@ -120,7 +121,7 @@ private:
   //to easily determine when a computed variable is "valid" because when that task's stream
   //completes, then we can infer the variable is ready to go.  More about how a task claims a
   //stream can be found in DetailedTasks.cc
-  static std::map <unsigned int, std::queue<cudaStream_t*> > * s_idle_streams;
+  static std::map <unsigned int, std::queue<gpuStream_t*> > * s_idle_streams;
 
 };
 

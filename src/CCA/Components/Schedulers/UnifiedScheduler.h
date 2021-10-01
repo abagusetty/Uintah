@@ -27,13 +27,14 @@
 
 #include <CCA/Components/Schedulers/MPIScheduler.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
   #include <CCA/Components/Schedulers/GPUMemoryPool.h>
 #endif
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sci_defs.h>
 
 #include <map>
 #include <string>
@@ -233,11 +234,11 @@ class UnifiedScheduler : public MPIScheduler  {
 
     bool allGPUVarsProcessingReady( DetailedTask * dtask );
 
-    void reclaimCudaStreamsIntoPool( DetailedTask * dtask );
+    void reclaimGpuStreamsIntoPool( DetailedTask * dtask );
 
     void freeCudaStreamsFromPool();
 
-    cudaStream_t* getCudaStreamFromPool( int device );
+    cudaStream_t* getGpuStreamFromPool( int device );
 
     cudaError_t freeDeviceRequiresMem();
 
