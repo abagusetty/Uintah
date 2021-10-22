@@ -31,6 +31,7 @@
 #ifdef HAVE_SYCL
 
 #  include <CL/sycl.hpp>
+#  include <utility>
 
 #  ifdef __cplusplus
 extern "C" {
@@ -38,7 +39,7 @@ extern "C" {
 
 #  include <stdio.h>
 
-  using gpuStream_t = sycl::queue;
+   using gpuStream_t = std::pair<sycl::queue, sycl::event>;
   
 // Allow easy indexing into deice-side 3D array
 #  define INDEX3D(dx,dy,i,j,k) ((i) + ((j)*dx) + ((k)*dx*dy))

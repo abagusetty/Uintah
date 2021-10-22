@@ -28,7 +28,7 @@
 #include <CCA/Components/Schedulers/OnDemandDataWarehouse.h>
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUMemoryPool.h>
 #endif
 
@@ -42,6 +42,7 @@
 
 #include <sci_defs/config_defs.h>
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #include <sstream>
 #include <string>
@@ -62,7 +63,7 @@ namespace Uintah {
 namespace {
   Uintah::MasterLock g_internal_dependency_mutex{};
   Uintah::MasterLock g_dtask_output_mutex{};
-  
+
   Dout g_internal_deps_dbg( "InternalDeps", "DetailedTask", "info on internal (intra-nodal) data dependencies", false);
   Dout g_external_deps_dbg( "ExternalDeps", "DetailedTask", "info on external (inter-nodal) data dependencies", false);
 }
@@ -146,7 +147,7 @@ DetailedTask::doit( const ProcessorGroup                      * pg
   uintahParams.setProcessorGroup(pg);
   uintahParams.setCallBackEvent(event);
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   // Load in streams whether this is a CPU task or GPU task.
   // GPU tasks need streams.  CPU tasks can also use streams (for D2H copies or transferFrom calls)
   int numStreams = m_task->maxStreamsPerTask();
@@ -157,7 +158,7 @@ DetailedTask::doit( const ProcessorGroup                      * pg
 
   // Determine if task will be executed on CPU or GPU
   if ( m_task->usesDevice() ) {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     // Run the GPU task.  Technically the engine has structure to run one task on multiple devices if
     // that task had patches on multiple devices.  So run the task once per device.  As often as possible,
     // we want to design tasks so each task runs on only once device, instead of a one to many relationship.
@@ -182,7 +183,7 @@ DetailedTask::doit( const ProcessorGroup                      * pg
       m_task->doit( m_patches, m_matls, dws, uintahParams );
    //}
 #else
-    SCI_THROW(InternalError("A task was marked as GPU enabled, but Uintah was not compiled for CUDA support", __FILE__, __LINE__));
+    SCI_THROW(InternalError("A task was marked as GPU enabled, but Uintah was not compiled for CUDA/SYCL support", __FILE__, __LINE__));
 #endif
 
   } else {
@@ -245,14 +246,14 @@ DetailedTask::scrub( std::vector<OnDemandDataWarehouseP> & dws )
               // don't scrub on AMR overlapping patches...
               IntVector l = Max(neighbor->getExtraLowIndex(basis, req->m_var->getBoundaryLayer()), low);
               IntVector h = Min(neighbor->getExtraHighIndex(basis, req->m_var->getBoundaryLayer()), high);
-              
+
               patch->cullIntersection(basis, req->m_var->getBoundaryLayer(), neighbor->getRealPatch(), l, h);
-              
+
               if (l == h){
                 continue;
               }
             }
-            
+
             if (req->m_patches_dom == Task::FineLevel) {
               // don't count if it only overlaps extra cells
               IntVector l = patch->getExtraLowIndex(basis, IntVector(0, 0, 0)), h = patch->getExtraHighIndex(basis,
@@ -703,7 +704,7 @@ operator<<( std::ostream & out, const DetailedTask & dtask )
 
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
 //_____________________________________________________________________________
 //
@@ -724,10 +725,10 @@ DetailedTask::getDeviceNums() const
 
 //_____________________________________________________________________________
 //
-cudaStream_t*
+gpuStream_t*
 DetailedTask::getGpuStreamForThisTask( unsigned int device_id ) const
 {
-  std::map <unsigned int, cudaStream_t*>::const_iterator it;
+  std::map <unsigned int, gpuStream_t*>::const_iterator it;
   it = d_gpuStreams.find(device_id);
   if (it != d_gpuStreams.end()) {
     return it->second;
@@ -739,7 +740,7 @@ DetailedTask::getGpuStreamForThisTask( unsigned int device_id ) const
 //
 void
 DetailedTask::setGpuStreamForThisTask( unsigned int   device_id
-                                      , cudaStream_t * stream
+                                      , gpuStream_t * stream
                                       )
 {
   if (stream == nullptr) {
@@ -747,10 +748,10 @@ DetailedTask::setGpuStreamForThisTask( unsigned int   device_id
     SCI_THROW(InternalError("A request was made to assign a stream at address nullptr into this task :"+ getName() , __FILE__, __LINE__));
   } else {
     if (d_gpuStreams.find(device_id) == d_gpuStreams.end()) {
-      d_gpuStreams.insert(std::pair<unsigned int, cudaStream_t*>(device_id, stream));
+      d_gpuStreams.insert(std::pair<unsigned int, gpuStream_t*>(device_id, stream));
     } else {
       printf("ERROR! - DetailedTask::setGpuStreamForThisTask() - This task %s already had a stream assigned for device %d\n", getName().c_str(), device_id);
-      SCI_THROW(InternalError("Detected CUDA kernel execution failure on task: "+ getName() , __FILE__, __LINE__));
+      SCI_THROW(InternalError("Detected CUDA/SYCL kernel execution failure on task: "+ getName() , __FILE__, __LINE__));
 
     }
   }
@@ -769,14 +770,13 @@ bool
 DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
 {
 
-  // sets the CUDA context, for the call to cudaEventQuery()
-  cudaError_t retVal;
   //if (device_id != 0) {
   //  printf("Error, DetailedTask::checkGpuStreamDoneForThisTask is %u\n", device_id);
   //  exit(-1);
   //}
+
   OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
-  std::map<unsigned int, cudaStream_t*>::const_iterator it= d_gpuStreams.find(device_id);
+  std::map<unsigned int, gpuStream_t*>::const_iterator it= d_gpuStreams.find(device_id);
   if (it == d_gpuStreams.end()) {
     printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask() - Request for stream information for device %d, but this task wasn't assigned any streams for this device.  For task %s\n", device_id,  getName().c_str());
     SCI_THROW(InternalError("Request for stream information for a device, but it wasn't assigned any streams for that device.  For task: " + getName() , __FILE__, __LINE__));
@@ -788,6 +788,8 @@ DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
     return false;
   }
 
+#ifdef HAVE_CUDA
+  cudaError_t retVal;
   retVal = cudaStreamQuery(*(it->second));
   if (retVal == cudaSuccess) {
     return true;
@@ -813,6 +815,18 @@ DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
     CUDA_RT_SAFE_CALL (retVal);
     return false;
   }
+#endif
+
+#ifdef HAVE_SYCL
+  retVal = cudaStreamQuery(*(it->second));
+  if (retVal == cudaSuccess) {
+    return true;
+  }
+  else if (retVal == cudaErrorNotReady ) {
+    return false;
+  }
+#endif
+
 }
 
 //_____________________________________________________________________________
@@ -826,7 +840,7 @@ DetailedTask::checkAllGpuStreamsDoneForThisTask() const
 
   bool retVal = false;
 
-  for (std::map<unsigned int ,cudaStream_t*>::const_iterator it=d_gpuStreams.begin(); it!=d_gpuStreams.end(); ++it){
+  for (std::map<unsigned int ,gpuStream_t*>::const_iterator it=d_gpuStreams.begin(); it!=d_gpuStreams.end(); ++it){
     retVal = checkGpuStreamDoneForThisTask(it->first);
     if (retVal == false) {
       return retVal;
@@ -941,10 +955,9 @@ DetailedTask::deleteTemporaryTaskVars()
 
   // and the device
   for (auto p : taskGpuMemoryPoolItems) {
-    GPUMemoryPool::freeCudaSpaceFromPool(p.device_id, p.ptr);
+    GPUMemoryPool::freeGpuSpaceFromPool(p.device_id, p.ptr);
   }
   taskGpuMemoryPoolItems.clear();
 }
 
-#endif // HAVE_CUDA
-
+#endif // HAVE_CUDA || HAVE_SYCL

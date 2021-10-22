@@ -74,7 +74,7 @@ auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
             std::rethrow_exception(e);
         } catch (sycl::exception const& ex) {
             std::cout << "Caught asynchronous SYCL exception:" << std::endl
-            << ex.what() << ", OpenCL code: " << ex.get_cl_code() << std::endl;
+            << ex.what() << ", SYCL code: " << ex.code() << std::endl;
         }
     }
 };
@@ -324,32 +324,26 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
     if ( !g_gpu_ids && Uintah::Parallel::usingDevice() ) {
       int availableDevices=0;
       sycl::platform platform(sycl::gpu_selector{});
-      auto const& gpu_devices = platform.get_devices();
+      auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
       for (int i = 0; i < gpu_devices.size(); i++) {
-        if (gpu_devices[i].is_gpu()) {
-          if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-            auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-              sycl::info::partition_affinity_domain::numa);
-            availableDevices += SubDevicesDomainNuma.size();
-          }
-        }
+	if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+	  auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+	  availableDevices += SubDevicesDomainNuma.size();
+	}
       }
       std::cout << "   Using " << m_num_devices << "/" << availableDevices
                 << " available GPU(s)" << std::endl;
 
       int tmp_device_id=0;
       for (int device_id = 0; i < gpu_devices.size(); i++) {
-        if (gpu_devices[device_id].is_gpu()) {
-          if(gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-            auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-              sycl::info::partition_affinity_domain::numa);
-            for (const auto &tile : SubDevicesDomainNuma) {
-              std::cout << "   GPU Device " << tmp_device_id << " "
-                        << tile.get_info<sycl::info::device::name>()
-                        << " with compute capability [" << tile.get_backend()
-                        << "] v:" << tile.get_info<sycl::info::device::driver_version>()
-                        << std::endl;
-            }
+        if(gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+          auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+          for (const auto &tile : SubDevicesDomainNuma) {
+            std::cout << "   GPU Device " << tmp_device_id << " "
+                      << tile.get_info<sycl::info::device::name>()
+                      << " with compute capability [" << tile.get_backend()
+                      << "] v:" << tile.get_info<sycl::info::device::driver_version>()
+                      << std::endl;
           }
         }
       }
@@ -385,14 +379,11 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
     int availableDevices=0;
     std::ostringstream message;
     sycl::platform platform(sycl::gpu_selector{});
-    auto const& gpu_devices = platform.get_devices();
+    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
     for (int i = 0; i < gpu_devices.size(); i++) {
-      if (gpu_devices[i].is_gpu()) {
-        if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-            sycl::info::partition_affinity_domain::numa);
-          availableDevices += SubDevicesDomainNuma.size();
-        }
+      if (gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+	auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+	availableDevices += SubDevicesDomainNuma.size();
       }
     }
     message << "   Rank-" << d_myworld->myRank()
@@ -401,19 +392,16 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
 
     int tmp_device_id=0;
     for (int device_id = 0; i < gpu_devices.size(); i++) {
-      if (gpu_devices[device_id].is_gpu()) {
-        if(gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-            sycl::info::partition_affinity_domain::numa);
-          for (const auto &tile : SubDevicesDomainNuma) {
-            message << "   Rank-" << d_myworld->myRank()
-                    << " using GPU Device " << tmp_device_id
-                    << ": \"" << tile.get_info<sycl::info::device::name>() << "\""
-                    << " with compute capability " << tile.get_info<sycl::info::device::driver_version>()
-                    << " on backend " << tile.get_backend() << std::endl;
-            tmp_device_id++;
-          }
-        }
+      if (gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+	auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+	for (const auto &tile : SubDevicesDomainNuma) {
+	  message << "   Rank-" << d_myworld->myRank()
+		  << " using GPU Device " << tmp_device_id
+		  << ": \"" << tile.get_info<sycl::info::device::name>() << "\""
+		  << " with compute capability " << tile.get_info<sycl::info::device::driver_version>()
+		  << " on backend " << tile.get_backend() << std::endl;
+	  tmp_device_id++;
+	}
       }
     }
     DOUT(true, message.str());
@@ -1602,17 +1590,14 @@ KokkosScheduler::gpuInitialize( bool reset )
 #ifdef HAVE_SYCL
   int numDevices = 0;
   sycl::platform platform(sycl::gpu_selector{});
-  auto const& gpu_devices = platform.get_devices();
+  auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
   for (int i = 0; i < gpu_devices.size(); i++) {
-    if (gpu_devices[i].is_gpu()) {
-      if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-	auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-	  sycl::info::partition_affinity_domain::numa);
-	numDevices += SubDevicesDomainNuma.size();
+    if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+      auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+      numDevices += SubDevicesDomainNuma.size();
 
-	for (const auto &tile : SubDevicesDomainNuma) {
-	  m_sycl_context.push_back( new sycl::context(tile, sycl_asynchandler) );
-	}
+      for (const auto &tile : SubDevicesDomainNuma) {
+	m_sycl_context.push_back( new sycl::context(tile, sycl_asynchandler) );
       }
     }
   }

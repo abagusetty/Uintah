@@ -141,7 +141,7 @@ class KokkosScheduler : public MPIScheduler  {
     int      m_num_partitions{0};
     int      m_threads_per_partition{0};
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
     using DeviceVarDest = GpuUtilities::DeviceVarDestination;
 
@@ -223,7 +223,7 @@ class KokkosScheduler : public MPIScheduler  {
 
     void reclaimGpuStreamsIntoPool( DetailedTask * dtask );
 
-    void freeCudaStreamsFromPool();
+    void freeGpuStreamsFromPool();
 
     gpuStream_t* getGpuStreamFromPool( int device );
 

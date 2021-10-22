@@ -489,7 +489,7 @@ public:
                                 int3 sharedLowCoordinates, int3 sharedHighCoordinates, int3 virtualOffset);
 
 
-  __host__ bool transferFrom(cudaStream_t* stream, GPUGridVariableBase &var_source, GPUGridVariableBase &var_dest, GPUDataWarehouse * from, char const* label, int patchID, int matlIndx, int levelIndx);
+  __host__ bool transferFrom(gpuStream_t* stream, GPUGridVariableBase &var_source, GPUGridVariableBase &var_dest, GPUDataWarehouse * from, char const* label, int patchID, int matlIndx, int levelIndx);
   __host__ bool areAllStagingVarsValid(char const* label, int patchID, int matlIndx, int levelIndx);
 
 
@@ -538,7 +538,7 @@ public:
 
   //This and the function below go through the d_ghostCellData array and copies data into
   //the correct destination GPU var.  This would be the final step of a GPU ghost cell transfer.
-  __host__ void copyGpuGhostCellsToGpuVarsInvoker(cudaStream_t* stream);
+  __host__ void copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t* stream);
   __device__ void copyGpuGhostCellsToGpuVars();
   HOST_DEVICE bool ghostCellCopiesNeeded();
   __host__ void getSizes(int3& low, int3& high, int3& siz, GhostType& gtype, int& numGhostCells, char const* label, int patchID, int matlIndx, int levelIndx = 0);

@@ -236,7 +236,7 @@ class UnifiedScheduler : public MPIScheduler  {
 
     void reclaimGpuStreamsIntoPool( DetailedTask * dtask );
 
-    void freeCudaStreamsFromPool();
+    void freeGpuStreamsFromPool();
 
     cudaStream_t* getGpuStreamFromPool( int device );
 

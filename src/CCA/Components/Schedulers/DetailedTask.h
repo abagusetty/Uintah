@@ -30,13 +30,14 @@
 #include <CCA/Components/Schedulers/OnDemandDataWarehouseP.h>
 #include <CCA/Components/Schedulers/RuntimeStats.hpp>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 #endif
 
 #include <Core/Grid/Task.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #include <atomic>
 #include <list>
@@ -56,7 +57,7 @@ class DetailedTasks;
 
 //_____________________________________________________________________________
 //
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   struct TaskGpuDataWarehouses {
     GPUDataWarehouse* TaskGpuDW[2];
@@ -159,7 +160,7 @@ public:
     }
   };
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   struct delayedCopyingInfo {
     delayedCopyingInfo( GpuUtilities::LabelPatchMatlLevelDw   lpmld_
                       , DeviceGridVariableInfo                devGridVarInfo_
@@ -248,7 +249,7 @@ public:
   double task_exec_time() const { return m_exec_timer().seconds(); }
 
 //-----------------------------------------------------------------------------
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   void assignDevice( unsigned int device );
 
@@ -260,7 +261,7 @@ public:
 
   std::map<unsigned int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setGpuStreamForThisTask( unsigned int deviceNum, cudaStream_t * s );
+  void setGpuStreamForThisTask( unsigned int deviceNum, gpuStream_t * s );
 
   void clearGpuStreamsForThisTask();
 
@@ -277,7 +278,7 @@ public:
 
   void deleteTaskGpuDataWarehouses();
 
-  cudaStream_t*        getGpuStreamForThisTask( unsigned int deviceNum ) const;
+  gpuStream_t*        getGpuStreamForThisTask( unsigned int deviceNum ) const;
 
   DeviceGridVariables& getDeviceVars() { return deviceVars; }
 
@@ -364,14 +365,14 @@ private:
 
 
 //-----------------------------------------------------------------------------
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   bool         deviceExternallyReady_{false};
   bool         completed_{false};
   unsigned int deviceNum_{0};
 
   std::set<unsigned int>                deviceNums_;
-  std::map<unsigned int, cudaStream_t*> d_gpuStreams;
+  std::map<unsigned int, gpuStream_t*> d_gpuStreams;
 
   // Store information about each set of grid variables.
   // This will help later when we figure out the best way to store data into the GPU.

@@ -154,14 +154,11 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
     CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
 #elif HAVE_SYCL
     sycl::platform platform(sycl::gpu_selector{});
-    auto const& gpu_devices = platform.get_devices();
+    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
     for (int i = 0; i < gpu_devices.size(); i++) {
-      if (gpu_devices[i].is_gpu()) {
-        if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-            sycl::info::partition_affinity_domain::numa);
-          numDevices += SubDevicesDomainNuma.size();
-        }
+      if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+        auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+        numDevices += SubDevicesDomainNuma.size();
       }
     }
 #endif
@@ -460,14 +457,11 @@ OnDemandDataWarehouse::getNumDevices() {
    CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
 #elif HAVE_SYCL
    sycl::platform platform(sycl::gpu_selector{});
-   auto const& gpu_devices = platform.get_devices();
+   auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
    for (int i = 0; i < gpu_devices.size(); i++) {
-     if (gpu_devices[i].is_gpu()) {
-       if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-         auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(
-           sycl::info::partition_affinity_domain::numa);
-         numDevices += SubDevicesDomainNuma.size();
-       }
+     if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+       auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+       numDevices += SubDevicesDomainNuma.size();
      }
    }
 #endif
@@ -607,7 +601,7 @@ OnDemandDataWarehouse::createGPUReductionVariable(const TypeDescription::Type& t
   return device_var;
 }
 
-#endif
+#endif // HAVE_CUDA || HAVE_SYCL
 
 
 //______________________________________________________________________
@@ -3436,7 +3430,7 @@ OnDemandDataWarehouse::transferFrom(       DataWarehouse                        
             }
           }
 
-#endif
+#endif // HAVE_CUDA || HAVE_SYCL
 
 
           if (!found) {

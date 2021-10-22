@@ -97,11 +97,11 @@ public:
 
   static void* allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize);
 
-  static bool freeCudaSpaceFromPool(unsigned int device_id, void* addr);
+  static bool freeGpuSpaceFromPool(unsigned int device_id, void* addr);
 
   static void reclaimGpuStreamsIntoPool( DetailedTask * dtask );
 
-  static void freeCudaStreamsFromPool();
+  static void freeGpuStreamsFromPool();
 
   static gpuStream_t* getGpuStreamFromPool( int device );
 
