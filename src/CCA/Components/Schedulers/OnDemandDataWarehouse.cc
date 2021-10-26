@@ -80,7 +80,6 @@
 
 using namespace Uintah;
 
-
 namespace Uintah {
 
   extern Dout g_mpi_dbg;
@@ -129,7 +128,6 @@ namespace {
 
 bool OnDemandDataWarehouse::s_combine_memory = false;
 
-
 //______________________________________________________________________
 //
 OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
@@ -150,17 +148,27 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
 
   if (Uintah::Parallel::usingDevice()) {
     int numDevices = 0;
+
 #ifdef HAVE_CUDA
+
     CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
-#elif HAVE_SYCL
+
+#elif defined(HAVE_SYCL)
+
     sycl::platform platform(sycl::gpu_selector{});
-    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
+    auto &gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
     for (int i = 0; i < gpu_devices.size(); i++) {
       if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
         auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
         numDevices += SubDevicesDomainNuma.size();
+
+        for (auto &tile : SubDevicesDomainNuma) {
+          syclDevices.insert( std::make_pair<sycl::device*, sycl::context*>(&tile,
+                                                                            new sycl::context(tile)) );
+        }
       }
     }
+
 #endif
 
     for (int i = 0; i < numDevices; i++) {
@@ -178,7 +186,7 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
     }
   }
 
-#endif
+#endif // HAVE_CUDA, HAVE_SYCL
 
 }
 
@@ -455,7 +463,7 @@ OnDemandDataWarehouse::getNumDevices() {
 #ifdef HAVE_CUDA
   //if multiple devices are desired, use this:
    CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
-#elif HAVE_SYCL
+#elif defined(HAVE_SYCL)
    sycl::platform platform(sycl::gpu_selector{});
    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
    for (int i = 0; i < gpu_devices.size(); i++) {
@@ -600,6 +608,13 @@ OnDemandDataWarehouse::createGPUReductionVariable(const TypeDescription::Type& t
 
   return device_var;
 }
+
+#ifdef HAVE_SYCL
+std::pair<sycl::device*, sycl::context*>
+OnDemandDataWarehouse::uintahGetCurrentDeviceSycl(int deviceNum) {
+  return syclDevices[deviceNum];
+}
+#endif
 
 #endif // HAVE_CUDA || HAVE_SYCL
 

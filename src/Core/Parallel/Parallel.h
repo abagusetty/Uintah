@@ -132,15 +132,15 @@ class Parallel {
 
       //////////
       // Sets the number of CUDA threads to use within an SM for a loop
-      static void setCudaThreadsPerBlock( unsigned int num );
+      static void setGpuThreadsPerBlock( unsigned int num );
 
       //////////
       // Sets the number of CUDA blocks that should be used for each loop
-      static void setCudaBlocksPerLoop( unsigned int num );
+      static void setGpuBlocksPerLoop( unsigned int num );
 
       //////////
       // Sets the number of CUDA streams per task
-      static void setCudaStreamsPerTask( unsigned int num );
+      static void setGpuStreamsPerTask( unsigned int num );
       
       //////////
       // Sets the name of the task name to time
@@ -152,15 +152,15 @@ class Parallel {
 
       //////////
       // Sets the number of CUDA threads to use within an SM for a loop
-      static unsigned int getCudaThreadsPerBlock();
+      static unsigned int getGpuThreadsPerBlock();
 
       //////////
       // Sets the number of CUDA blocks that should be used for each loop
-      static unsigned int getCudaBlocksPerLoop();
+      static unsigned int getGpuBlocksPerLoop();
 
       //////////
       // Returns the number of CUDA streams per task
-      static unsigned int getCudaStreamsPerTask();
+      static unsigned int getGpuStreamsPerTask();
 
       //////////
       // Returns the name of the task name to time
@@ -218,9 +218,9 @@ class Parallel {
 
       static bool              s_initialized;
       static bool              s_using_device;
-      static int               s_cuda_threads_per_block;
-      static int               s_cuda_blocks_per_loop;
-      static int               s_cuda_streams_per_task;
+      static int               s_gpu_threads_per_block;
+      static int               s_gpu_blocks_per_loop;
+      static int               s_gpu_streams_per_task;
       static std::string       s_task_name_to_time;
       static int               s_amount_task_name_expected_to_run;
       static int               s_num_threads;

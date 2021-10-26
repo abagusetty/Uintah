@@ -30,6 +30,7 @@
 #include <Core/Parallel/UintahMPI.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/kokkos_defs.h>
 
 #ifdef UINTAH_ENABLE_KOKKOS
@@ -56,9 +57,9 @@ Parallel::CpuThreadEnvironment Parallel::s_cpu_thread_environment = Parallel::Cp
 
 bool             Parallel::s_initialized             = false;
 bool             Parallel::s_using_device            = false;
-int              Parallel::s_cuda_threads_per_block  = -1;
-int              Parallel::s_cuda_blocks_per_loop    = -1;
-int              Parallel::s_cuda_streams_per_task   = 1;
+int              Parallel::s_gpu_threads_per_block  = -1;
+int              Parallel::s_gpu_blocks_per_loop    = -1;
+int              Parallel::s_gpu_streams_per_task   = 1;
 std::string      Parallel::s_task_name_to_time       = "";
 int              Parallel::s_amount_task_name_expected_to_run = -1;
 int              Parallel::s_num_threads             = -1;
@@ -142,25 +143,25 @@ Parallel::setUsingDevice( bool state )
 //_____________________________________________________________________________
 //
 void
-Parallel::setCudaThreadsPerBlock( unsigned int num )
+Parallel::setGpuThreadsPerBlock( unsigned int num )
 {
-  s_cuda_threads_per_block = num;
+  s_gpu_threads_per_block = num;
 }
 
 //_____________________________________________________________________________
 //
 void
-Parallel::setCudaBlocksPerLoop( unsigned int num )
+Parallel::setGpuBlocksPerLoop( unsigned int num )
 {
-  s_cuda_blocks_per_loop = num;
+  s_gpu_blocks_per_loop = num;
 }
 
 //_____________________________________________________________________________
 //
 void
-Parallel::setCudaStreamsPerTask( unsigned int num )
+Parallel::setGpuStreamsPerTask( unsigned int num )
 {
-  s_cuda_streams_per_task = num;
+  s_gpu_streams_per_task = num;
 }
 
 //_____________________________________________________________________________
@@ -182,25 +183,25 @@ Parallel::setAmountTaskNameExpectedToRun( unsigned int amountTaskNameExpectedToR
 //_____________________________________________________________________________
 //
 unsigned int
-Parallel::getCudaThreadsPerBlock()
+Parallel::getGpuThreadsPerBlock()
 {
-  return s_cuda_threads_per_block;
+  return s_gpu_threads_per_block;
 }
 
 //_____________________________________________________________________________
 //
 unsigned int
-Parallel::getCudaBlocksPerLoop()
+Parallel::getGpuBlocksPerLoop()
 {
-  return s_cuda_blocks_per_loop;
+  return s_gpu_blocks_per_loop;
 }
 
 //_____________________________________________________________________________
 //
 unsigned int
-Parallel::getCudaStreamsPerTask()
+Parallel::getGpuStreamsPerTask()
 {
-  return s_cuda_streams_per_task;
+  return s_gpu_streams_per_task;
 }
 
 //_____________________________________________________________________________
@@ -313,11 +314,20 @@ Parallel::initializeManager( int& argc , char**& argv )
   // TODO, only display if gpu mode is turned on and if these values weren't set.
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
   if ( s_using_device ) {
-    if ( s_cuda_threads_per_block <= 0 ) {
-      s_cuda_threads_per_block = 256;
+    if ( s_gpu_threads_per_block <= 0 ) {
+      s_gpu_threads_per_block = 256;
     }
-    if ( s_cuda_blocks_per_loop <= 0 ) {
-      s_cuda_blocks_per_loop = 1;
+    if ( s_gpu_blocks_per_loop <= 0 ) {
+      s_gpu_blocks_per_loop = 1;
+    }
+  }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  if ( s_using_device ) {
+    if ( s_gpu_threads_per_block <= 0 ) {
+      s_gpu_threads_per_block = 128;
+    }
+    if ( s_gpu_blocks_per_loop <= 0 ) {
+      s_gpu_blocks_per_loop = 1;
     }
   }
 #endif
@@ -399,13 +409,24 @@ Parallel::initializeManager( int& argc , char**& argv )
 
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
     if ( s_using_device ) {
-      if ( s_cuda_blocks_per_loop > 0 ) {
-        std::string plural = (s_cuda_blocks_per_loop > 1) ? "blocks" : "block";
-        std::cout << "Parallel: " << s_cuda_blocks_per_loop << " CUDA " << plural << " per loop\n";
+      if ( s_gpu_blocks_per_loop > 0 ) {
+        std::string plural = (s_gpu_blocks_per_loop > 1) ? "blocks" : "block";
+        std::cout << "Parallel: " << s_gpu_blocks_per_loop << " CUDA " << plural << " per loop\n";
       }
-      if ( s_cuda_threads_per_block > 0 ) {
-        std::string plural = (s_cuda_threads_per_block > 1) ? "threads" : "thread";
-        std::cout << "Parallel: " << s_cuda_threads_per_block << " CUDA " << plural << " per block\n";
+      if ( s_gpu_threads_per_block > 0 ) {
+        std::string plural = (s_gpu_threads_per_block > 1) ? "threads" : "thread";
+        std::cout << "Parallel: " << s_gpu_threads_per_block << " CUDA " << plural << " per block\n";
+      }
+    }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+    if ( s_using_device ) {
+      if ( s_gpu_blocks_per_loop > 0 ) {
+        std::string plural = (s_gpu_blocks_per_loop > 1) ? "blocks" : "block";
+        std::cout << "Parallel: " << s_gpu_blocks_per_loop << " SYCL " << plural << " per loop\n";
+      }
+      if ( s_gpu_threads_per_block > 0 ) {
+        std::string plural = (s_gpu_threads_per_block > 1) ? "threads" : "thread";
+        std::cout << "Parallel: " << s_gpu_threads_per_block << " SYCL " << plural << " per block\n";
       }
     }
 #endif

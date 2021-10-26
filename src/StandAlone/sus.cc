@@ -73,6 +73,7 @@
 #include <Core/Util/FileUtils.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/hypre_defs.h>
 #include <sci_defs/malloc_defs.h>
 #include <sci_defs/uintah_defs.h>
@@ -161,11 +162,11 @@ static void usage( const std::string& message,
     std::cerr << "Valid options are:\n";
     std::cerr << "-h[elp]                     : This usage information\n";
     std::cerr << "-d[ebug]                    : List the debug streams\n";
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     std::cerr << "-gpu                        : Use available GPU devices, requires multi-threaded Unified scheduler\n";
-    std::cerr << "-cuda_threads_per_block <#> : Number of threads per CUDA block\n";
-    std::cerr << "-cuda_blocks_per_loop <#>   : Number of CUDA blocks per loop \n";
-    std::cerr << "-cuda_streams_per_task <#>  : Number of CUDA streams per task \n";
+    std::cerr << "-gpu_threads_per_block <#>  : Number of threads per GPU block\n";
+    std::cerr << "-gpu_blocks_per_loop <#>    : Number of GPU blocks per loop \n";
+    std::cerr << "-gpu_streams_per_task <#>  : Number of GPU streams per task \n";
 
 #endif
     std::cerr << "-gpucheck                   : Returns 1 if sus was compiled with CUDA and there is a GPU available. \n";
@@ -387,7 +388,7 @@ int main( int argc, char *argv[], char *env[] )
       restartRemoveOldDir = true;
     }
     else if (arg == "-gpucheck") {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
       int retVal = UnifiedScheduler::verifyAnyGpuActive();
       if (retVal == 1) {
         std::cout << "At least one GPU detected!" << std::endl;
@@ -400,59 +401,59 @@ int main( int argc, char *argv[], char *env[] )
       Parallel::exitAll(2);
     }
     else if(arg == "-gpu") {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
       Uintah::Parallel::setUsingDevice( true );
 #else
       std::cout << "Not compiled for GPU support" << std::endl;
       Parallel::exitAll(2);
 #endif
     }
-    else if (arg == "-cuda_threads_per_block") {
-#ifdef HAVE_CUDA
-      int cuda_threads_per_block = 0;
+    else if (arg == "-gpu_threads_per_block") {
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+      int gpu_threads_per_block = 0;
       if (++i == argc) {
-        usage("You must provide a number of threads per streaming multiprocessor (SM) for -cuda_threads_per_block", arg, argv[0]);
+        usage("You must provide a number of threads per streaming multiprocessor (SM) for -gpu_threads_per_block", arg, argv[0]);
       }
-      cuda_threads_per_block = atoi(argv[i]);
-      if( cuda_threads_per_block < 1 ) {
+      gpu_threads_per_block = atoi(argv[i]);
+      if( gpu_threads_per_block < 1 ) {
         usage("Number of threads per streaming multiprocessor (SM) is too small", arg, argv[0]);
         Parallel::exitAll(2);
       }
-      Uintah::Parallel::setCudaThreadsPerBlock(cuda_threads_per_block);
+      Uintah::Parallel::setGpuThreadsPerBlock(gpu_threads_per_block);
 #else
       std::cout << "Not compiled for GPU support" << std::endl;
       Parallel::exitAll(2);
 #endif
     }
-    else if (arg == "-cuda_blocks_per_loop") {
-#ifdef HAVE_CUDA
-      int cuda_blocks_per_loop = 0;
+    else if (arg == "-gpu_blocks_per_loop") {
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+      int gpu_blocks_per_loop = 0;
       if (++i == argc) {
-        usage("You must provide a number of streaming multiprocessors (SMs) per loop for -cuda_blocks_per_loop", arg, argv[0]);
+        usage("You must provide a number of streaming multiprocessors (SMs) per loop for -gpu_blocks_per_loop", arg, argv[0]);
       }
-      cuda_blocks_per_loop = atoi(argv[i]);
-      if( cuda_blocks_per_loop < 1 ) {
+      gpu_blocks_per_loop = atoi(argv[i]);
+      if( gpu_blocks_per_loop < 1 ) {
         usage("Number of streaming multiprocessors (SMs) per loop is too small", arg, argv[0]);
         Parallel::exitAll(2);
       }
-      Uintah::Parallel::setCudaBlocksPerLoop(cuda_blocks_per_loop);
+      Uintah::Parallel::setGpuBlocksPerLoop(gpu_blocks_per_loop);
 #else
       std::cout << "Not compiled for GPU support" << std::endl;
       Parallel::exitAll(2);
 #endif
     }
-    else if (arg == "-cuda_streams_per_task") {
-#ifdef HAVE_CUDA
-      int cuda_streams_per_task = 0;
+    else if (arg == "-gpu_streams_per_task") {
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+      int gpu_streams_per_task = 0;
       if (++i == argc) {
-        usage("You must provide a number of CUDA streams per task for -cuda_streams_per_task", arg, argv[0]);
+        usage("You must provide a number of GPU streams per task for -gpu_streams_per_task", arg, argv[0]);
       }
-      cuda_streams_per_task = atoi(argv[i]);
-      if( cuda_streams_per_task < 1 ) {
-        usage("Number of CUDA streams per task is too small", arg, argv[0]);
+      gpu_streams_per_task = atoi(argv[i]);
+      if( gpu_streams_per_task < 1 ) {
+        usage("Number of GPU streams per task is too small", arg, argv[0]);
         Parallel::exitAll(2);
       }
-      Uintah::Parallel::setCudaStreamsPerTask(cuda_streams_per_task);
+      Uintah::Parallel::setGpuStreamsPerTask(gpu_streams_per_task);
 #else
       std::cout << "Not compiled for GPU support" << std::endl;
       Parallel::exitAll(2);

@@ -39,38 +39,10 @@ extern "C" {
 
 #  include <stdio.h>
 
-   using gpuStream_t = std::pair<sycl::queue, sycl::event>;
+   using gpuStream_t = sycl::queue;
   
 // Allow easy indexing into deice-side 3D array
 #  define INDEX3D(dx,dy,i,j,k) ((i) + ((j)*dx) + ((k)*dx*dy))
-
-
-// Error handling wrapper for CUDA RUNTIME API calls (no-sync)
-#  define CUDA_RT_SAFE_CALL( call ) {                                          \
-    cudaError err = call;                                                      \
-    if(err != cudaSuccess) {                                                   \
-        fprintf(stderr, "\nCUDA error %i in file '%s', on line %i : %s.\n\n",  \
-                err, __FILE__, __LINE__, cudaGetErrorString( err) );           \
-        exit(EXIT_FAILURE);                                                    \
-    } }
-
-// Error handling wrapper for CUDA Driver API calls (no-sync)
-#  define CUDA_DRV_SAFE_CALL( call ) {                                         \
-    CUresult err = call;                                                       \
-    if(err != CUDA_SUCCESS) {                                                  \
-        fprintf(stderr, "\nCUDA driver error %i in file '%s' on line %i.\n\n", \
-                err, __FILE__, __LINE__ );                                     \
-        exit(EXIT_FAILURE);                                                    \
-    } }
-
-// Error handling wrapper for CUDA Rand API calls
-#  define CURAND_CALL( call ) {                                                \
-    curandStatus status = call;                                                \
-    if(status != CURAND_STATUS_SUCCESS) {                                      \
-        fprintf(stderr, "cuRand error %i in file '%s' on line %i.\n\n",        \
-                status, __FILE__, __LINE__ );                                  \
-        exit(EXIT_FAILURE);                                                    \
-    } } 
 
 // int3 bound checking
 #  if SCI_SYCL_ASSERTION_LEVEL >= 3

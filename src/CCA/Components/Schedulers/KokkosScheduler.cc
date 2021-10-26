@@ -42,7 +42,7 @@
 #include <sci_defs/cuda_defs.h>
 #include <sci_defs/sycl_defs.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
   #include <Core/Grid/Variables/GPUGridVariable.h>
   #include <Core/Grid/Variables/GPUStencil7.h>
@@ -66,19 +66,6 @@
   - Update myRankThread with partition equivalent
 ______________________________________________________________________*/
 
-
-#ifdef HAVE_SYCL
-auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
-    for (std::exception_ptr const& e : exceptions) {
-        try {
-            std::rethrow_exception(e);
-        } catch (sycl::exception const& ex) {
-            std::cout << "Caught asynchronous SYCL exception:" << std::endl
-            << ex.what() << ", SYCL code: " << ex.code() << std::endl;
-        }
-    }
-};
-#endif
 
 using namespace Uintah;
 
@@ -1595,10 +1582,6 @@ KokkosScheduler::gpuInitialize( bool reset )
     if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
       auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
       numDevices += SubDevicesDomainNuma.size();
-
-      for (const auto &tile : SubDevicesDomainNuma) {
-	m_sycl_context.push_back( new sycl::context(tile, sycl_asynchandler) );
-      }
     }
   }
   m_num_devices = numDevices;

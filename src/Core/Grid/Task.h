@@ -77,7 +77,7 @@ class TaskStatus;
  ****************************************/
 
 class Task {
- 
+
 public: // class Task
 
 protected: // class Task
@@ -213,8 +213,8 @@ private: // class Task
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -620,8 +620,8 @@ private:
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -680,8 +680,8 @@ private:
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -745,8 +745,8 @@ private:
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -815,8 +815,8 @@ private:
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -890,8 +890,8 @@ private:
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -971,8 +971,8 @@ private:
     {
       ExecutionObject<ExecSpace, MemSpace> execObj;
 
-      execObj.setCudaThreadsPerBlock(Uintah::Parallel::getCudaThreadsPerBlock());
-      execObj.setCudaBlocksPerLoop(Uintah::Parallel::getCudaBlocksPerLoop());
+      execObj.setGpuThreadsPerBlock(Uintah::Parallel::getGpuThreadsPerBlock());
+      execObj.setGpuBlocksPerLoop(Uintah::Parallel::getGpuBlocksPerLoop());
 
       const int numStreams = uintahParams.getNumStreams();
 
@@ -1381,6 +1381,9 @@ public: // class Task
 
          void usesKokkosCuda(bool state);
   inline bool usesKokkosCuda() const { return m_uses_kokkos_cuda; }
+
+         void usesKokkosSycl(bool state);
+  inline bool usesKokkosSycl() const { return m_uses_kokkos_sycl; }
 
   enum MaterialDomainSpec {
       NormalDomain  // <- Normal/default setting
@@ -1806,7 +1809,7 @@ public: // class Task
   //////////
   // Prints out all information about the task, including dependencies
   void displayAll_DOUT( Uintah::Dout& dbg) const;
-  
+
   void displayAll( std::ostream & out ) const;
 
   int mapDataWarehouse( WhichDW dw ) const;
@@ -1872,6 +1875,7 @@ protected: // class Task
   bool m_preload_sim_vars{false};
   bool m_uses_kokkos_openmp{false};
   bool m_uses_kokkos_cuda{false};
+  bool m_uses_kokkos_sycl{false};
   int  m_max_streams_per_task{1};
   bool m_subpatch_capable{false};
   bool m_has_subscheduler{false};

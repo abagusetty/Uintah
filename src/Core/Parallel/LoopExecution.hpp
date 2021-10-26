@@ -46,6 +46,7 @@
 #include <initializer_list>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/kokkos_defs.h>
 
 #define ARRAY_SIZE 16
@@ -61,6 +62,12 @@ using std::min;
   namespace Kokkos {
     class Cuda {};
     class CudaSpace {};
+  }
+#elif !defined( KOKKOS_ENABLE_SYCL )  //This define comes from Kokkos itself.
+  //Kokkos GPU is not included in this build.  Create some stub types so these types at least exist.
+  namespace Kokkos {
+    class Experimental::SYCL {};
+    class Experimental::SYCLDeviceUSMSpace {};
   }
 #elif !defined( KOKKOS_ENABLE_OPENMP )
   // For the Unified Scheduler + Kokkos GPU but not Kokkos OpenMP.
@@ -78,6 +85,8 @@ using std::min;
     class HostSpace {};
     class Cuda {};
     class CudaSpace {};
+    class Experimental::SYCL {};
+    class Experimental::SYCLDeviceUSMSpace {};
   }
   const bool HAVE_KOKKOS = false;
 #define KOKKOS_LAMBDA [&]
@@ -92,6 +101,10 @@ namespace UintahSpaces{
   class GPU {};          // At the moment, this is only used to describe data in Cuda Memory
   class CudaSpace {};    // and not to manage non-Kokkos GPU tasks.
 #endif //HAVE_CUDA
+#if defined( HAVE_SYCL )
+  class GPU {};          // At the moment, this is only used to describe data in Sycl Memory
+  class SyclSpace {};    // and not to manage non-Kokkos GPU tasks.
+#endif //HAVE_SYCL
 }
 
 enum TASKGRAPH {
@@ -116,6 +129,7 @@ enum TASKGRAPH {
 //using UINTAH_CPU_TAG = UintahSpaces::CPU;
 //using KOKKOS_OPENMP_TAG = Kokkos::OpenMP;
 //using KOKKOS_CUDA_TAG = Kokkos::Cuda;
+//using KOKKOS_SYCL_TAG = Kokkos::Experimental::SYCL;
 
 // Main concept of the below tags: Whatever tags the user supplies is directly compiled into the Uintah binary build.
 // In case of a situation where a user supplies a tag that isn't valid for that build, such as KOKKOS_CUDA_TAG in a non-CUDA build,
@@ -125,6 +139,7 @@ enum TASKGRAPH {
 #define ORIGINAL_UINTAH_CPU_TAG     UintahSpaces::CPU COMMA UintahSpaces::HostSpace
 #define ORIGINAL_KOKKOS_OPENMP_TAG  Kokkos::OpenMP COMMA Kokkos::HostSpace
 #define ORIGINAL_KOKKOS_CUDA_TAG    Kokkos::Cuda COMMA Kokkos::CudaSpace
+#define ORIGINAL_KOKKOS_SYCL_TAG    Kokkos::Experimental::SYCL COMMA Kokkos::Experimental::SYCLDeviceUSMSpace
 
 #if defined(UINTAH_ENABLE_KOKKOS) && defined(HAVE_CUDA)
   #if defined(KOKKOS_ENABLE_OPENMP)
@@ -149,6 +164,7 @@ enum TASKGRAPH {
   #define UINTAH_CPU_TAG              UintahSpaces::CPU COMMA UintahSpaces::HostSpace
   #define KOKKOS_OPENMP_TAG           UintahSpaces::CPU COMMA UintahSpaces::HostSpace
   #define KOKKOS_CUDA_TAG             UintahSpaces::CPU COMMA UintahSpaces::HostSpace
+  #define KOKKOS_SYCL_TAG             UintahSpaces::CPU COMMA UintahSpaces::HostSpace
 #endif
 
 namespace Uintah {
@@ -364,47 +380,47 @@ parallel_for( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & 
   const unsigned int numItems = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
 
   // Get the requested amount of threads per streaming multiprocessor (SM) and number of SMs totals.
-  const unsigned int cuda_threads_per_block   = execObj.getCudaThreadsPerBlock();
-  const unsigned int cuda_blocks_per_loop     = execObj.getCudaBlocksPerLoop();
+  const unsigned int gpu_threads_per_block   = execObj.getGpuThreadsPerBlock();
+  const unsigned int gpu_blocks_per_loop     = execObj.getGpuBlocksPerLoop();
   const unsigned int streamPartitions = execObj.getNumStreams();
 
   // The requested range of data may not have enough work for the requested command line arguments, so shrink them if necessary.
-  const unsigned int actual_threads = (numItems / streamPartitions) > (cuda_threads_per_block * cuda_blocks_per_loop)
-                                    ? (cuda_threads_per_block * cuda_blocks_per_loop) : (numItems / streamPartitions);
-  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > cuda_threads_per_block ? cuda_threads_per_block : (numItems / streamPartitions);
-  const unsigned int actual_cuda_blocks_per_loop = (actual_threads - 1) / cuda_threads_per_block + 1;
+  const unsigned int actual_threads = (numItems / streamPartitions) > (gpu_threads_per_block * gpu_blocks_per_loop)
+                                    ? (gpu_threads_per_block * gpu_blocks_per_loop) : (numItems / streamPartitions);
+  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > gpu_threads_per_block ? gpu_threads_per_block : (numItems / streamPartitions);
+  const unsigned int actual_gpu_blocks_per_loop = (actual_threads - 1) / gpu_threads_per_block + 1;
 
   for (unsigned int i = 0; i < streamPartitions; i++) {
-    
+
 #if defined(NO_STREAM)
     Kokkos::Cuda instanceObject();
-    Kokkos::TeamPolicy< Kokkos::Cuda > tp( actual_cuda_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Cuda > tp( actual_gpu_blocks_per_loop, actual_threads_per_block );
 #else
     void* stream = execObj.getStream(i);
     if (!stream) {
       std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
       SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
     }
-    Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
-    //Kokkos::TeamPolicy< Kokkos::Cuda, Kokkos::LaunchBounds<640,1> > tp( instanceObject, actual_cuda_blocks_per_loop, actual_threads_per_block );
-    Kokkos::TeamPolicy< Kokkos::Cuda > tp( instanceObject, actual_cuda_blocks_per_loop, actual_threads_per_block );
+    Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
+    //Kokkos::TeamPolicy< Kokkos::Cuda, Kokkos::LaunchBounds<640,1> > tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Cuda > tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
 #endif
-    
+
     // Use a Team Policy, this allows us to control how many threads per block and how many blocks are used.
     typedef Kokkos::TeamPolicy< Kokkos::Cuda > policy_type;
     Kokkos::parallel_for ( tp, [=] __device__ ( typename policy_type::member_type thread ) {
 
       // We are within an SM, and all SMs share the same amount of assigned CUDA threads.
       // Figure out which range of N items this SM should work on (as a multiple of 32).
-      const unsigned int currentPartition = i * actual_cuda_blocks_per_loop + thread.league_rank();
-      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_cuda_blocks_per_loop * streamPartitions );
+      const unsigned int currentPartition = i * actual_gpu_blocks_per_loop + thread.league_rank();
+      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_gpu_blocks_per_loop * streamPartitions );
       const unsigned int startingN =  estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
       unsigned int endingN;
       // Check if this is the last partition
-      if ( currentPartition + 1 == actual_cuda_blocks_per_loop * streamPartitions ) {
+      if ( currentPartition + 1 == actual_gpu_blocks_per_loop * streamPartitions ) {
         endingN = numItems;
       } else {
-        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_cuda_blocks_per_loop * streamPartitions );
+        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_gpu_blocks_per_loop * streamPartitions );
         endingN = estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
       }
       const unsigned int totalN = endingN - startingN;
@@ -436,8 +452,8 @@ parallel_for( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & 
 //  unsigned int rbegin2 = r.begin(2);
 //
 //
-//  int cuda_threads_per_block = execObj.getCudaThreadsPerBlock();
-//  int cuda_blocks_per_loop   = execObj.getCudaBlocksPerLoop();
+//  int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+//  int gpu_blocks_per_loop   = execObj.getGpuBlocksPerLoop();
 //
 //  //If 256 threads aren't needed, use less.
 //  //But cap at 256 threads total, as this will correspond to 256 threads in a block.
@@ -446,11 +462,11 @@ parallel_for( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & 
 //  //Cuda thread 1 will be assigned to n = 1, n = 257, n = 513, and n = 769...
 //
 //  const int teamThreadRangeSize = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
-//  const int actualThreads = teamThreadRangeSize > cuda_threads_per_block ? cuda_threads_per_block : teamThreadRangeSize;
+//  const int actualThreads = teamThreadRangeSize > gpu_threads_per_block ? gpu_threads_per_block : teamThreadRangeSize;
 //
 //  typedef Kokkos::TeamPolicy<ExecSpace> policy_type;
 //
-//  Kokkos::parallel_for (Kokkos::TeamPolicy<ExecSpace>( cuda_blocks_per_loop, actualThreads ),
+//  Kokkos::parallel_for (Kokkos::TeamPolicy<ExecSpace>( gpu_blocks_per_loop, actualThreads ),
 //                           [=] __device__ ( typename policy_type::member_type thread ) {
 //    Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, teamThreadRangeSize), [=] (const int& n) {
 //
@@ -472,7 +488,7 @@ parallel_for( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & 
 //    std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
 //    exit(-1);
 //  }
-//  Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
+//  Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
 //  Kokkos::RangePolicy<Kokkos::Cuda> rangepolicy( instanceObject, 0, actualThreads);
 //
 //  Kokkos::parallel_for( rangepolicy, KOKKOS_LAMBDA ( const int& n ) {
@@ -487,6 +503,156 @@ parallel_for( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & 
 //  });
 }
 #endif  //#if defined(HAVE_CUDA)
+
+#if defined(HAVE_SYCL)
+
+template <typename ExecSpace, typename MemSpace, typename Functor>
+inline typename std::enable_if<std::is_same<ExecSpace, Kokkos::Experimental::SYCL>::value, void>::type
+parallel_for( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & r, const Functor & functor )
+{
+
+  // Team policy approach (reuses SYCL threads)
+
+  // Overall goal, split a 3D range requested by the user into various SMs on the GPU.  (In essence, this would be a Kokkos MD_Team+Policy, if one existed)
+  // The process requires going from 3D range to a 1D range, partitioning the 1D range into groups that are multiples of 32,
+  // then converting that group of 32 range back into a 3D (i,j,k) index.
+  unsigned int i_size = r.end(0) - r.begin(0);
+  unsigned int j_size = r.end(1) - r.begin(1);
+  unsigned int k_size = r.end(2) - r.begin(2);
+  unsigned int rbegin0 = r.begin(0);
+  unsigned int rbegin1 = r.begin(1);
+  unsigned int rbegin2 = r.begin(2);
+
+  // The user has two partitions available.  1) One is the total number of streaming multiprocessors.  2) The other is
+  // splitting a task into multiple streams and execution units.
+
+  const unsigned int numItems = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
+
+  // Get the requested amount of threads per streaming multiprocessor (SM) and number of SMs totals.
+  const unsigned int gpu_threads_per_block   = execObj.getGpuThreadsPerBlock();
+  const unsigned int gpu_blocks_per_loop     = execObj.getGpuBlocksPerLoop();
+  const unsigned int streamPartitions = execObj.getNumStreams();
+
+  // The requested range of data may not have enough work for the requested command line arguments, so shrink them if necessary.
+  const unsigned int actual_threads = (numItems / streamPartitions) > (gpu_threads_per_block * gpu_blocks_per_loop)
+                                    ? (gpu_threads_per_block * gpu_blocks_per_loop) : (numItems / streamPartitions);
+  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > gpu_threads_per_block ? gpu_threads_per_block : (numItems / streamPartitions);
+  const unsigned int actual_gpu_blocks_per_loop = (actual_threads - 1) / gpu_threads_per_block + 1;
+
+  for (unsigned int i = 0; i < streamPartitions; i++) {
+
+#if defined(NO_STREAM)
+    Kokkos::Experimental::SYCL instanceObject();
+    Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > tp( actual_gpu_blocks_per_loop, actual_threads_per_block );
+#else
+    void* stream = execObj.getStream(i);
+    if (!stream) {
+      std::cout << "Error, the SYCL stream must not be nullptr\n" << std::endl;
+      SCI_THROW(InternalError("Error, the SYCL stream must not be nullptr.", __FILE__, __LINE__));
+    }
+    Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+    //Kokkos::TeamPolicy< Kokkos::Experimental::SYCL, Kokkos::LaunchBounds<640,1> > tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+#endif
+
+    // Use a Team Policy, this allows us to control how many threads per block and how many blocks are used.
+    typedef Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > policy_type;
+    Kokkos::parallel_for ( tp, [=] ( typename policy_type::member_type thread ) {
+
+      // We are within an SM, and all SMs share the same amount of assigned SYCL threads.
+      // Figure out which range of N items this SM should work on (as a multiple of 32).
+      const unsigned int currentPartition = i * actual_gpu_blocks_per_loop + thread.league_rank();
+      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_gpu_blocks_per_loop * streamPartitions );
+      const unsigned int startingN =  estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
+      unsigned int endingN;
+      // Check if this is the last partition
+      if ( currentPartition + 1 == actual_gpu_blocks_per_loop * streamPartitions ) {
+        endingN = numItems;
+      } else {
+        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_gpu_blocks_per_loop * streamPartitions );
+        endingN = estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
+      }
+      const unsigned int totalN = endingN - startingN;
+      //printf("league_rank: %d, team_size: %d, team_rank: %d, startingN: %d, endingN: %d, totalN: %d\n", thread.league_rank(), thread.team_size(), thread.team_rank(), startingN, endingN, totalN);
+
+      Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, totalN), [&, startingN, i_size, j_size, k_size, rbegin0, rbegin1, rbegin2] (const int& N) {
+        // Craft an i,j,k out of this range
+        // This approach works with row-major layout so that consecutive Sycl threads work along consecutive slots in memory.
+        //printf("parallel_for team demo - n is %d, league_rank is %d, true n is %d\n", N, thread.league_rank(), (startingN + N));
+        const int k = (startingN + N) / (j_size * i_size) + rbegin2;
+        const int j = ((startingN + N) / i_size) % j_size + rbegin1;
+        const int i = (startingN + N) % i_size + rbegin0;
+        // Actually run the functor.
+        functor( i, j, k );
+      });
+    });
+  }
+
+#if defined(NO_STREAM)
+  // TODO: abb cudaDeviceSync() for SYCL
+  cudaDeviceSynchronize();
+#endif
+
+// ----------------- Team policy but with one stream -----------------
+//  unsigned int i_size = r.end(0) - r.begin(0);
+//  unsigned int j_size = r.end(1) - r.begin(1);
+//  unsigned int k_size = r.end(2) - r.begin(2);
+//  unsigned int rbegin0 = r.begin(0);
+//  unsigned int rbegin1 = r.begin(1);
+//  unsigned int rbegin2 = r.begin(2);
+//
+//
+//  int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+//  int gpu_blocks_per_loop   = execObj.getGpuBlocksPerLoop();
+//
+//  //If 256 threads aren't needed, use less.
+//  //But cap at 256 threads total, as this will correspond to 256 threads in a block.
+//  //Later the TeamThreadRange will reuse those 256 threads.  For example, if teamThreadRangeSize is 800, then
+//  //Cuda thread 0 will be assigned to n = 0, n = 256, n = 512, and n = 768,
+//  //Cuda thread 1 will be assigned to n = 1, n = 257, n = 513, and n = 769...
+//
+//  const int teamThreadRangeSize = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
+//  const int actualThreads = teamThreadRangeSize > gpu_threads_per_block ? gpu_threads_per_block : teamThreadRangeSize;
+//
+//  typedef Kokkos::TeamPolicy<ExecSpace> policy_type;
+//
+//  Kokkos::parallel_for (Kokkos::TeamPolicy<ExecSpace>( gpu_blocks_per_loop, actualThreads ),
+//                           [=] __device__ ( typename policy_type::member_type thread ) {
+//    Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, teamThreadRangeSize), [=] (const int& n) {
+//
+//      const int i = n / (j_size * k_size) + rbegin0;
+//      const int j = (n / k_size) % j_size + rbegin1;
+//      const int k = n % k_size + rbegin2;
+//      functor( i, j, k );
+//    });
+//  });
+
+  // ----------------- Range policy with one stream -----------------
+//  const int teamThreadRangeSize = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
+//  const int threadsPerGroup = 256;
+//  const int actualThreads = teamThreadRangeSize > threadsPerGroup ? threadsPerGroup : teamThreadRangeSize;
+//
+//  void* stream = r.getStream();
+//
+//  if (!stream) {
+//    std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
+//    exit(-1);
+//  }
+//  Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+//  Kokkos::RangePolicy<Kokkos::Experimental::SYCL> rangepolicy( instanceObject, 0, actualThreads);
+//
+//  Kokkos::parallel_for( rangepolicy, KOKKOS_LAMBDA ( const int& n ) {
+//    int threadNum = n;
+//    while ( threadNum < teamThreadRangeSize ) {
+//      const int i = threadNum / (j_size * k_size) + rbegin0;
+//      const int j = (threadNum / k_size) % j_size + rbegin1;
+//      const int k = threadNum % k_size + rbegin2;
+//      functor( i, j, k );
+//      threadNum += threadsPerGroup;
+//    }
+//  });
+}
+#endif  //#if defined(HAVE_SYCL)
 #endif  //#if defined(UINTAH_ENABLE_KOKKOS)
 
 template <typename ExecSpace, typename MemSpace, typename Functor>
@@ -612,53 +778,53 @@ parallel_reduce_sum( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange c
   const unsigned int numItems = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
 
   // Get the requested amount of threads per streaming multiprocessor (SM) and number of SMs totals.
-  const unsigned int cuda_threads_per_block = execObj.getCudaThreadsPerBlock();
-  const unsigned int cuda_blocks_per_loop     = execObj.getCudaBlocksPerLoop();
+  const unsigned int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+  const unsigned int gpu_blocks_per_loop     = execObj.getGpuBlocksPerLoop();
   const unsigned int streamPartitions = execObj.getNumStreams();
 
   // The requested range of data may not have enough work for the requested command line arguments, so shrink them if necessary.
-  const unsigned int actual_threads = (numItems / streamPartitions) > (cuda_threads_per_block * cuda_blocks_per_loop)
-                                    ? (cuda_threads_per_block * cuda_blocks_per_loop) : (numItems / streamPartitions);
-  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > cuda_threads_per_block ? cuda_threads_per_block : (numItems / streamPartitions);
-  const unsigned int actual_cuda_blocks_per_loop = (actual_threads - 1) / cuda_threads_per_block + 1;
+  const unsigned int actual_threads = (numItems / streamPartitions) > (gpu_threads_per_block * gpu_blocks_per_loop)
+                                    ? (gpu_threads_per_block * gpu_blocks_per_loop) : (numItems / streamPartitions);
+  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > gpu_threads_per_block ? gpu_threads_per_block : (numItems / streamPartitions);
+  const unsigned int actual_gpu_blocks_per_loop = (actual_threads - 1) / gpu_threads_per_block + 1;
   for (unsigned int i = 0; i < streamPartitions; i++) {
 
 #if defined(NO_STREAM)
     Kokkos::Cuda instanceObject();
-    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( actual_cuda_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( actual_gpu_blocks_per_loop, actual_threads_per_block );
 #else
     void* stream = execObj.getStream(i);
     if (!stream) {
       std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
       SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
     }
-    Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
-    //Kokkos::TeamPolicy< Kokkos::Cuda, Kokkos::LaunchBounds<640,1>  > reduce_tp( instanceObject, actual_cuda_blocks_per_loop, actual_threads_per_block );
-    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( instanceObject, actual_cuda_blocks_per_loop, actual_threads_per_block );
+    Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
+    //Kokkos::TeamPolicy< Kokkos::Cuda, Kokkos::LaunchBounds<640,1>  > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
 #endif
-    
+
     // Use a Team Policy, this allows us to control how many threads per block and how many blocks are used.
     typedef Kokkos::TeamPolicy< Kokkos::Cuda > policy_type;
     Kokkos::parallel_reduce ( reduce_tp, [=] __device__ ( typename policy_type::member_type thread, ReductionType& inner_sum ) {
 
       // We are within an SM, and all SMs share the same amount of assigned CUDA threads.
       // Figure out which range of N items this SM should work on (as a multiple of 32).
-      const unsigned int currentPartition = i * actual_cuda_blocks_per_loop + thread.league_rank();
-      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_cuda_blocks_per_loop * streamPartitions );
+      const unsigned int currentPartition = i * actual_gpu_blocks_per_loop + thread.league_rank();
+      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_gpu_blocks_per_loop * streamPartitions );
       const unsigned int startingN =  estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
       unsigned int endingN;
       // Check if this is the last partition
-      if ( currentPartition + 1 == actual_cuda_blocks_per_loop * streamPartitions ) {
+      if ( currentPartition + 1 == actual_gpu_blocks_per_loop * streamPartitions ) {
         endingN = numItems;
       } else {
-        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_cuda_blocks_per_loop * streamPartitions );
+        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_gpu_blocks_per_loop * streamPartitions );
         endingN = estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
       }
       const unsigned int totalN = endingN - startingN;
       //printf("league_rank: %d, team_size: %d, team_rank: %d, startingN: %d, endingN: %d, totalN: %d\n", thread.league_rank(), thread.team_size(), thread.team_rank(), startingN, endingN, totalN);
 
       Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, totalN), [&, startingN, i_size, j_size, k_size, rbegin0, rbegin1, rbegin2] (const int& N) {
-        // Craft an i,j,k out of this range. 
+        // Craft an i,j,k out of this range.
         // This approach works with row-major layout so that consecutive Cuda threads work along consecutive slots in memory.
         //printf("reduce team demo - n is %d, league_rank is %d, true n is %d\n", N, thread.league_rank(), (startingN + N));
         const int k = (startingN + N) / (j_size * i_size) + rbegin2;
@@ -689,7 +855,7 @@ parallel_reduce_sum( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange c
 //    std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
 //    exit(-1);
 //  }
-//  Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
+//  Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
 //  Kokkos::RangePolicy<Kokkos::Cuda> rangepolicy( instanceObject, 0, actualThreads);
 //
 //  Kokkos::parallel_reduce( rangepolicy, KOKKOS_LAMBDA ( const int& n, ReductionType & inner_tmp ) {
@@ -707,6 +873,124 @@ parallel_reduce_sum( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange c
 
 }
 #endif  //#if defined(HAVE_CUDA)
+
+#if defined(HAVE_SYCL)
+template <typename ExecSpace, typename MemSpace, typename Functor, typename ReductionType>
+inline typename std::enable_if<std::is_same<ExecSpace, Kokkos::Experimental::SYCL>::value, void>::type
+parallel_reduce_sum( ExecutionObject<ExecSpace, MemSpace>& execObj, BlockRange const & r, const Functor & functor, ReductionType & red )
+{
+  // Overall goal, split a 3D range requested by the user into various SMs on the GPU.  (In essence, this would be a Kokkos MD_Team+Policy, if one existed)
+  // The process requires going from 3D range to a 1D range, partitioning the 1D range into groups that are multiples of 32,
+  // then converting that group of 32 range back into a 3D (i,j,k) index.
+  ReductionType tmp = red;
+  unsigned int i_size = r.end(0) - r.begin(0);
+  unsigned int j_size = r.end(1) - r.begin(1);
+  unsigned int k_size = r.end(2) - r.begin(2);
+  unsigned int rbegin0 = r.begin(0);
+  unsigned int rbegin1 = r.begin(1);
+  unsigned int rbegin2 = r.begin(2);
+
+  // The user has two partitions available.  1) One is the total number of streaming multiprocessors.  2) The other is
+  // splitting a task into multiple streams and execution units.
+
+  const unsigned int numItems = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
+
+  // Get the requested amount of threads per streaming multiprocessor (SM) and number of SMs totals.
+  const unsigned int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+  const unsigned int gpu_blocks_per_loop     = execObj.getGpuBlocksPerLoop();
+  const unsigned int streamPartitions = execObj.getNumStreams();
+
+  // The requested range of data may not have enough work for the requested command line arguments, so shrink them if necessary.
+  const unsigned int actual_threads = (numItems / streamPartitions) > (gpu_threads_per_block * gpu_blocks_per_loop)
+                                    ? (gpu_threads_per_block * gpu_blocks_per_loop) : (numItems / streamPartitions);
+  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > gpu_threads_per_block ? gpu_threads_per_block : (numItems / streamPartitions);
+  const unsigned int actual_gpu_blocks_per_loop = (actual_threads - 1) / gpu_threads_per_block + 1;
+  for (unsigned int i = 0; i < streamPartitions; i++) {
+
+#if defined(NO_STREAM)
+    Kokkos::Experimental::SYCL instanceObject();
+    Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > reduce_tp( actual_gpu_blocks_per_loop, actual_threads_per_block );
+#else
+    void* stream = execObj.getStream(i);
+    if (!stream) {
+      std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
+      SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
+    }
+    Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+    //Kokkos::TeamPolicy< Kokkos::Experimental::SYCL, Kokkos::LaunchBounds<640,1>  > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+#endif
+
+    // Use a Team Policy, this allows us to control how many threads per block and how many blocks are used.
+    typedef Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > policy_type;
+    Kokkos::parallel_reduce ( reduce_tp, [=] ( typename policy_type::member_type thread, ReductionType& inner_sum ) {
+
+      // We are within an SM, and all SMs share the same amount of assigned CUDA threads.
+      // Figure out which range of N items this SM should work on (as a multiple of 32).
+      const unsigned int currentPartition = i * actual_gpu_blocks_per_loop + thread.league_rank();
+      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_gpu_blocks_per_loop * streamPartitions );
+      const unsigned int startingN =  estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
+      unsigned int endingN;
+      // Check if this is the last partition
+      if ( currentPartition + 1 == actual_gpu_blocks_per_loop * streamPartitions ) {
+        endingN = numItems;
+      } else {
+        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_gpu_blocks_per_loop * streamPartitions );
+        endingN = estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
+      }
+      const unsigned int totalN = endingN - startingN;
+      //printf("league_rank: %d, team_size: %d, team_rank: %d, startingN: %d, endingN: %d, totalN: %d\n", thread.league_rank(), thread.team_size(), thread.team_rank(), startingN, endingN, totalN);
+
+      Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, totalN), [&, startingN, i_size, j_size, k_size, rbegin0, rbegin1, rbegin2] (const int& N) {
+        // Craft an i,j,k out of this range.
+        // This approach works with row-major layout so that consecutive Cuda threads work along consecutive slots in memory.
+        //printf("reduce team demo - n is %d, league_rank is %d, true n is %d\n", N, thread.league_rank(), (startingN + N));
+        const int k = (startingN + N) / (j_size * i_size) + rbegin2;
+        const int j = ((startingN + N) / i_size) % j_size + rbegin1;
+        const int i = (startingN + N) % i_size + rbegin0;
+        // Actually run the functor.
+        ReductionType tmp2=0;
+        functor(i,j,k, tmp2);
+        inner_sum+=tmp2;
+      });
+    }, tmp);
+
+    red = tmp;
+  }
+
+#if defined(NO_STREAM)
+  cudaDeviceSynchronize();
+#endif
+
+  //  Manual approach using range policy that shares threads.
+//  const int teamThreadRangeSize = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
+//  const int threadsPerGroup = 256;
+//  const int actualThreads = teamThreadRangeSize > threadsPerGroup ? threadsPerGroup : teamThreadRangeSize;
+//
+//  void* stream = r.getStream();
+//
+//  if (!stream) {
+//    std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
+//    exit(-1);
+//  }
+//  Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+//  Kokkos::RangePolicy<Kokkos::Experimental::SYCL> rangepolicy( instanceObject, 0, actualThreads);
+//
+//  Kokkos::parallel_reduce( rangepolicy, KOKKOS_LAMBDA ( const int& n, ReductionType & inner_tmp ) {
+//    int threadNum = n;
+//    while ( threadNum < teamThreadRangeSize ) {
+//      const int i = threadNum / (j_size * k_size) + rbegin0;
+//      const int j = (threadNum / k_size) % j_size + rbegin1;
+//      const int k = threadNum % k_size + rbegin2;
+//      functor( i, j, k, inner_tmp );
+//      threadNum += threadsPerGroup;
+//    }
+//  }, tmp);
+//
+//  red = tmp;
+
+}
+#endif  //#if defined(HAVE_SYCL)
 #endif  //#if defined(UINTAH_ENABLE_KOKKOS)
 
 template <typename ExecSpace, typename MemSpace, typename Functor, typename ReductionType>
@@ -761,7 +1045,7 @@ parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
     }}
   }, Kokkos::Min<ReductionType>(tmp0));
 
-  red = min(tmp0,red); 
+  red = min(tmp0,red);
 
 }
 #endif  //#if defined(UINTAH_ENABLE_KOKKOS)
@@ -770,7 +1054,7 @@ parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
 #if defined(HAVE_CUDA)
 template <typename ExecSpace, typename MemSpace, typename Functor, typename ReductionType>
 inline typename std::enable_if<std::is_same<ExecSpace, Kokkos::Cuda>::value, void>::type
-parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,  
+parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
                      BlockRange const & r, const Functor & functor, ReductionType & red )
 {
   ReductionType tmp = red;
@@ -787,31 +1071,31 @@ parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
   const unsigned int numItems = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
 
   // Get the requested amount of threads per streaming multiprocessor (SM) and number of SMs totals.
-  const unsigned int cuda_threads_per_block = execObj.getCudaThreadsPerBlock();
-  const unsigned int cuda_blocks_per_loop     = execObj.getCudaBlocksPerLoop();
+  const unsigned int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+  const unsigned int gpu_blocks_per_loop     = execObj.getGpuBlocksPerLoop();
   const unsigned int streamPartitions = execObj.getNumStreams();
 
   // The requested range of data may not have enough work for the requested command line arguments, so shrink them if necessary.
-  const unsigned int actual_threads = (numItems / streamPartitions) > (cuda_threads_per_block * cuda_blocks_per_loop)
-                                    ? (cuda_threads_per_block * cuda_blocks_per_loop) : (numItems / streamPartitions);
-  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > cuda_threads_per_block ? cuda_threads_per_block : (numItems / streamPartitions);
-  const unsigned int actual_cuda_blocks_per_loop = (actual_threads - 1) / cuda_threads_per_block + 1;
+  const unsigned int actual_threads = (numItems / streamPartitions) > (gpu_threads_per_block * gpu_blocks_per_loop)
+                                    ? (gpu_threads_per_block * gpu_blocks_per_loop) : (numItems / streamPartitions);
+  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > gpu_threads_per_block ? gpu_threads_per_block : (numItems / streamPartitions);
+  const unsigned int actual_gpu_blocks_per_loop = (actual_threads - 1) / gpu_threads_per_block + 1;
   for (unsigned int i = 0; i < streamPartitions; i++) {
 
 #if defined(NO_STREAM)
     Kokkos::Cuda instanceObject();
-    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( actual_cuda_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( actual_gpu_blocks_per_loop, actual_threads_per_block );
 #else
     void* stream = execObj.getStream(i);
     if (!stream) {
       std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
       SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
     }
-    Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
-    //Kokkos::TeamPolicy< Kokkos::Cuda, Kokkos::LaunchBounds<640,1>  > reduce_tp( instanceObject, actual_cuda_blocks_per_loop, actual_threads_per_block );
-    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( instanceObject, actual_cuda_blocks_per_loop, actual_threads_per_block );
+    Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
+    //Kokkos::TeamPolicy< Kokkos::Cuda, Kokkos::LaunchBounds<640,1>  > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Cuda > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
 #endif
-    
+
     // Use a Team Policy, this allows us to control how many threads per block and how many blocks are used.
     typedef Kokkos::TeamPolicy< Kokkos::Cuda > policy_type;
     Kokkos::parallel_reduce ( reduce_tp, [=] __device__ ( typename policy_type::member_type thread, ReductionType& inner_min ) {
@@ -819,22 +1103,22 @@ parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
 
       // We are within an SM, and all SMs share the same amount of assigned CUDA threads.
       // Figure out which range of N items this SM should work on (as a multiple of 32).
-      const unsigned int currentPartition = i * actual_cuda_blocks_per_loop + thread.league_rank();
-      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_cuda_blocks_per_loop * streamPartitions );
+      const unsigned int currentPartition = i * actual_gpu_blocks_per_loop + thread.league_rank();
+      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_gpu_blocks_per_loop * streamPartitions );
       const unsigned int startingN =  estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
       unsigned int endingN;
       // Check if this is the last partition
-      if ( currentPartition + 1 == actual_cuda_blocks_per_loop * streamPartitions ) {
+      if ( currentPartition + 1 == actual_gpu_blocks_per_loop * streamPartitions ) {
         endingN = numItems;
       } else {
-        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_cuda_blocks_per_loop * streamPartitions );
+        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_gpu_blocks_per_loop * streamPartitions );
         endingN = estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
       }
       const unsigned int totalN = endingN - startingN;
       //printf("league_rank: %d, team_size: %d, team_rank: %d, startingN: %d, endingN: %d, totalN: %d\n", thread.league_rank(), thread.team_size(), thread.team_rank(), startingN, endingN, totalN);
 
       Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, totalN), [&, startingN, i_size, j_size, k_size, rbegin0, rbegin1, rbegin2] (const int& N) {
-        // Craft an i,j,k out of this range. 
+        // Craft an i,j,k out of this range.
         // This approach works with row-major layout so that consecutive Cuda threads work along consecutive slots in memory.
         //printf("reduce team demo - n is %d, league_rank is %d, true n is %d\n", N, thread.league_rank(), (startingN + N));
         int k = (startingN + N) / (j_size * i_size) + rbegin2;
@@ -857,6 +1141,98 @@ parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
 
 }
 #endif  //#if defined(HAVE_CUDA)
+
+#if defined(HAVE_SYCL)
+template <typename ExecSpace, typename MemSpace, typename Functor, typename ReductionType>
+inline typename std::enable_if<std::is_same<ExecSpace, Kokkos::Experimental::SYCL>::value, void>::type
+parallel_reduce_min( ExecutionObject<ExecSpace, MemSpace>& execObj,
+                     BlockRange const & r, const Functor & functor, ReductionType & red )
+{
+  ReductionType tmp = red;
+  unsigned int i_size = r.end(0) - r.begin(0);
+  unsigned int j_size = r.end(1) - r.begin(1);
+  unsigned int k_size = r.end(2) - r.begin(2);
+  unsigned int rbegin0 = r.begin(0);
+  unsigned int rbegin1 = r.begin(1);
+  unsigned int rbegin2 = r.begin(2);
+
+  // The user has two partitions available.  1) One is the total number of streaming multiprocessors.  2) The other is
+  // splitting a task into multiple streams and execution units.
+
+  const unsigned int numItems = (i_size > 0 ? i_size : 1) * (j_size > 0 ? j_size : 1) * (k_size > 0 ? k_size : 1);
+
+  // Get the requested amount of threads per streaming multiprocessor (SM) and number of SMs totals.
+  const unsigned int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+  const unsigned int gpu_blocks_per_loop     = execObj.getGpuBlocksPerLoop();
+  const unsigned int streamPartitions = execObj.getNumStreams();
+
+  // The requested range of data may not have enough work for the requested command line arguments, so shrink them if necessary.
+  const unsigned int actual_threads = (numItems / streamPartitions) > (gpu_threads_per_block * gpu_blocks_per_loop)
+                                    ? (gpu_threads_per_block * gpu_blocks_per_loop) : (numItems / streamPartitions);
+  const unsigned int actual_threads_per_block = (numItems / streamPartitions) > gpu_threads_per_block ? gpu_threads_per_block : (numItems / streamPartitions);
+  const unsigned int actual_gpu_blocks_per_loop = (actual_threads - 1) / gpu_threads_per_block + 1;
+  for (unsigned int i = 0; i < streamPartitions; i++) {
+
+#if defined(NO_STREAM)
+    Kokkos::Experimental::SYCL instanceObject();
+    Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > reduce_tp( actual_gpu_blocks_per_loop, actual_threads_per_block );
+#else
+    void* stream = execObj.getStream(i);
+    if (!stream) {
+      std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
+      SCI_THROW(InternalError("Error, the SYCL stream must not be nullptr.", __FILE__, __LINE__));
+    }
+    Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+    //Kokkos::TeamPolicy< Kokkos::Experimental::SYCL, Kokkos::LaunchBounds<640,1>  > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+    Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > reduce_tp( instanceObject, actual_gpu_blocks_per_loop, actual_threads_per_block );
+#endif
+
+    // Use a Team Policy, this allows us to control how many threads per block and how many blocks are used.
+    typedef Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > policy_type;
+    Kokkos::parallel_reduce ( reduce_tp, [=] ( typename policy_type::member_type thread, ReductionType& inner_min ) {
+
+
+      // We are within an SM, and all SMs share the same amount of assigned CUDA threads.
+      // Figure out which range of N items this SM should work on (as a multiple of 32).
+      const unsigned int currentPartition = i * actual_gpu_blocks_per_loop + thread.league_rank();
+      unsigned int estimatedThreadAmount = numItems * (currentPartition) / ( actual_gpu_blocks_per_loop * streamPartitions );
+      const unsigned int startingN =  estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
+      unsigned int endingN;
+      // Check if this is the last partition
+      if ( currentPartition + 1 == actual_gpu_blocks_per_loop * streamPartitions ) {
+        endingN = numItems;
+      } else {
+        estimatedThreadAmount = numItems * ( currentPartition + 1 ) / ( actual_gpu_blocks_per_loop * streamPartitions );
+        endingN = estimatedThreadAmount + ((estimatedThreadAmount % 32 == 0) ? 0 : (32-estimatedThreadAmount % 32));
+      }
+      const unsigned int totalN = endingN - startingN;
+      //printf("league_rank: %d, team_size: %d, team_rank: %d, startingN: %d, endingN: %d, totalN: %d\n", thread.league_rank(), thread.team_size(), thread.team_rank(), startingN, endingN, totalN);
+
+      Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, totalN), [&, startingN, i_size, j_size, k_size, rbegin0, rbegin1, rbegin2] (const int& N) {
+        // Craft an i,j,k out of this range.
+        // This approach works with row-major layout so that consecutive Cuda threads work along consecutive slots in memory.
+        //printf("reduce team demo - n is %d, league_rank is %d, true n is %d\n", N, thread.league_rank(), (startingN + N));
+        int k = (startingN + N) / (j_size * i_size) + rbegin2;
+        int j = ((startingN + N) / i_size) % j_size + rbegin1;
+        int i = (startingN + N) % i_size + rbegin0;
+        // Actually run the functor.
+        ReductionType tmp2;
+        functor(i,j,k, tmp2 );
+        inner_min= inner_min > tmp2 ? tmp2 : inner_min;
+      });
+    }, Kokkos::Min<ReductionType>(tmp));
+
+    red = tmp;
+  }
+
+#if defined(NO_STREAM)
+  cudaDeviceSynchronize();
+#endif
+
+
+}
+#endif  //#if defined(HAVE_SYCL)
+
 #endif  //#if defined(UINTAH_ENABLE_KOKKOS)
 
 //TODO: This appears to not do any "min" on the reduction.
@@ -883,17 +1259,17 @@ inline typename std::enable_if<std::is_same<ExecSpace, UintahSpaces::CPU >::valu
 sweeping_parallel_for(ExecutionObject<ExecSpace, MemSpace>& execObj,  BlockRange const & r, const Functor & functor, const bool plusX, const bool plusY, const bool plusZ , const int npart)
 {
 
-    const int   idir= plusX ? 1 : -1; 
-    const int   jdir= plusY ? 1 : -1; 
-    const int   kdir= plusZ ? 1 : -1; 
+    const int   idir= plusX ? 1 : -1;
+    const int   jdir= plusY ? 1 : -1;
+    const int   kdir= plusZ ? 1 : -1;
 
     const int start_x= plusX ? r.begin(0) : r.end(0)-1;
     const int start_y= plusY ? r.begin(1) : r.end(1)-1;
     const int start_z= plusZ ? r.begin(2) : r.end(2)-1;
 
-    const int end_x= plusX ? r.end(0) : -r.begin(0)+1; 
+    const int end_x= plusX ? r.end(0) : -r.begin(0)+1;
     const int end_y= plusY ? r.end(1) : -r.begin(1)+1;
-    const int end_z= plusZ ? r.end(2) : -r.begin(2)+1; 
+    const int end_z= plusZ ? r.end(2) : -r.begin(2)+1;
 
     for (int k=start_z; k*kdir<end_z; k=k+kdir) {
       for (int j=start_y; j*jdir<end_y; j=j+jdir) {
@@ -913,12 +1289,12 @@ sweeping_parallel_for(ExecutionObject<ExecSpace, MemSpace>& execObj,  BlockRange
   const int jb = r.begin(1); const int je = r.end(1);
   const int kb = r.begin(2); const int ke = r.end(2);
 
-  ////////////CUBIC BLOCKS SUPPORTED ONLY/////////////////// 
+  ////////////CUBIC BLOCKS SUPPORTED ONLY///////////////////
   // RECTANGLES ARE HARD BUT POSSIBLYE MORE EFFICIENT //////
   // ///////////////////////////////////////////////////////
   const int nPartitionsx=npart; // try to break domain into nxnxn block
-  const int nPartitionsy=npart; 
-  const int nPartitionsz=npart; 
+  const int nPartitionsy=npart;
+  const int nPartitionsz=npart;
   const int  dx=ie-ib;
   const int  dy=je-jb;
   const int  dz=ke-kb;
@@ -964,9 +1340,9 @@ sweeping_parallel_for(ExecutionObject<ExecSpace, MemSpace>& execObj,  BlockRange
     }
 
     ///////// Multidirectional parameters
-    const int   idir= plusX ? 1 : -1; 
-    const int   jdir= plusY ? 1 : -1; 
-    const int   kdir= plusZ ? 1 : -1; 
+    const int   idir= plusX ? 1 : -1;
+    const int   jdir= plusY ? 1 : -1;
+    const int   kdir= plusZ ? 1 : -1;
 
     Kokkos::parallel_for( Kokkos::RangePolicy<Kokkos::OpenMP, int>(0, tpp).set_chunk_size(2), [=](int iblock) {
       const int  xiBlock = plusX ? xblock(iblock) : nPartitionsx-xblock(iblock)-1;
@@ -1007,7 +1383,18 @@ sweeping_parallel_for(ExecutionObject<ExecSpace, MemSpace>& execObj,  BlockRange
     SCI_THROW(InternalError("Error: sweeps on cuda has not been implimented .", __FILE__, __LINE__));
 }
 #endif
+
+#if defined(HAVE_SYCL)
+template <typename ExecSpace, typename MemSpace, typename Functor>
+inline typename std::enable_if<std::is_same<ExecSpace, Kokkos::Experimental::SYCL>::value, void>::type
+sweeping_parallel_for(ExecutionObject<ExecSpace, MemSpace>& execObj,  BlockRange const & r, const Functor & functor, const bool plusX, const bool plusY, const bool plusZ , const int npart)
+{
+
+    SCI_THROW(InternalError("Error: sweeps on sycl has not been implimented .", __FILE__, __LINE__));
+}
 #endif
+
+#endif // UINTAH_ENABLE_KOKKOS
 
 // Allows the user to specify a vector (or view) of indices that require an operation,
 // often needed for boundary conditions and possibly structured grids
@@ -1037,7 +1424,7 @@ parallel_for_unstructured(ExecutionObject<ExecSpace, MemSpace>& execObj,
 {
 
   void* stream = execObj.getStream();
-  Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
+  Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
   Kokkos::RangePolicy< Kokkos::Cuda > policy(instanceObject, 0, list_size);
 
   Kokkos::parallel_for (policy, KOKKOS_LAMBDA (const unsigned int& iblock) {
@@ -1045,8 +1432,8 @@ parallel_for_unstructured(ExecutionObject<ExecSpace, MemSpace>& execObj,
   });
 
   /*
-  unsigned int cudaThreadsPerBlock = execObj.getCudaThreadsPerBlock();
-  unsigned int cudaBlocksPerLoop   = execObj.getCudaBlocksPerLoop();
+  unsigned int cudaThreadsPerBlock = execObj.getGpuThreadsPerBlock();
+  unsigned int cudaBlocksPerLoop   = execObj.getGpuBlocksPerLoop();
 
   const unsigned int actualThreads = list_size > cudaThreadsPerBlock ? cudaThreadsPerBlock : list_size;
 
@@ -1059,7 +1446,7 @@ parallel_for_unstructured(ExecutionObject<ExecSpace, MemSpace>& execObj,
     std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
     SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
   }
-  Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
+  Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
   Kokkos::TeamPolicy< Kokkos::Cuda > teamPolicy( instanceObject, cudaBlocksPerLoop, actualThreads );
 #endif
 
@@ -1080,6 +1467,58 @@ parallel_for_unstructured(ExecutionObject<ExecSpace, MemSpace>& execObj,
 
 }
 #endif //HAVE_CUDA
+
+#if defined(HAVE_SYCL)
+template <typename ExecSpace, typename MemSpace, typename Functor>
+typename std::enable_if<std::is_same<ExecSpace, Kokkos::Experimental::SYCL>::value, void>::type
+parallel_for_unstructured(ExecutionObject<ExecSpace, MemSpace>& execObj,
+             Kokkos::View<int_3*, Kokkos::Experimental::SYCLDeviceUSMSpace> iterSpace ,const unsigned int list_size , const Functor & functor )
+{
+
+  void* stream = execObj.getStream();
+  Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+  Kokkos::RangePolicy< Kokkos::Experimental::SYCL > policy(instanceObject, 0, list_size);
+
+  Kokkos::parallel_for (policy, KOKKOS_LAMBDA (const unsigned int& iblock) {
+    functor(iterSpace[iblock][0],iterSpace[iblock][1],iterSpace[iblock][2]);
+  });
+
+  /*
+  unsigned int cudaThreadsPerBlock = execObj.getGpuThreadsPerBlock();
+  unsigned int cudaBlocksPerLoop   = execObj.getGpuBlocksPerLoop();
+
+  const unsigned int actualThreads = list_size > cudaThreadsPerBlock ? cudaThreadsPerBlock : list_size;
+
+#if defined(NO_STREAM)
+  Kokkos::Experimental::SYCL instanceObject();
+  Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > teamPolicy( cudaBlocksPerLoop, actualThreads );
+#else
+  void* stream = execObj.getStream();
+  if (!stream) {
+    std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
+    SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
+  }
+  Kokkos::Experimental::SYCL instanceObject(*(static_cast<gpuStream_t*>(stream)));
+  Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > teamPolicy( instanceObject, cudaBlocksPerLoop, actualThreads );
+#endif
+
+  typedef Kokkos::TeamPolicy< Kokkos::Experimental::SYCL > policy_type;
+
+  Kokkos::parallel_for (teamPolicy, KOKKOS_LAMBDA ( typename policy_type::member_type thread ) {
+
+    const unsigned int currentBlock = thread.league_rank();
+    Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, list_size), [&,iterSpace] (const unsigned int& iblock) {
+    functor(iterSpace[iblock][0],iterSpace[iblock][1],iterSpace[iblock][2]);
+      });
+    });
+  */
+
+#if defined(NO_STREAM)
+  cudaDeviceSynchronize();
+#endif
+
+}
+#endif //HAVE_SYCL
 #endif //UINTAH_ENABLE_KOKKOS
 
 #if defined(UINTAH_ENABLE_KOKKOS)
@@ -1091,15 +1530,15 @@ template <typename ExecSpace, typename MemSpace, typename T2, typename T3>
 typename std::enable_if<std::is_same<ExecSpace, Kokkos::Cuda>::value, void>::type
 parallel_for(ExecutionObject<ExecSpace, MemSpace>& execObj, T2 KV3, const T3 init_val)
 {
-  int cuda_threads_per_block = execObj.getCudaThreadsPerBlock();
-  int cuda_blocks_per_loop   = execObj.getCudaBlocksPerLoop();
+  int gpu_threads_per_block = execObj.getGpuThreadsPerBlock();
+  int gpu_blocks_per_loop   = execObj.getGpuBlocksPerLoop();
 
   const int num_cells=KV3.m_view.size();
-  const int actualThreads = num_cells > cuda_threads_per_block ? cuda_threads_per_block : num_cells;
+  const int actualThreads = num_cells > gpu_threads_per_block ? gpu_threads_per_block : num_cells;
 
   typedef Kokkos::TeamPolicy<ExecSpace> policy_type;
 
-  Kokkos::parallel_for (Kokkos::TeamPolicy<ExecSpace>( cuda_blocks_per_loop, actualThreads ),
+  Kokkos::parallel_for (Kokkos::TeamPolicy<ExecSpace>( gpu_blocks_per_loop, actualThreads ),
                         KOKKOS_LAMBDA ( typename policy_type::member_type thread ) {
     Kokkos::parallel_for (Kokkos::TeamThreadRange(thread, num_cells), [=] (const int& i) {
        KV3(i)=init_val;
@@ -1164,13 +1603,13 @@ class KokkosView3;
 #if defined(HAVE_CUDA)
 
 /* DS 11052019: Wrote alternative (and simpler) version of parallel_initialize_grouped for cuda
- * The previous version seems to produce error in parallel_initialize. 
+ * The previous version seems to produce error in parallel_initialize.
  * This version finds the max numb of cells among variables and uses it as an
  * iteration count. Using simpler RangePolicy instead of TeamPolicy. All computations
- * to find out index in TeamPolicy - especially divides and mods do not seem worth for 
+ * to find out index in TeamPolicy - especially divides and mods do not seem worth for
  * simple init code. Secondly iterating over all variables within struct1DArray manually
- * rather than spawning extra threads. This reduces degreee of parallelism, but produces 
- * correct result. Revisit later if it becomes a bottleneck. 
+ * rather than spawning extra threads. This reduces degreee of parallelism, but produces
+ * correct result. Revisit later if it becomes a bottleneck.
  */
 template <typename ExecSpace, typename MemSpace, typename T, typename ValueType>
 typename std::enable_if<std::is_same<ExecSpace, Kokkos::Cuda>::value, void>::type
@@ -1188,7 +1627,7 @@ parallel_initialize_grouped(ExecutionObject<ExecSpace, MemSpace>& execObj,
 	Kokkos::RangePolicy< Kokkos::Cuda > policy(0, n_cells);
 #else
 	void* stream = execObj.getStream();
-	Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
+	Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
 	Kokkos::RangePolicy< Kokkos::Cuda > policy(instanceObject, 0, n_cells);
 #endif
 
@@ -1214,8 +1653,8 @@ parallel_initialize_grouped(ExecutionObject<ExecSpace, MemSpace>& execObj,
     n_cells += KKV3[j].m_view.size();
   }
 
-  unsigned int cudaThreadsPerBlock = execObj.getCudaThreadsPerBlock();
-  unsigned int cudaBlocksPerLoop   = execObj.getCudaBlocksPerLoop();
+  unsigned int cudaThreadsPerBlock = execObj.getGpuThreadsPerBlock();
+  unsigned int cudaBlocksPerLoop   = execObj.getGpuBlocksPerLoop();
 
   const unsigned int actualThreads = n_cells > cudaThreadsPerBlock ? cudaThreadsPerBlock : n_cells;
 
@@ -1228,7 +1667,7 @@ parallel_initialize_grouped(ExecutionObject<ExecSpace, MemSpace>& execObj,
     std::cout << "Error, the CUDA stream must not be nullptr\n" << std::endl;
     SCI_THROW(InternalError("Error, the CUDA stream must not be nullptr.", __FILE__, __LINE__));
   }
-  Kokkos::Cuda instanceObject(*(static_cast<cudaStream_t*>(stream)));
+  Kokkos::Cuda instanceObject(*(static_cast<gpuStream_t*>(stream)));
   Kokkos::TeamPolicy< Kokkos::Cuda > teamPolicy( instanceObject, cudaBlocksPerLoop, actualThreads );
 #endif
 
@@ -1353,7 +1792,7 @@ parallel_initialize(ExecutionObject<ExecSpace, MemSpace>& execObj,
   for (int j=0; j<n_init_groups; j++){
     //DS 11052019: setting else part to n % ARRAY_SIZE instead of n % ARRAY_SIZE+1. Why +1? It adds one extra variable, which does not exist
     //At least matches with the alternative implementation
-    //hostArrayOfViews[j].runTime_size=n >ARRAY_SIZE * (j+1) ? ARRAY_SIZE : n % ARRAY_SIZE+1;    
+    //hostArrayOfViews[j].runTime_size=n >ARRAY_SIZE * (j+1) ? ARRAY_SIZE : n % ARRAY_SIZE+1;
 	hostArrayOfViews[j].runTime_size=n >ARRAY_SIZE * (j+1) ? ARRAY_SIZE : n % ARRAY_SIZE;
     parallel_initialize_grouped<ExecSpace, MemSpace, KokkosView3< T, MemSpace> >( execObj, hostArrayOfViews[j], initializationValue );
     //parallel_initialize_single<ExecSpace>(execObj, inputs_, inside_value ); // safer version, less ambitious
@@ -1444,7 +1883,7 @@ parallel_for_unstructured(ExecutionObject<ExecSpace, MemSpace>& execObj,
 //This FunctorBuilder exists because I couldn't go the lambda approach.
 //I was running into some conflict with Uintah/nvcc_wrapper/Kokkos/CUDA somewhere.
 //So I went the alternative route and built a functor instead of building a lambda.
-#if defined( HAVE_CUDA )
+#if defined( HAVE_CUDA ) || defined( HAVE_SYCL )
 template < typename Functor, typename ReductionType >
 struct FunctorBuilderReduce {
   //Functor& f = nullptr;
@@ -1473,7 +1912,7 @@ struct FunctorBuilderReduce {
     }
   }
 };
-#endif //defined(HAVE_CUDA)
+#endif //defined(HAVE_CUDA) || defined(HAVE_SYCL)
 #endif //if defined( UINTAH_ENABLE_KOKKOS )
 
 } // namespace Uintah

@@ -44,7 +44,7 @@
 #include <Core/Exceptions/InternalError.h>
 
 #include <sci_defs/cuda_defs.h>
-
+#include <sci_defs/sycl_defs.h>
 #include <vector>
 
 namespace Uintah {
@@ -58,20 +58,20 @@ public:
   // Streams should be created, supplied, and managed by the scheduler itself.
   // The application developer probably shouldn't be managing his or her own streams.
   void setStream(void* stream, int deviceID){
-#if defined(HAVE_CUDA)
-    //Ignore the non-CUDA case as those streams are pointless.
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+    //Ignore the non-CUDA/SYCL case as those streams are pointless.
     m_streams.push_back(stream);
     this->deviceID = deviceID;
 #endif
   }
 
   void setStreams(const std::vector<void*>& streams, int deviceID){
-#if defined(HAVE_CUDA)
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   for (auto& stream : streams) {
     m_streams.push_back(stream);
   }
   this->deviceID = deviceID;
-#endif //Ignore the non-CUDA case as those streams are pointless.
+#endif //Ignore the non-CUDA/SYCL case as those streams are pointless.
   }
 
   void * getStream() const {
@@ -93,28 +93,28 @@ public:
     return m_streams.size();
   }
 
-  int getCudaThreadsPerBlock() const {
-    return cuda_threads_per_block;
+  int getGpuThreadsPerBlock() const {
+    return gpu_threads_per_block;
   }
 
-  void setCudaThreadsPerBlock(int CudaThreadsPerBlock) {
-    this->cuda_threads_per_block = CudaThreadsPerBlock;
+  void setGpuThreadsPerBlock(int GpuThreadsPerBlock) {
+    this->gpu_threads_per_block = GpuThreadsPerBlock;
   }
 
-  int getCudaBlocksPerLoop() const {
-    return cuda_blocks_per_loop;
+  int getGpuBlocksPerLoop() const {
+    return gpu_blocks_per_loop;
   }
 
-  void setCudaBlocksPerLoop(int CudaBlocksPerLoop) {
-    this->cuda_blocks_per_loop = CudaBlocksPerLoop;
+  void setGpuBlocksPerLoop(int GpuBlocksPerLoop) {
+    this->gpu_blocks_per_loop = GpuBlocksPerLoop;
   }
 
   //void getTempTaskSpaceFromPool(void** ptr, unsigned int size) const {}
 private:
   std::vector<void*> m_streams;
   int deviceID{0};
-  int cuda_threads_per_block{-1};
-  int cuda_blocks_per_loop{-1};
+  int gpu_threads_per_block{-1};
+  int gpu_blocks_per_loop{-1};
 };
 
 } // end namespace Uintah

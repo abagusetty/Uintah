@@ -31,14 +31,14 @@
 
 #ifdef HAVE_SYCL
 auto sycl_asynchandler = [] (sycl::exception_list exceptions) {
-    for (std::exception_ptr const& e : exceptions) {
-        try {
-            std::rethrow_exception(e);
-        } catch (sycl::exception const& ex) {
-            std::cout << "Caught asynchronous SYCL exception:" << std::endl
-            << ex.what() << ", SYCL code: " << ex.code() << std::endl;
-        }
+  for (std::exception_ptr const& e : exceptions) {
+    try {
+      std::rethrow_exception(e);
+    } catch (sycl::exception const& ex) {
+      std::cout << "Caught asynchronous SYCL exception:" << std::endl
+      << ex.what() << ", SYCL code: " << ex.code() << std::endl;
     }
+  }
 };
 #endif
 
@@ -119,8 +119,8 @@ GPUMemoryPool::allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize) 
         exit(-1);
       }
 #elif defined(HAVE_SYCL)
-      // abb: TODO get the right device or queue here from device_id
-      addr = sycl::malloc_device(memSize);
+      std::pair<sycl::device*, sycl::context*> syclDevCtxt = OnDemandDataWarehouse::uintahGetCurrentDeviceSycl(device_id);
+      addr = sycl::malloc_device(memSize, *(syclDevCtxt.first), *(syclDevCtxt.second));
       if (addr == nullptr) {
         printf("The SYCL GPU memory pool allocation failed!\n");
         exit(-1);
@@ -288,7 +288,7 @@ GPUMemoryPool::allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize) 
                      << " Issued CUDA/SYCL stream " << std::hex << stream
                      << " on device " << std::dec << device
                      << std::endl;
-         } 
+         }
          cerrLock.unlock();
        }
      } else {  // shouldn't need any more than the queue capacity, but in case
@@ -300,20 +300,8 @@ GPUMemoryPool::allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize) 
        stream = ((gpuStream_t*) malloc(sizeof(gpuStream_t)));
        CUDA_RT_SAFE_CALL(retVal = cudaStreamCreate(&(*stream)));
 #elif defined(HAVE_SYCL)
-       int nsycl_gpus = 0;
-       sycl::platform platform(sycl::gpu_selector{});
-       auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
-       for (const auto &gpu_device : gpu_devices) {
-         if (gpu_device.get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-           auto SubDevicesDomainNuma = gpu_device.create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-           for (const auto &tile : SubDevicesDomainNuma) {
-             if (device == nsycl_gpus) {
-               stream = new sycl::queue(tile, sycl_asynchandler, sycl::property_list{sycl::property::queue::in_order{}});
-               nsycl_gpus++;
-             }
-           }
-         }
-       }
+       std::pair<sycl::device*, sycl::context*> syclDevCtxt = OnDemandDataWarehouse::uintahGetCurrentDeviceSycl(device);
+       stream = new sycl::queue(*(syclDevCtxt.second), *(syclDevCtxt.first), sycl_asynchandler, sycl::property_list{sycl::property::queue::in_order{}});
 #endif
        if (gpu_stats.active()) {
          cerrLock.lock();
@@ -342,8 +330,6 @@ GPUMemoryPool::allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize) 
  void
  GPUMemoryPool::reclaimGpuStreamsIntoPool( DetailedTask * dtask )
  {
-
-
    if (gpu_stats.active()) {
      cerrLock.lock();
      {
@@ -360,33 +346,31 @@ GPUMemoryPool::allocateGpuSpaceFromPool(unsigned int device_id, size_t memSize) 
    // reclaim DetailedTask streams
    std::set<unsigned int> deviceNums = dtask->getDeviceNums();
    for (std::set<unsigned int>::iterator iter = deviceNums.begin(); iter != deviceNums.end(); ++iter) {
-
      gpuStream_t* stream = dtask->getGpuStreamForThisTask(*iter);
      if (stream != nullptr) {
 
-        idle_streams_mutex.lock();
-        {
-          s_idle_streams->operator[](*iter).push(stream);
-        }
+       idle_streams_mutex.lock();
+       {
+         s_idle_streams->operator[](*iter).push(stream);
+       }
+       idle_streams_mutex.unlock();
 
-        idle_streams_mutex.unlock();
-
-      if (gpu_stats.active()) {
-        cerrLock.lock();
-        {
-          gpu_stats << UnifiedScheduler::myRankThread() << " Reclaimed CUDA/SYCL stream " << std::hex << stream
-                    << " on device " << std::dec << *iter
-                    << " for task " << dtask->getName() << " at " << dtask
-                    << std::endl;
-        }
-        cerrLock.unlock();
-      }
-      // It seems that task objects persist between timesteps.  So make sure we remove
-      // all knowledge of any formerly used streams.
-      dtask->clearGpuStreamsForThisTask();
-    }
-  }
-}
+       if (gpu_stats.active()) {
+         cerrLock.lock();
+         {
+           gpu_stats << UnifiedScheduler::myRankThread() << " Reclaimed CUDA/SYCL stream " << std::hex << stream
+                     << " on device " << std::dec << *iter
+                     << " for task " << dtask->getName() << " at " << dtask
+                     << std::endl;
+         }
+         cerrLock.unlock();
+       }
+       // It seems that task objects persist between timesteps.  So make sure we remove
+       // all knowledge of any formerly used streams.
+       dtask->clearGpuStreamsForThisTask();
+     }
+   }
+ }
 
 
 

@@ -276,7 +276,6 @@ class UnifiedScheduler : public MPIScheduler  {
 
     std::map<VarLabelMatl<Patch>, GPUGridVariableInfo>  m_host_requires_ptrs;
     std::map<VarLabelMatl<Patch>, GPUGridVariableInfo>  m_host_computes_ptrs;
-    std::vector<std::queue<cudaEvent_t*> >              m_idle_events;
 
     int  m_num_devices;
     int  m_current_device;

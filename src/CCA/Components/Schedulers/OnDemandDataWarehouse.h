@@ -486,7 +486,11 @@ public:
   static GPUPerPatchBase* createGPUPerPatch(const TypeDescription::Type& type);
   static GPUReductionVariableBase* createGPUReductionVariable(const TypeDescription::Type& type);
 
-#endif
+  #ifdef HAVE_SYCL
+  static std::pair<sycl::device*, sycl::context*> uintahGetCurrentDeviceSycl(int deviceNum);
+  #endif
+
+#endif  //HAVE_CUDA || HAVE_SYCL
 
 
   virtual void unfinalize();
@@ -1297,6 +1301,10 @@ private:
 
   std::map<Patch*, bool> assignedPatches; // indicates where a given patch should be stored in an accelerator
 
+#endif
+
+#ifdef HAVE_SYCL
+  std::vector< std::pair<sycl::device*, sycl::context*> > syclDevices {};
 #endif
 
 
