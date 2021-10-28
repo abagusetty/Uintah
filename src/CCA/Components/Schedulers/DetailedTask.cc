@@ -815,14 +815,12 @@ DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
     CUDA_RT_SAFE_CALL (retVal);
     return false;
   }
-#endif
-
-#ifdef HAVE_SYCL
+#elif defined(HAVE_SYCL)
   retVal = cudaStreamQuery(*(it->second));
   if (retVal == cudaSuccess) {
     return true;
   }
-  else if (retVal == cudaErrorNotReady ) {
+  else {
     return false;
   }
 #endif

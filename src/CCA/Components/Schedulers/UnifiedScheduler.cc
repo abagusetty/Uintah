@@ -2964,7 +2964,7 @@ UnifiedScheduler::prepareDeviceVars( DetailedTask * dtask )
 
                   //Perform the copy!
 
-                  cudaStream_t* stream = dtask->getGpuStreamForThisTask(whichGPU);
+                  gpuStream_t* stream = dtask->getGpuStreamForThisTask(whichGPU);
                   OnDemandDataWarehouse::uintahSetGpuDevice(whichGPU);
                   if (it->second.m_varMemSize == 0) {
                     printf("ERROR: For variable %s patch %d material %d level %d staging %s attempting to copy zero bytes to the GPU.\n",
@@ -3026,7 +3026,7 @@ UnifiedScheduler::copyDelayedDeviceVars( DetailedTask * dtask )
     GpuUtilities::LabelPatchMatlLevelDw lpmld = it->lpmld;
     DeviceGridVariableInfo devGridVarInfo = it->devGridVarInfo;
 
-    cudaStream_t* stream = dtask->getGpuStreamForThisTask(devGridVarInfo.m_whichGPU);
+    gpuStream_t* stream = dtask->getGpuStreamForThisTask(devGridVarInfo.m_whichGPU);
 
     void * device_ptr = it->device_ptr;
     void * host_ptr = it->host_ptr;
@@ -4058,7 +4058,7 @@ UnifiedScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
           const unsigned int deviceNum = GpuUtilities::getGpuIndexForPatch(patch);
           GPUDataWarehouse * gpudw = dw->getGPUDW(deviceNum);
           OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
-          cudaStream_t* stream = dtask->getGpuStreamForThisTask(deviceNum);
+          gpuStream_t* stream = dtask->getGpuStreamForThisTask(deviceNum);
 
           if (gpudw != nullptr) {
 
@@ -4435,7 +4435,7 @@ UnifiedScheduler::initiateD2H( DetailedTask * dtask )
 
     GPUDataWarehouse * gpudw = dw->getGPUDW(deviceNum);
     OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
-    cudaStream_t* stream = dtask->getGpuStreamForThisTask(deviceNum);
+    gpuStream_t* stream = dtask->getGpuStreamForThisTask(deviceNum);
 
     const std::string varName = dependantVar->m_var->getName();
 
@@ -5147,7 +5147,7 @@ UnifiedScheduler::assignDevicesAndStreams( DetailedTask * dtask )
       for (int i = 0; i < dtask->getTask()->maxStreamsPerTask(); i++) {
         if (dtask->getGpuStreamForThisTask(i) == nullptr) {
           dtask->assignDevice(0); 
-          cudaStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(i);
+          gpuStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(i);
           dtask->setGpuStreamForThisTask(i, stream);
           if (gpu_stats.active()) {
             cerrLock.lock();
@@ -5191,7 +5191,7 @@ UnifiedScheduler::assignDevicesAndStreams( DetailedTask * dtask )
         // See if this task doesn't yet have a stream for this GPU device.
         if (dtask->getGpuStreamForThisTask(index) == nullptr) {
           dtask->assignDevice(index);
-          cudaStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(index);
+          gpuStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(index);
           if (gpu_stats.active()) {
             cerrLock.lock();
             {
@@ -5534,7 +5534,7 @@ UnifiedScheduler::copyAllGpuToGpuDependences( DetailedTask * dtask )
       // destination stream can then process.
       //   Note: If we move to UVA, then we could just do a straight memcpy
 
-      cudaStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_destDeviceNum);
+      gpuStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_destDeviceNum);
       OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_destDeviceNum);
 
       CUDA_RT_SAFE_CALL(cudaMemcpyPeerAsync(device_dest_ptr, it->second.m_destDeviceNum, device_source_ptr, it->second.m_sourceDeviceNum, memSize, *stream));
@@ -5614,7 +5614,7 @@ UnifiedScheduler::copyAllExtGpuDependenciesToHost( DetailedTask * dtask )
             && device_size.z == host_size.z()) {
 
           // Since we know we need a stream, obtain one.
-          cudaStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_sourceDeviceNum);
+          gpuStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_sourceDeviceNum);
           OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_sourceDeviceNum);
           if (gpu_stats.active()) {
             cerrLock.lock();

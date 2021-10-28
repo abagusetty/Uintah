@@ -1790,7 +1790,7 @@ GPUDataWarehouse::init_device(size_t objectSizeInBytes, unsigned int d_maxdVarDB
 //______________________________________________________________________
 //
 __host__ void
-GPUDataWarehouse::syncto_device(void *cuda_stream)
+GPUDataWarehouse::syncto_device(void *gpu_stream)
 {
   if (!d_device_copy) {
     printf("ERROR:\nGPUDataWarehouse::syncto_device()\nNo device copy\n");
@@ -1809,7 +1809,7 @@ GPUDataWarehouse::syncto_device(void *cuda_stream)
 
     //This approach does NOT require CUDA pinned memory.
     //unsigned int sizeToCopy = sizeof(GPUDataWarehouse);
-    gpuStream_t* stream = (gpuStream_t*)(cuda_stream);
+    gpuStream_t* stream = (gpuStream_t*)(gpu_stream);
 
     if (gpu_stats.active()) {
       cerrLock.lock();

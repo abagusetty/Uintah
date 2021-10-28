@@ -171,6 +171,7 @@ void Poisson1::scheduleTimeAdvance( const LevelP     & level
                         &Poisson1::timeAdvance<UINTAH_CPU_TAG>,
                         &Poisson1::timeAdvance<KOKKOS_OPENMP_TAG>,
                         &Poisson1::timeAdvance<KOKKOS_CUDA_TAG>,
+                        &Poisson1::timeAdvance<KOKKOS_SYCL_TAG>,
                         sched, level->eachPatch(), m_materialManager->allMaterials(), TASKGRAPH::DEFAULT);
 }
 

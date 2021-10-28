@@ -238,7 +238,7 @@ class UnifiedScheduler : public MPIScheduler  {
 
     void freeGpuStreamsFromPool();
 
-    cudaStream_t* getGpuStreamFromPool( int device );
+    gpuStream_t* getGpuStreamFromPool( int device );
 
     cudaError_t freeDeviceRequiresMem();
 

@@ -28,6 +28,7 @@
 #define CCA_COMPONENTS_SCHEDULERS_GPUDATAWAREHOUSE_H
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <Core/Grid/Variables/GPUVariable.h>
 #include <Core/Grid/Variables/GPUGridVariable.h>
 #include <Core/Grid/Variables/GPUReductionVariable.h>
@@ -406,6 +407,46 @@ public:
                                             , nullptr
                                             );
   }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  //______________________________________________________________________
+  // Kokkos methods
+  template <typename T>
+  inline KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> getKokkosView(char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
+  {
+    // host code
+    int3 var_offset{0,0,0};
+    int3 var_size{0,0,0};
+    T* data_ptr{nullptr};
+
+    varLock->lock();
+    labelPatchMatlLevel lpml( label, patchID, matlIndx, levelIndx );
+
+    if ( varPointers->find(lpml) != varPointers->end() ) {
+      allVarPointersInfo vp = varPointers->at(lpml);
+      var_offset = vp.var->device_offset;
+      var_size = vp.var->device_size;
+      data_ptr = reinterpret_cast<T*>(vp.var->device_ptr);
+    }
+    else {
+      printf( "Error in getKokkosView() - I'm GPUDW with name: \"%s\" at %p \n", _internalName, this );
+      printf( "Couldn't find an entry for label %s patch %d matl %d level %d\n", label, levelIndx, patchID, matlIndx );
+      GPUDataWarehouse::printGetError("GPUDataWarehouse::getKokkosView(...)", label, levelIndx, patchID, matlIndx );
+      exit(-1);
+    }
+
+    varLock->unlock();
+
+    return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>( Kokkos::subview( KokkosData<T, Kokkos::Experimental::SYCLDeviceUSMSpace>( data_ptr, var_size.x, var_size.y, var_size.z )
+                                                                                      , Kokkos::pair<int,int>( 0, var_size.x )
+                                                                                      , Kokkos::pair<int,int>( 0, var_size.y )
+                                                                                      , Kokkos::pair<int,int>( 0, var_size.z )
+                                                                                      )
+                                                                     , var_offset.x
+                                                                     , var_offset.y
+                                                                     , var_offset.z
+                                                                     , nullptr
+                                                                     );
+  }
 #endif
 
   //______________________________________________________________________
@@ -470,7 +511,7 @@ public:
   //HOST_DEVICE bool removeLevelDB( char const* name, int matlIndx, int levelIndx);
   __host__ bool remove(char const* label, int patchID, int matlIndx, int levelIndx);
   __host__ void* getPlacementNewBuffer();
-  __host__ void syncto_device(void *cuda_stream);
+  __host__ void syncto_device(void *gpu_stream);
   __host__ void clear();
   __host__ void deleteSelfOnDevice();
   __host__ GPUDataWarehouse* getdevice_ptr(){return d_device_copy;};

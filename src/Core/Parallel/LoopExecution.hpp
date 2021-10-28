@@ -100,11 +100,10 @@ namespace UintahSpaces{
 #if defined( HAVE_CUDA )
   class GPU {};          // At the moment, this is only used to describe data in Cuda Memory
   class CudaSpace {};    // and not to manage non-Kokkos GPU tasks.
-#endif //HAVE_CUDA
-#if defined( HAVE_SYCL )
+#elif defined( HAVE_SYCL )
   class GPU {};          // At the moment, this is only used to describe data in Sycl Memory
   class SyclSpace {};    // and not to manage non-Kokkos GPU tasks.
-#endif //HAVE_SYCL
+#endif
 }
 
 enum TASKGRAPH {
@@ -159,6 +158,25 @@ enum TASKGRAPH {
     #define UINTAH_CPU_TAG            UintahSpaces::CPU COMMA UintahSpaces::HostSpace
     #define KOKKOS_OPENMP_TAG         UintahSpaces::CPU COMMA UintahSpaces::HostSpace
     #define KOKKOS_CUDA_TAG           UintahSpaces::CPU COMMA UintahSpaces::HostSpace
+  #endif
+#elif defined(UINTAH_ENABLE_KOKKOS) && defined(HAVE_SYCL)
+  #if defined(KOKKOS_ENABLE_OPENMP)
+    #define UINTAH_CPU_TAG            Kokkos::OpenMP COMMA Kokkos::HostSpace
+    #define KOKKOS_OPENMP_TAG         Kokkos::OpenMP COMMA Kokkos::HostSpace
+  #else
+    #define UINTAH_CPU_TAG            UintahSpaces::CPU COMMA UintahSpaces::HostSpace
+    #define KOKKOS_OPENMP_TAG         UintahSpaces::CPU COMMA UintahSpaces::HostSpace
+  #endif
+  #define KOKKOS_SYCL_TAG             Kokkos::Experimental::SYCL COMMA Kokkos::Experimental::SYCLDeviceUSMSpace
+#elif defined(UINTAH_ENABLE_KOKKOS) && !defined(HAVE_SYCL)
+  #if defined(KOKKOS_ENABLE_OPENMP)
+    #define UINTAH_CPU_TAG            Kokkos::OpenMP COMMA Kokkos::HostSpace
+    #define KOKKOS_OPENMP_TAG         Kokkos::OpenMP COMMA Kokkos::HostSpace
+    #define KOKKOS_SYCL_TAG           Kokkos::OpenMP COMMA Kokkos::HostSpace
+  #else
+    #define UINTAH_CPU_TAG            UintahSpaces::CPU COMMA UintahSpaces::HostSpace
+    #define KOKKOS_OPENMP_TAG         UintahSpaces::CPU COMMA UintahSpaces::HostSpace
+    #define KOKKOS_SYCL_TAG           UintahSpaces::CPU COMMA UintahSpaces::HostSpace
   #endif
 #elif !defined(UINTAH_ENABLE_KOKKOS)
   #define UINTAH_CPU_TAG              UintahSpaces::CPU COMMA UintahSpaces::HostSpace

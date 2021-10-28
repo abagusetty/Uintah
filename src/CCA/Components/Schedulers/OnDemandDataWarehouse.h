@@ -675,7 +675,9 @@ public:
       return KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
-#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#endif
+
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
   template <typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
   getCCVariable( const VarLabel         * label
@@ -743,7 +745,9 @@ public:
       return KokkosView3<const T, Kokkos::CudaSpace>();
     }
   }
-#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#endif
+
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
   template <typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
   getConstCCVariable( const VarLabel         * label
@@ -821,7 +825,9 @@ public:
       return KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
-#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#endif
+
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
   template <typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
   getNCVariable( const VarLabel         * label
@@ -889,7 +895,9 @@ public:
       return KokkosView3<const T, Kokkos::CudaSpace>();
     }
   }
-#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#endif
+
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
   template <typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<const T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
   getConstNCVariable( const VarLabel         * label
@@ -968,7 +976,9 @@ public:
       return KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
-#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#endif
+
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
   template <typename grid_T,typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
   getGridVariable( const VarLabel         * label
@@ -985,7 +995,7 @@ public:
       return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>();
     }
   }
-#endif
+#endif // HAVE_SYCL && KOKKOS_ENABLE_SYCL
 
   template <typename grid_CT,typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, UintahSpaces::HostSpace >::value, grid_CT >::type
@@ -1117,7 +1127,9 @@ public:
       var = KokkosView3<T, Kokkos::CudaSpace>();
     }
   }
-#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#endif
+
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
   template <typename grid_T,typename T, typename MemSpace>
   inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, void >::type
   assignGridVariable(       KokkosView3<T, MemSpace> & var

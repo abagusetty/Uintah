@@ -1621,6 +1621,7 @@ GPUDataWarehouse::init_device(size_t objectSizeInBytes, unsigned int d_maxdVarDB
   this->objectSizeInBytes = objectSizeInBytes;
   this->d_maxdVarDBItems = d_maxdVarDBItems;
   OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
+
   void* temp = nullptr;
   //CUDA_RT_SAFE_CALL(cudaMalloc(&temp, objectSizeInBytes));
   temp = GPUMemoryPool::allocateGpuSpaceFromPool(d_device_id, objectSizeInBytes);
@@ -1640,8 +1641,6 @@ GPUDataWarehouse::init_device(size_t objectSizeInBytes, unsigned int d_maxdVarDB
   d_device_copy = (GPUDataWarehouse*)temp;
   //cudaHostRegister(this, sizeof(GPUDataWarehouse), cudaHostRegisterPortable);
 
-
-
   d_dirty = true;
 
 }
@@ -1649,7 +1648,7 @@ GPUDataWarehouse::init_device(size_t objectSizeInBytes, unsigned int d_maxdVarDB
 //______________________________________________________________________
 //
 void
-GPUDataWarehouse::syncto_device(void *cuda_stream)
+GPUDataWarehouse::syncto_device(void *gpu_stream)
 {
   if (!d_device_copy) {
     printf("ERROR:\nGPUDataWarehouse::syncto_device()\nNo device copy\n");
@@ -1668,13 +1667,13 @@ GPUDataWarehouse::syncto_device(void *cuda_stream)
 
     //This approach does NOT require CUDA pinned memory.
     //unsigned int sizeToCopy = sizeof(GPUDataWarehouse);
-    gpuStream_t* stream = (gpuStream_t*)(cuda_stream);
+    gpuStream_t* stream = (gpuStream_t*)(gpu_stream);
 
     if (gpu_stats.active()) {
       cerrLock.lock();
       {
         gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::syncto_device() - cudaMemcpy -"
+                  << " GPUDataWarehouse::syncto_device() - SYCLMemcpy -"
                   << " sync GPUDW at " << d_device_copy
                   << " with description " << _internalName
                   << " to device " << d_device_id
@@ -1683,7 +1682,7 @@ GPUDataWarehouse::syncto_device(void *cuda_stream)
       }
       cerrLock.unlock();
     }
-    CUDA_RT_SAFE_CALL (cudaMemcpyAsync( d_device_copy, this, objectSizeInBytes, cudaMemcpyHostToDevice, *stream));
+    stream->memcpy(d_device_copy, this, objectSizeInBytes);
 
     d_dirty=false;
   }
@@ -2341,9 +2340,9 @@ GPUDataWarehouse::transferFrom(gpuStream_t* stream, GPUGridVariableBase &var_sou
 
   var_source.setArray3(dest_it->second.var->device_offset, dest_it->second.var->device_size, dest_it->second.var->device_ptr);
 
-  cudaMemcpyAsync(dest_it->second.var->device_ptr, source_it->second.var->device_ptr,
-                  source_it->second.var->device_size.x * source_it->second.var->device_size.y * source_it->second.var->device_size.z * source_it->second.var->sizeOfDataType,
-                  cudaMemcpyDeviceToDevice, *stream);
+  // cudaMemcpyDeviceToDevice
+  stream->memcpy(dest_it->second.var->device_ptr, source_it->second.var->device_ptr,
+                 source_it->second.var->device_size.x * source_it->second.var->device_size.y * source_it->second.var->device_size.z * source_it->second.var->sizeOfDataType);
 
   from->varLock->unlock();
   this->varLock->unlock();
@@ -2969,7 +2968,7 @@ GPUDataWarehouse::compareAndSwapSetInvalidOnCPU(char const* const label, const i
       atomicDataStatus *status = &(it->second.var->atomicStatusInHostMemory);
       atomicDataStatus oldVarStatus  = __sync_or_and_fetch(status, 0);
       //somehow COPYING_IN flag is not getting reset at some places while setting VALID (or getting set by mistake). Which causes race conditions and hangs
-      //so reset COPYING_IN and VALID_WITH_GHOSTS flags here      
+      //so reset COPYING_IN and VALID_WITH_GHOSTS flags here
       if ((oldVarStatus & VALID) != VALID && (oldVarStatus & COPYING_IN) != COPYING_IN && (oldVarStatus & VALID_WITH_GHOSTS) != VALID_WITH_GHOSTS ) {
         //Something else already took care of it.  So this task won't manage it.
         varLock->unlock();
@@ -3239,7 +3238,7 @@ GPUDataWarehouse::setValidWithGhostsOnGPU(char const* label, int patchID, int ma
     //UNKNOWN
     //make sure the valid is still turned on
     //do not set VALID here because one thread can gather the main patch and other gathers ghost cells
-    //if ghost cells is finished first, setting valid here causes task to start even though other thread 
+    //if ghost cells is finished first, setting valid here causes task to start even though other thread
     //copying the main patch is not completed. race condition. Removed VALID_WITH_GHOSTS with from compareAndSwapCopyingInto*
     //add extra condition to check valid AND valid with ghost both in UnifiedSchedular::allGPUProcessingVarsReady
     //__sync_or_and_fetch(&(it->second.var->atomicStatusInGpuMemory), VALID);
@@ -3566,4 +3565,3 @@ GPUDataWarehouse::getPlacementNewBuffer()
 //   bool test (threadID == 0 );
 //   return test;
 // }
-

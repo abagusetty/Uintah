@@ -170,9 +170,7 @@ KokkosScheduler::KokkosScheduler( const ProcessorGroup  * myworld
     }
   }  // using Device
 
-#endif
-
-#ifdef HAVE_SYCL
+#elif defined( HAVE_SYCL )
   //__________________________________
   //
   if ( Uintah::Parallel::usingDevice() ) {
@@ -188,7 +186,31 @@ KokkosScheduler::KokkosScheduler( const ProcessorGroup  * myworld
     // precluding memory blocks being defined across multiple patches.
     Uintah::OnDemandDataWarehouse::s_combine_memory = false;
 
-    // abagusetty: Peer-2-Peer access using SYCL is not yet setup/clear
+    sycl::platform platform(sycl::gpu_selector{});
+    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
+    std::vector<ze_device_handle_t> ze_devices{};
+    for (int i = 0; i < gpu_devices.size(); i++) {
+      if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+        auto SubDevices = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+        for (const auto &tile : SubDevices) {
+          ze_devices.push_back( tile.get_native<sycl::backend::level_zero>() );
+        }
+      }
+    }
+
+    int num_devices = ze_devices.size();
+    int can_access = 0;
+    for (int i = 0; i < num_devices; i++) {
+      for (int j = 0; j < num_devices; j++) {
+        if (i != j) {
+          zeDeviceCanAccessPeer(ze_devices[i], ze_devices[j], &can_access);
+          if (!can_access) {
+            std::cout << "ERROR\n GPU device [" << i << "] cannot peer access GPU device [" << j << "] " << std::endl;
+            SCI_THROW( InternalError("** ERROR P2P peer GPU not supported.", __FILE__, __LINE__) );
+          }
+        }
+      }
+    }
   }  // using Device
 
 #endif // HAVE_SYCL
@@ -209,7 +231,7 @@ int
 KokkosScheduler::verifyAnyGpuActive()
 {
 
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA)
   // Attempt to access the zeroth GPU
   cudaError_t errorCode = cudaSetDevice(0);
   if (errorCode == cudaSuccess) {
@@ -305,9 +327,7 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
                device_id, device_prop.name, device_prop.major, device_prop.minor);
       }
     }
-#endif
-
-#ifdef HAVE_SYCL
+#elif defined( HAVE_SYCL )
     if ( !g_gpu_ids && Uintah::Parallel::usingDevice() ) {
       int availableDevices=0;
       sycl::platform platform(sycl::gpu_selector{});
@@ -328,9 +348,10 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
           for (const auto &tile : SubDevicesDomainNuma) {
             std::cout << "   GPU Device " << tmp_device_id << " "
                       << tile.get_info<sycl::info::device::name>()
-                      << " with compute capability [" << tile.get_backend()
+                      << ": with compute capability [" << tile.get_backend()
                       << "] v:" << tile.get_info<sycl::info::device::driver_version>()
                       << std::endl;
+	    tmp_device_id++;
           }
         }
       }
@@ -359,9 +380,7 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
     }
     DOUT(true, message.str());
   }
-#endif
-
-#ifdef HAVE_SYCL
+#elif defined( HAVE_SYCL )
   if ( g_gpu_ids && Uintah::Parallel::usingDevice() ) {
     int availableDevices=0;
     std::ostringstream message;
@@ -4622,9 +4641,8 @@ KokkosScheduler::copyAllGpuToGpuDependences( DetailedTask * dtask )
 
       #ifdef HAVE_CUDA
       CUDA_RT_SAFE_CALL(cudaMemcpyPeerAsync(device_dest_ptr, it->second.m_destDeviceNum, device_source_ptr, it->second.m_sourceDeviceNum, memSize, *stream));
-      #endif
-      #ifdef HAVE_SYCL
-      SCI_THROW(InternalError("Error - SYCL peer-peer(async/sync) device calls are not yet supported.  Cannot copy peer D2D", __FILE__, __LINE__));
+      #elif defined( HAVE_SYCL )
+      stream->memcpy(device_dest_ptr, device_source_ptr, memSize); // SYCL P2P memcpy
       #endif
 
     }

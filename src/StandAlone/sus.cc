@@ -388,7 +388,7 @@ int main( int argc, char *argv[], char *env[] )
       restartRemoveOldDir = true;
     }
     else if (arg == "-gpucheck") {
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA)
       int retVal = UnifiedScheduler::verifyAnyGpuActive();
       if (retVal == 1) {
         std::cout << "At least one GPU detected!" << std::endl;

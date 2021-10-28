@@ -380,7 +380,17 @@ SCI_ARG_WITH(cuda,
    sci_required_cuda=no],
   DIR,
   WITHOUT-IS-NOT-VALID)
-  
+
+SCI_ARG_WITH(sycl,
+  AC_HELP_STRING(--with-sycl=DIR,
+                 Use the SYCL installation in DIR),
+  [with_sycl="$withval"
+   sci_required_sycl=yes],
+  [with_sycl=NOT_SET
+   sci_required_sycl=no],
+  DIR,
+  WITHOUT-IS-NOT-VALID)
+
 SCI_ARG_WITH(hypre,
   AC_HELP_STRING(--with-hypre=DIR,
                  Use the hypre installation in DIR.  Set to 'built-in' if explicit linking of hypre is NOT required. ),

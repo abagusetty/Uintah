@@ -33,6 +33,13 @@
 #  include <CL/sycl.hpp>
 #  include <utility>
 
+#  include "level_zero/ze_api.h"
+#  include <CL/sycl/backend/level_zero.hpp>
+
+#  define HOST_DEVICE
+#  define __host__
+#  define __device__
+
 #  ifdef __cplusplus
 extern "C" {
 #  endif
