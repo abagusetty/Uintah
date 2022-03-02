@@ -720,6 +720,8 @@ VISUS_LIB_FLAG
 INC_VISUS_H
 DEF_VISUS
 HAVE_VISUS
+DEF_SYCL
+HAVE_SYCL
 NVCC_LIBS
 CUDA_LIB_FLAG
 CUDA_LIB_DIR_FLAG
@@ -961,6 +963,7 @@ with_mpi_lib
 with_mpi_include
 with_mpi_extra_libs
 with_cuda
+with_sycl
 with_hypre
 with_hypre_lib
 with_hypre_include
@@ -4198,6 +4201,18 @@ $as_echo "$as_me: WARNING: the files are $the_files " >&2;}
   fi
 
 
+
+
+
+  # Check whether --with-sycl was given.
+if test "${with_sycl+set}" = set; then :
+  withval=$with_sycl; with_sycl="$withval"
+   sci_required_sycl=yes
+else
+  with_sycl=NOT_SET
+   sci_required_sycl=no
+fi
+  sci_arg_with_list="$sci_arg_with_list --with-sycl --without-sycl"
 
 
 # Check whether --with-hypre was given.
@@ -8713,40 +8728,40 @@ $as_echo "$as_me: WARNING: -----------------------------------------------------
     ;;
 esac
 
-#########################################################################
-##
-##  Add the -fopenmp flag
-##
+# #########################################################################
+# ##
+# ##  Add the -fopenmp flag
+# ##
 
-cat > conftest-openmp.cc <<EOF
+# cat > conftest-openmp.cc <<EOF
 
-#include <iostream>
+# #include <iostream>
 
-int main()
-{
-  double a=1;
-  double b=.01;
-}
-EOF
+# int main()
+# {
+#   double a=1;
+#   double b=.01;
+# }
+# EOF
 
-# Verify that the compiler accepts the -fopenmp flag:
-$CXX $CXXFLAGS -fopenmp conftest-openmp.cc -o conftest-openmp 2>&5
+# # Verify that the compiler accepts the -fopenmp flag:
+# $CXX $CXXFLAGS -fopenmp conftest-openmp.cc -o conftest-openmp 2>&5
 
-if test $? = 0; then
-   if test "$IS_OSX" = "no"; then
-      add_important_warning "Automatically added -fopenmp compiler option to C/CXXFLAGS."
-      CFLAGS="$CFLAGS -fopenmp"
-      CXXFLAGS="$CXXFLAGS -fopenmp"
-   else
-      add_important_warning "On Mac: Not adding the openmp compiler option (-fopenmp) to C/CXXFLAGS."
-   fi
-else
-   rm -f conftest-openmp conftest-openmp.cc
-   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Tried to add the -fopenmp flag but the compiler ($CXX) failed to accept it...\n " >&5
-$as_echo "$as_me: WARNING: Tried to add the -fopenmp flag but the compiler ($CXX) failed to accept it...\n " >&2;}
-fi
+# if test $? = 0; then
+#    if test "$IS_OSX" = "no"; then
+#       add_important_warning "Automatically added -fopenmp compiler option to C/CXXFLAGS."
+#       CFLAGS="$CFLAGS -fopenmp"
+#       CXXFLAGS="$CXXFLAGS -fopenmp"
+#    else
+#       add_important_warning "On Mac: Not adding the openmp compiler option (-fopenmp) to C/CXXFLAGS."
+#    fi
+# else
+#    rm -f conftest-openmp conftest-openmp.cc
+#    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Tried to add the -fopenmp flag but the compiler ($CXX) failed to accept it...\n " >&5
+# $as_echo "$as_me: WARNING: Tried to add the -fopenmp flag but the compiler ($CXX) failed to accept it...\n " >&2;}
+# fi
 
-rm -f conftest-openmp conftest-openmp.cc
+# rm -f conftest-openmp conftest-openmp.cc
 
 #########################################################################
 ##
@@ -35277,6 +35292,9 @@ if test -n "kokkos"; then
    found_framework=no
    for lib in kokkos; do
 
+       { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Only -l options are allowed in arg 5 of KOKKOS check (disregarding $lib)." >&5
+	 $as_echo "$as_me: WARNING: Only -l options are allowed in arg 5 of KOKKOS check (disregarding $lib)." >&2;}
+
       if test "$found_framework" = "one"; then
          found_framework=two
       else
@@ -35790,7 +35808,7 @@ done
 if test -n "kokkos"; then
 
    found_framework=no
-   for lib in kokkos; do
+   for lib in kokkoscore; do
 
       if test "$found_framework" = "one"; then
          found_framework=two
@@ -36085,7 +36103,7 @@ if test "$_sci_optional" = "specific"; then
     fi
   done
   # Make sure the exact libraries were found
-  for i in "" kokkos; do
+  for i in "" kokkoscore; do
     if test -z "$i"; then
        continue
     fi
@@ -36124,7 +36142,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 fi
 
 if test "$HAVE_KOKKOS" = "yes"; then
-  DEF_KOKKOS="#define UINTAH_ENABLE_KOKKOS"
+  DEF_KOKKOS="#define UINTAH_ENABLE_KOKKOS 1"
 fi
 
 
@@ -36587,6 +36605,16 @@ fi
 
 sci_defs_files="$sci_defs_files include/sci_defs/cuda_testdefs.h"
 
+
+##  --  search for sycl stuff  ------------------------------------------
+if test "$with_sycl" != NOT_SET; then
+   if test $HAVE_SYCL="yes"; then
+     DEF_SYCL="#define HAVE_SYCL 1"
+   else
+     eval HAVE_SYCL="no"
+   fi
+fi
+sci_defs_files="$sci_defs_files include/sci_defs/sycl_testdefs.h"
 
 ##  --  search for visus  -------------------------------------------------
 ac_ext=cpp

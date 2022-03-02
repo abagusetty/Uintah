@@ -119,6 +119,11 @@ namespace Uintah {
       /** @brief Return a CONST grid variable **/
       template <typename T, typename PODType, typename MemSpace>
       typename std::enable_if<std::is_base_of<Uintah::constVariableBase<Uintah::GridVariableBase>, T>::value && std::is_same<MemSpace, Kokkos::CudaSpace>::value, KokkosView3<PODType, Kokkos::CudaSpace>>::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      /** @brief Return a CONST grid variable **/
+      template <typename T, typename PODType, typename MemSpace>
+      typename std::enable_if<std::is_base_of<Uintah::constVariableBase<Uintah::GridVariableBase>, T>::value && std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, KokkosView3<PODType, Kokkos::Experimental::SYCLDeviceUSMSpace>>::type
+#endif
       get_field( const std::string name )
       {
         int which_dw = _field_container->get_variable_information( name, true ).uintah_task_dw;
@@ -129,12 +134,16 @@ namespace Uintah {
           return getNewDW()->getGPUDW()->getKokkosView<PODType>( name.c_str(), _field_container->getPatch()->getID(), _field_container->getMaterialIndex(), _field_container->getPatch()->getLevel()->getIndex() );
         }
       }
-#endif
 
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
       /** @brief Return a CONST grid variable **/
       template <typename T, typename PODType, typename MemSpace>
       typename std::enable_if<std::is_base_of<Uintah::constVariableBase<Uintah::GridVariableBase>, T>::value && std::is_same<MemSpace, Kokkos::CudaSpace>::value, KokkosView3<PODType, Kokkos::CudaSpace>>::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      /** @brief Return a CONST grid variable **/
+      template <typename T, typename PODType, typename MemSpace>
+      typename std::enable_if<std::is_base_of<Uintah::constVariableBase<Uintah::GridVariableBase>, T>::value && std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, KokkosView3<PODType, Kokkos::Experimental::SYCLDeviceUSMSpace>>::type
+#endif
       get_field( const std::string                    name
                ,       ArchesFieldContainer::WHICH_DW which_dw
                )
@@ -145,7 +154,6 @@ namespace Uintah {
           return getNewDW()->getGPUDW()->getKokkosView<PODType>( name.c_str(), _field_container->getPatch()->getID(), _field_container->getMaterialIndex(), _field_container->getPatch()->getLevel()->getIndex() );
         }
       }
-#endif
 
       /** @brief Return a NON-CONST grid variable **/
       template <typename T, typename... Args>
@@ -177,11 +185,15 @@ namespace Uintah {
       /** @brief Return a NON-CONST grid variable **/
       template <typename T, typename PODType, typename MemSpace>
       typename std::enable_if<!std::is_base_of<Uintah::constVariableBase<Uintah::GridVariableBase>, T>::value && std::is_same<MemSpace, Kokkos::CudaSpace>::value, KokkosView3<PODType, Kokkos::CudaSpace>>::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      /** @brief Return a NON-CONST grid variable **/
+      template <typename T, typename PODType, typename MemSpace>
+      typename std::enable_if<!std::is_base_of<Uintah::constVariableBase<Uintah::GridVariableBase>, T>::value && std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, KokkosView3<PODType, Kokkos::Experimental::SYCLDeviceUSMSpace>>::type
+#endif
       get_field( const std::string name )
       {
         return getNewDW()->getGPUDW()->getKokkosView<PODType>( name.c_str(), _field_container->getPatch()->getID(), _field_container->getMaterialIndex(), _field_container->getPatch()->getLevel()->getIndex() );
       }
-#endif
 
       template <typename T, typename PODType, typename MemSpace>
       inline typename std::enable_if< std::is_same< MemSpace, UintahSpaces::HostSpace >::value, T >::type
@@ -208,6 +220,14 @@ namespace Uintah {
         KokkosView3<PODType, Kokkos::CudaSpace> temp;
         return temp;
       }
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      template <typename T, typename PODType, typename MemSpace>
+      inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, KokkosView3<PODType, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+      get_empty_field()
+      {
+        KokkosView3<PODType, Kokkos::Experimental::SYCLDeviceUSMSpace> temp;
+        return temp;
+      }    
 #endif
 
       /** @brief Return a UINTAH field allowing the user to manage the memory. **/
@@ -249,6 +269,10 @@ namespace Uintah {
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
       template <typename T, typename ElemType, typename MemSpace, typename FIELD_TYPE>
       inline typename std::enable_if< std::is_same< MemSpace, Kokkos::CudaSpace >::value, void >::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      template <typename T, typename ElemType, typename MemSpace, typename FIELD_TYPE>
+      inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, void >::type
+#endif
       get_unmanaged_uintah_field(       FIELD_TYPE  & field
                                 , const std::string   name
                                 , const int           patch
@@ -258,7 +282,6 @@ namespace Uintah {
       {
         field = getNewDW()->getGPUDW()->getKokkosView<ElemType>( name.c_str(), patch, matl_indx, _field_container->getPatch()->getLevel()->getIndex() );
       }
-#endif
 
       template <typename T, typename ElemType, typename MemSpace>
       inline typename std::enable_if< std::is_same< MemSpace, UintahSpaces::HostSpace >::value, void >::type
@@ -283,13 +306,16 @@ namespace Uintah {
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
       template <typename T, typename ElemType, typename MemSpace>
       inline typename std::enable_if< std::is_same< MemSpace, Kokkos::CudaSpace >::value, void >::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      template <typename T, typename ElemType, typename MemSpace>
+      inline typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, void >::type
+#endif      
       get_unmanaged_uintah_field( const std::string                     name
                                 ,       KokkosView3<double, MemSpace> & field
                                 )
       {
         field = getNewDW()->getGPUDW()->getKokkosView<ElemType>( name.c_str(), _field_container->getPatch()->getID(), _field_container->getMaterialIndex(), _field_container->getPatch()->getLevel()->getIndex() );
       }
-#endif
 
       /** @brief Return a CONST UINTAH field allowing the user to manage the memory. **/
       template <typename T>
@@ -359,11 +385,14 @@ namespace Uintah {
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
   template <typename T, typename elemType, unsigned int MaxCapacity, typename MemSpace>
   typename std::enable_if< std::is_same< MemSpace, Kokkos::CudaSpace >::value, struct1DArray<KokkosView3<elemType, MemSpace>, MaxCapacity> >::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename T, typename elemType, unsigned int MaxCapacity, typename MemSpace>
+  typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, struct1DArray<KokkosView3<elemType, MemSpace>, MaxCapacity> >::type
+#endif  
   createContainer( int num = MaxCapacity )
   {
     return struct1DArray<KokkosView3<elemType, MemSpace>, MaxCapacity>( num );
   }
-#endif
 
   template <typename T, typename elemType, unsigned int MaxCapacity, typename MemSpace>
   typename std::enable_if< std::is_same< MemSpace, UintahSpaces::HostSpace >::value, struct1DArray<T, MaxCapacity> >::type
@@ -384,11 +413,14 @@ namespace Uintah {
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
   template <typename T, typename elemType, unsigned int MaxCapacity, typename MemSpace>
   typename std::enable_if< std::is_same< MemSpace, Kokkos::CudaSpace >::value, struct1DArray<KokkosView3<elemType, MemSpace>, MaxCapacity> >::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template <typename T, typename elemType, unsigned int MaxCapacity, typename MemSpace>
+  typename std::enable_if< std::is_same< MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace >::value, struct1DArray<KokkosView3<elemType, MemSpace>, MaxCapacity> >::type
+#endif  
   createConstContainer( int num = MaxCapacity )
   {
     return struct1DArray<KokkosView3<const elemType, MemSpace>, MaxCapacity>( num );
   }
-#endif
 
   /** @brief Builds a struct for each variable containing all pertinent uintah DW information **/
   void register_variable_work(       std::string                              name

@@ -228,7 +228,7 @@ public:
 
 //For now, if it's a homogeneous only Kokkos environment, use Kokkos Views
 //If it's a legacy environment or a CUDA environment, use the original way of accessing data.
-#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP ) && !defined( HAVE_CUDA )
+#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP ) && !defined( HAVE_CUDA ) && !defined( HAVE_SYCL )
 
   //Note: Dan Sunderland used a Kokkos define KOKKOS_FORCEINLINE_FUNCTION,
   //however, this caused problems when trying to compile with CUDA, as it tried

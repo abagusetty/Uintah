@@ -3858,6 +3858,21 @@ AC_SUBST(NVCC_LIBS)
 sci_defs_files="$sci_defs_files include/sci_defs/cuda_testdefs.h"
 
 
+##  --  search for sycl stuff  ------------------------------------------
+if test "$with_sycl" != NOT_SET; then
+
+  AX_CXX_COMPILE_STDCXX_17([noext],[mandatory])
+
+  AC_MSG_CHECKING(for required SYCL components)
+  echo ""
+fi
+
+# these are all defined after the call to SCI_SYCL_COMPILE_LINK_TEST
+AC_SUBST(HAVE_SYCL)
+AC_SUBST(DEF_SYCL)
+
+sci_defs_files="$sci_defs_files include/sci_defs/sycl_testdefs.h"
+
 ##  --  search for visus  -------------------------------------------------
 AC_LANG(C++)
 

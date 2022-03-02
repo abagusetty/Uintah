@@ -232,79 +232,46 @@ namespace Uintah {
 //        return listOfCells_gpu;
 //      }
 //    }
-
-    template<typename ExecSpace, typename MemSpace>
-    inline typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, Kokkos::View<int_3*, Kokkos::CudaSpace> >::type
-    get_ref_to_iterator(ExecutionObject<ExecSpace, MemSpace>& execObj) {
-      if ( copied_to_gpu == 2 ) { //if already copied, return
-        return listOfCells_gpu;
-      }
-      else {
-        int cur_val = __sync_val_compare_and_swap(&copied_to_gpu, 0, 1);
-        if(cur_val == 0){ //comparison was successful and this is a lucky thread that gets to copy the value.
-          listOfCells_gpu = Kokkos::View<int_3*, Kokkos::CudaSpace>( "gpu_listOfCellsIterator", listOfCells_.size() );
-          gpuStream_t* stream = static_cast<gpuStream_t*>(execObj.getStream());
-          cudaMemcpyAsync(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3), cudaMemcpyHostToDevice, *stream);
-          cudaStreamSynchronize(*stream); //Think how cudaStreamSynchronize can be avoided. No other way to set  copied_to_gpu as of now.
-
-          bool success = __sync_bool_compare_and_swap(&copied_to_gpu, 1, 2);
-          if(!success){
-            printf("Error in copying values. Possible CPU race condition. %s:%d\n", __FILE__, __LINE__);
-            exit(1);
-          }
-          return listOfCells_gpu;
-        }
-        else{//some other thread already took care. wait until copy is completed.
-          while(copied_to_gpu != 2){std::this_thread::yield();}
-          return listOfCells_gpu;
-        }
-      }
-    }
 #endif
 
-#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
-//    template<typename MemSpace>
-//    inline typename std::enable_if<std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, Kokkos::View<int_3*, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
-//    get_ref_to_iterator() {
-//      if ( copied_to_gpu ) {
-//        return listOfCells_gpu;
-//      }
-//      else {
-//        listOfCells_gpu = Kokkos::View<int_3*, Kokkos::Experimental::SYCLDeviceUSMSpace>( "gpu_listOfCellsIterator", listOfCells_.size() );
-//        Kokkos::deep_copy( listOfCells_gpu, listOfCells_ );
-//        copied_to_gpu = true;
-//        return listOfCells_gpu;
-//      }
-//    }
-
+#if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
+    template<typename ExecSpace, typename MemSpace>
+    inline typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, Kokkos::View<int_3*, Kokkos::CudaSpace> >::type
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
     template<typename ExecSpace, typename MemSpace>
     inline typename std::enable_if<std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, Kokkos::View<int_3*, Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+#endif
     get_ref_to_iterator(ExecutionObject<ExecSpace, MemSpace>& execObj) {
       if ( copied_to_gpu == 2 ) { //if already copied, return
         return listOfCells_gpu;
       }
       else {
         int cur_val = __sync_val_compare_and_swap(&copied_to_gpu, 0, 1);
-        if(cur_val == 0){ //comparison was successful and this is a lucky thread that gets to copy the value.
-          listOfCells_gpu = Kokkos::View<int_3*, Kokkos::Experimental::SYCLDeviceUSMSpace>( "gpu_listOfCellsIterator", listOfCells_.size() );
+        if (cur_val == 0) { //comparison was successful and this is a lucky thread that gets to copy the value.
+          listOfCells_gpu = Kokkos::View<int_3*, MemSpace>( "gpu_listOfCellsIterator", listOfCells_.size() );
           gpuStream_t* stream = static_cast<gpuStream_t*>(execObj.getStream());
-	  stream->memcpy(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3)); //MemcpyHostToDevice,
-	  stream->wait(); //Think how stream->wait() or event->wait() can be avoided. No other way to set  copied_to_gpu as of now.
+
+          #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
+          cudaMemcpyAsync(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3), cudaMemcpyHostToDevice, *stream);
+          cudaStreamSynchronize(*stream); //Think how cudaStreamSynchronize can be avoided. No other way to set copied_to_gpu as of now.
+          #elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+          (*stream)->memcpy(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3));
+          (*stream)->wait();
+          #endif
 
           bool success = __sync_bool_compare_and_swap(&copied_to_gpu, 1, 2);
-          if(!success){
+          if (!success) {
             printf("Error in copying values. Possible CPU race condition. %s:%d\n", __FILE__, __LINE__);
             exit(1);
           }
           return listOfCells_gpu;
         }
-        else{//some other thread already took care. wait until copy is completed.
-          while(copied_to_gpu != 2){std::this_thread::yield();}
+        else {//some other thread already took care. wait until copy is completed.
+          while (copied_to_gpu != 2) {std::this_thread::yield();}
           return listOfCells_gpu;
         }
       }
     }
-#endif // HAVE_SYCL && KOKKOS_ENABLE_SYCL
 
     protected:
 
@@ -315,7 +282,6 @@ namespace Uintah {
     ListOfCellsIterator* clone() const
     {
       return scinew ListOfCellsIterator(*this);
-
     };
 
     virtual std::ostream& put(std::ostream& out) const

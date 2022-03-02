@@ -183,7 +183,7 @@ Ray::~Ray()
 
 //  VarLabel::destroy( d_divQFiltLabel );
 //  VarLabel::destroy( d_boundFluxFiltLabel );
-    
+
   if( d_radiometer) {
     delete d_radiometer;
   }
@@ -505,10 +505,10 @@ Ray::sched_rayTrace( const LevelP        & level
 {
   // Get the application so to record stats.
   m_application = sched->getApplication();
-  
+
   string taskname = "Ray::rayTrace";
   Task *tsk = nullptr;
-  
+
   int L = level->getIndex();
   Task::WhichDW abskg_dw = get_abskg_whichDW( L, d_abskgLabel );
 
@@ -560,7 +560,7 @@ Ray::sched_rayTrace( const LevelP        & level
   tsk->requires( abskg_dw ,    d_abskgLabel  ,   gac, n_ghostCells );
   tsk->requires( sigma_dw ,    d_sigmaT4Label,   gac, n_ghostCells );
   tsk->requires( celltype_dw , d_cellTypeLabel , gac, n_ghostCells );
-  
+
 
   if( modifies_divQ ) {
     tsk->modifies( d_divQLabel );
@@ -572,7 +572,7 @@ Ray::sched_rayTrace( const LevelP        & level
     tsk->computes( d_radiationVolqLabel );
   }
 
-#ifdef USE_TIMER 
+#ifdef USE_TIMER
   if( modifies_divQ ){
     tsk->modifies( d_PPTimerLabel );
   } else {
@@ -915,7 +915,7 @@ Ray::rayTrace( const PatchSubset* patches,
     m_application->getApplicationStats()[ (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchSize ] += size;
     m_application->getApplicationStats()[ (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchEfficiency ] += size / timer().seconds();
     // For each stat recorded increment the count so to get a per patch value.
-    m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchTime );    
+    m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchTime );
     m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchSize );
     m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchEfficiency );
 #endif
@@ -953,7 +953,7 @@ Ray::sched_rayTrace_dataOnion( const LevelP        & level
 {
   // Get the application so to record stats.
   m_application = sched->getApplication();
-  
+
   int maxLevels = level->getGrid()->numLevels() - 1;
   int L_indx = level->getIndex();
 
@@ -1091,7 +1091,11 @@ Ray::sched_rayTrace_dataOnion( const LevelP        & level
                           "Ray::rayTrace_dataOnion",
                           //&Ray::rayTrace_dataOnion<2, double, UINTAH_CPU_TAG>,
                           &Ray::rayTrace_dataOnion<2, double, KOKKOS_OPENMP_TAG>,
+#ifdef HAVE_SYCL
+                          &Ray::rayTrace_dataOnion<2, double, KOKKOS_SYCL_TAG>,
+#elif defined(HAVE_CUDA)
                           &Ray::rayTrace_dataOnion<2, double, KOKKOS_CUDA_TAG>,
+#endif
                           sched, level->eachPatch(), d_matlSet, RMCRTCommon::TG_RMCRT,
                           modifies_divQ, NotUsed, sigma_dw, celltype_dw);
   } else {
@@ -1099,7 +1103,11 @@ Ray::sched_rayTrace_dataOnion( const LevelP        & level
                           "Ray::rayTrace_dataOnion",
                           //&Ray::rayTrace_dataOnion<2, float, UINTAH_CPU_TAG>,
                           &Ray::rayTrace_dataOnion<2, float, KOKKOS_OPENMP_TAG>,
+#ifdef HAVE_SYCL
+                          &Ray::rayTrace_dataOnion<2, float, KOKKOS_SYCL_TAG>,
+#elif defined(HAVE_CUDA)
                           &Ray::rayTrace_dataOnion<2, float, KOKKOS_CUDA_TAG>,
+#endif
                           sched, level->eachPatch(), d_matlSet,  RMCRTCommon::TG_RMCRT,
                           modifies_divQ, NotUsed, sigma_dw, celltype_dw);
   }
@@ -1141,7 +1149,7 @@ struct rayTrace_dataOnion_solveDivQFunctor {
   int       m_virtual_ROI [3];
   int       m_haloCells [3];
 
-  rayTrace_dataOnion_solveDivQFunctor( RandomGenerator                     rand_pool 
+  rayTrace_dataOnion_solveDivQFunctor( RandomGenerator                     rand_pool
                                      , LevelParamsML                       levelParamsML[m_maxLevels]
                                      , double                              domain_BB_Lo[3]
                                      , double                              domain_BB_Hi[3]
@@ -1809,6 +1817,17 @@ Ray::rayTrace_dataOnion( const PatchSubset* finePatches,
 
   KokkosView3<double, Kokkos::CudaSpace> divQ_fine_view;
   KokkosView3<double, Kokkos::CudaSpace> radiationVolq_fine_view;
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  KokkosView3<const T,   Kokkos::Experimental::SYCLDeviceUSMSpace> abskg_view[numLevels];
+  KokkosView3<const T,   Kokkos::Experimental::SYCLDeviceUSMSpace> sigmaT4OverPi_view[numLevels];
+  KokkosView3<const int, Kokkos::Experimental::SYCLDeviceUSMSpace> cellType_view[numLevels];
+
+  GPUDataWarehouse* sigmaT4_gdw  = static_cast<GPUDataWarehouse*>(sigmaT4_dw->getGPUDW());
+  GPUDataWarehouse* celltype_gdw = static_cast<GPUDataWarehouse*>(celltype_dw->getGPUDW());
+  GPUDataWarehouse* abskg_gdw    = static_cast<GPUDataWarehouse*>(abskg_dw->getGPUDW());
+
+  KokkosView3<double, Kokkos::Experimental::SYCLDeviceUSMSpace> divQ_fine_view;
+  KokkosView3<double, Kokkos::Experimental::SYCLDeviceUSMSpace> radiationVolq_fine_view;
 #else
   KokkosView3<const T,   Kokkos::HostSpace> abskg_view[numLevels];
   KokkosView3<const T,   Kokkos::HostSpace> sigmaT4OverPi_view[numLevels];
@@ -1920,7 +1939,7 @@ Ray::rayTrace_dataOnion( const PatchSubset* finePatches,
       }
     }
 
-#if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
+#if (defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )) || (defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )) 
     // Get the Kokkos Views from the simulation variables
     const Level* curLevel = fineLevel;
     const Patch* curPatch = patch;
@@ -1946,9 +1965,9 @@ Ray::rayTrace_dataOnion( const PatchSubset* finePatches,
     //Get the computational variables on the fine level
     divQ_fine_view          = new_dw->getGPUDW()->getKokkosView<double>( d_divQLabel->getName().c_str(),          patch->getID(), d_matl, fine_L);
     radiationVolq_fine_view = new_dw->getGPUDW()->getKokkosView<double>( d_radiationVolqLabel->getName().c_str(), patch->getID(), d_matl, fine_L);
-#endif // end HAVE_CUDA && KOKKOS_ENABLE_CUDA
+#endif // end HAVE_CUDA && KOKKOS_ENABLE_CUDA || HAVE_SYCL && KOKKOS_ENABLE_SYCL
 
-#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP ) && !defined( HAVE_CUDA )
+#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP ) && !defined( HAVE_CUDA ) && !defined(HAVE_SYCL)
     for(int L = 0; L<numLevels; L++) {
       LevelP level = new_dw->getGrid()->getLevel(L);
       if (level->hasFinerLevel() ) {
@@ -2033,12 +2052,16 @@ Ray::rayTrace_dataOnion( const PatchSubset* finePatches,
       // TODO: Add support for Mersenne Twister-based random number generation
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
       auto random_pool = Uintah::GetKokkosRandom1024Pool<Kokkos::Cuda>( );
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      auto random_pool = Uintah::GetKokkosRandom1024Pool<Kokkos::Experimental::SYCL>( );      
 #else
       auto random_pool = Uintah::GetKokkosRandom1024Pool<ExecSpace>( );
 #endif
 
 #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
       rayTrace_dataOnion_solveDivQFunctor<T, Kokkos::CudaSpace, decltype(random_pool), numLevels> functor( random_pool
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+      rayTrace_dataOnion_solveDivQFunctor<T, Kokkos::Experimental::SYCLDeviceUSMSpace, decltype(random_pool), numLevels> functor( random_pool
 #else
       rayTrace_dataOnion_solveDivQFunctor<T, MemSpace, decltype(random_pool), numLevels> functor( random_pool
 #endif
@@ -2074,14 +2097,14 @@ Ray::rayTrace_dataOnion( const PatchSubset* finePatches,
     //__________________________________
     //
     timer.stop();
-    
+
 #ifdef ADD_PERFORMANCE_STATS
     // Add in the patch stat, recording for each patch.
     m_application->getApplicationStats()[ (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchTime ] += timer().milliseconds();
     m_application->getApplicationStats()[ (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchSize ] += nRaySteps;
     m_application->getApplicationStats()[ (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchEfficiency ] += nRaySteps / timer().seconds();
     // For each stat recorded increment the count so to get a per patch value.
-    m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchTime );    
+    m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchTime );
     m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchSize );
     m_application->getApplicationStats().incrCount( (ApplicationInterface::ApplicationStatsEnum) RMCRTPatchEfficiency );
 #endif
@@ -2297,12 +2320,12 @@ Ray::sched_setBoundaryConditions( const LevelP        & level
   sched->addTask( tsk, level->eachPatch(), d_matlSet, RMCRTCommon::TG_RMCRT );
 
   // ______________________________________________________________________
-  
+
 #ifdef HAVE_VISIT
   static bool initialized = false;
 
   m_application = sched->getApplication();
-  
+
   // Running with VisIt so add in the variables that the user can
   // modify.
   if( m_application && m_application->getVisIt() && !initialized ) {
@@ -2745,10 +2768,10 @@ void Ray::sched_CoarsenAll( const LevelP     & coarseLevel
 {
   if(coarseLevel->hasFinerLevel()){
     printSchedule(coarseLevel,g_ray_dbg,"Ray::sched_CoarsenAll");
-    
+
     int L = coarseLevel->getIndex();
     Task::WhichDW fineLevel_abskg_dw = get_abskg_whichDW( L+1, d_abskgLabel);
-    
+
     sched_Coarsen_Q(coarseLevel, sched, fineLevel_abskg_dw, modifies_abskg,     d_abskgLabel );
     sched_Coarsen_Q(coarseLevel, sched, Task::NewDW,        modifies_sigmaT4,  d_sigmaT4Label );
   }

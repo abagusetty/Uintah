@@ -49,7 +49,7 @@
 //#include <CCA/Components/Arches/Task/SampleFactory.h>
 #include <CCA/Components/Arches/ArchesExamples/ExampleFactory.h>
 
-#include <sci_defs/kokkos_defs.h>
+//#include <sci_defs/kokkos_defs.h>
 
 using namespace Uintah;
 
@@ -276,19 +276,27 @@ KokkosSolver::computeTimestep( const LevelP     & level
 	  LoadBalancer * lb = sched->getLoadBalancer();
 	  //printf("warning: Creating per processor task for KokkosSolver::computeStableTimeStep due to race condition in kokkos cuda parallel_reduce %s %d\n", __FILE__, __LINE__);
 	  create_portable_tasks(taskDependencies, this,
-						  "KokkosSolver::computeStableTimeStep",
-						  &KokkosSolver::computeStableTimeStep<UINTAH_CPU_TAG>,
-						  &KokkosSolver::computeStableTimeStep<KOKKOS_OPENMP_TAG>,
-						  &KokkosSolver::computeStableTimeStep<KOKKOS_CUDA_TAG>,
-						  sched, lb->getPerProcessorPatchSet(level), m_materialManager->allMaterials(), TASKGRAPH::DEFAULT);
+                                "KokkosSolver::computeStableTimeStep",
+                                &KokkosSolver::computeStableTimeStep<UINTAH_CPU_TAG>,
+                                &KokkosSolver::computeStableTimeStep<KOKKOS_OPENMP_TAG>,
+#if defined(HAVE_SYCL)
+                                &KokkosSolver::computeStableTimeStep<KOKKOS_SYCL_TAG>,
+#elif defined(HAVE_CUDA)
+                                &KokkosSolver::computeStableTimeStep<KOKKOS_CUDA_TAG>,
+#endif
+                                sched, lb->getPerProcessorPatchSet(level), m_materialManager->allMaterials(), TASKGRAPH::DEFAULT);
     }
-    else{
+    else {
       create_portable_tasks(taskDependencies, this,
-                          "KokkosSolver::computeStableTimeStep",
-                          &KokkosSolver::computeStableTimeStep<UINTAH_CPU_TAG>,
-                          &KokkosSolver::computeStableTimeStep<KOKKOS_OPENMP_TAG>,
-                          &KokkosSolver::computeStableTimeStep<KOKKOS_CUDA_TAG>,
-                          sched, level->eachPatch(), m_materialManager->allMaterials(), TASKGRAPH::DEFAULT);
+                            "KokkosSolver::computeStableTimeStep",
+                            &KokkosSolver::computeStableTimeStep<UINTAH_CPU_TAG>,
+                            &KokkosSolver::computeStableTimeStep<KOKKOS_OPENMP_TAG>,
+#if defined(HAVE_SYCL)
+                            &KokkosSolver::computeStableTimeStep<KOKKOS_SYCL_TAG>,
+#elif defined(HAVE_CUDA)
+                            &KokkosSolver::computeStableTimeStep<KOKKOS_CUDA_TAG>,
+#endif
+                            sched, level->eachPatch(), m_materialManager->allMaterials(), TASKGRAPH::DEFAULT);
     }
 
   } else {

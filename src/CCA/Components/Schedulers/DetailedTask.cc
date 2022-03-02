@@ -816,11 +816,11 @@ DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
     return false;
   }
 #elif defined(HAVE_SYCL)
-  retVal = cudaStreamQuery(*(it->second));
-  if (retVal == cudaSuccess) {
+  auto eventStat = (it->second)->ext_oneapi_submit_barrier();
+  if (eventStat.get_info<sycl::info::event::command_execution_status>() ==
+      sycl::info::event_command_status::submitted) {
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 #endif

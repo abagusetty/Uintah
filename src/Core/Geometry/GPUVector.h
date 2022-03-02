@@ -26,6 +26,7 @@
 #define CORE_GEOMETRY_GPUVECTOR_H
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 namespace Uintah {
 

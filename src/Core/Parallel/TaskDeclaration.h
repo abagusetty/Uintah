@@ -99,6 +99,7 @@ void create_portable_tasks(       TaskFunctor   taskFunctor
   // Check for GPU tasks
   // GPU tasks take top priority
   if ( Uintah::Parallel::usingDevice() ) {
+#ifdef HAVE_CUDA
     if ( std::is_same<Kokkos::Cuda, ExecSpace1>::value || std::is_same<Kokkos::Cuda, ExecSpace2>::value || std::is_same<Kokkos::Cuda, ExecSpace3>::value ) {
       taskName = taskName + " (GPUTask)";
       if ( std::is_same<Kokkos::Cuda, ExecSpace1>::value ) {           /* Task supports Kokkos::Cuda builds */
@@ -118,6 +119,27 @@ void create_portable_tasks(       TaskFunctor   taskFunctor
 
       task->setExecutionAndMemorySpace( TaskAssignedExecutionSpace::KOKKOS_CUDA, TaskAssignedMemorySpace::KOKKOS_CUDASPACE );
     }
+#elif defined(HAVE_SYCL)
+    if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace1>::value || std::is_same<Kokkos::Experimental::SYCL, ExecSpace2>::value || std::is_same<Kokkos::Experimental::SYCL, ExecSpace3>::value ) {
+      taskName = taskName + " (GPUTask)";
+      if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace1>::value ) {           /* Task supports Kokkos::Experimental::SYCL builds */
+        task = scinew Task( taskName, ptr, pmf1, std::forward<Args>(args)... );
+      }
+      else if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace2>::value ) {      /* Task supports Kokkos::Experimental::SYCL builds */
+        task = scinew Task( taskName, ptr, pmf2, std::forward<Args>(args)... );
+      }
+      else if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace3>::value ) {      /* Task supports Kokkos::Experimental::SYCL builds */
+        task = scinew Task( taskName, ptr, pmf3, std::forward<Args>(args)... );
+      }
+
+      //TODO: Consolodate these
+      task->usesDevice(true);
+      task->usesKokkosSycl(true);
+      task->usesSimVarPreloading(true);
+
+      task->setExecutionAndMemorySpace( TaskAssignedExecutionSpace::KOKKOS_SYCL, TaskAssignedMemorySpace::KOKKOS_SYCLSPACE );
+    }
+#endif
   }
 
   // Check for CPU tasks if a GPU task did not get loaded
@@ -195,6 +217,7 @@ void create_portable_tasks(       TaskFunctor   taskFunctor
   // Check for GPU tasks
   // GPU tasks take top priority
   if ( Uintah::Parallel::usingDevice() ) {
+#ifdef HAVE_CUDA
     if ( std::is_same<Kokkos::Cuda, ExecSpace1>::value || std::is_same<Kokkos::Cuda, ExecSpace2>::value ) {
       taskName = taskName + " (GPUTask)";
       if ( std::is_same<Kokkos::Cuda, ExecSpace1>::value ) {           /* Task supports Kokkos::Cuda builds */
@@ -211,6 +234,24 @@ void create_portable_tasks(       TaskFunctor   taskFunctor
 
       task->setExecutionAndMemorySpace( TaskAssignedExecutionSpace::KOKKOS_CUDA, TaskAssignedMemorySpace::KOKKOS_CUDASPACE );
     }
+#elif defined(HAVE_SYCL)
+    if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace1>::value || std::is_same<Kokkos::Experimental::SYCL, ExecSpace2>::value ) {
+      taskName = taskName + " (GPUTask)";
+      if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace1>::value ) {           /* Task supports Kokkos::Experimental::SYCL builds */
+        task = scinew Task( taskName, ptr, pmf1, std::forward<Args>(args)... );
+      }
+      else if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace2>::value ) {      /* Task supports Kokkos::Experimental::SYCL builds */
+        task = scinew Task( taskName, ptr, pmf2, std::forward<Args>(args)... );
+      }
+
+      //TODO: Consolodate these
+      task->usesDevice(true);
+      task->usesKokkosSycl(true);
+      task->usesSimVarPreloading(true);
+
+      task->setExecutionAndMemorySpace( TaskAssignedExecutionSpace::KOKKOS_SYCL, TaskAssignedMemorySpace::KOKKOS_SYCLSPACE );
+    }    
+#endif
   }
 
   // Check for CPU tasks if a GPU task did not get loaded
@@ -273,6 +314,7 @@ void create_portable_tasks(       TaskFunctor   taskFunctor
   // Check for GPU tasks
   // GPU tasks take top priority
   if ( Uintah::Parallel::usingDevice() ) {
+#ifdef HAVE_CUDA
     if ( std::is_same<Kokkos::Cuda, ExecSpace1>::value ) {           /* Task supports Kokkos::Cuda builds */
       taskName = taskName + " (GPUTask)";
       task = scinew Task( taskName, ptr, pmf1, std::forward<Args>(args)... );
@@ -284,6 +326,19 @@ void create_portable_tasks(       TaskFunctor   taskFunctor
 
       task->setExecutionAndMemorySpace( TaskAssignedExecutionSpace::KOKKOS_CUDA, TaskAssignedMemorySpace::KOKKOS_CUDASPACE );
     }
+#elif defined(HAVE_SYCL)
+    if ( std::is_same<Kokkos::Experimental::SYCL, ExecSpace1>::value ) {           /* Task supports Kokkos::Experimental::SYCL builds */
+      taskName = taskName + " (GPUTask)";
+      task = scinew Task( taskName, ptr, pmf1, std::forward<Args>(args)... );
+
+      //TODO: Consolodate these
+      task->usesDevice(true);
+      task->usesKokkosSycl(true);
+      task->usesSimVarPreloading(true);
+
+      task->setExecutionAndMemorySpace( TaskAssignedExecutionSpace::KOKKOS_SYCL, TaskAssignedMemorySpace::KOKKOS_SYCLSPACE );
+    }
+#endif
   }
 
   // Check for CPU tasks if a GPU task did not get loaded

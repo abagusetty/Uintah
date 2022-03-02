@@ -331,14 +331,16 @@ public:
   virtual void reduceMPI(const VarLabel* label, const Level* level,
     const MaterialSubset* matls, int nComm) = 0;
 
-  #ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     GPUDataWarehouse* getGPUDW(int i) const { return d_gpuDWs[i]; }
     GPUDataWarehouse* getGPUDW() const {
-      int i;
+      int i=0;
+      #ifdef HAVE_CUDA
       CUDA_RT_SAFE_CALL(cudaGetDevice(&i));
+      #endif
       return d_gpuDWs[i];
     }
-  #endif
+#endif
   protected:
     DataWarehouse( const ProcessorGroup* myworld,
        Scheduler* scheduler,
@@ -353,9 +355,9 @@ public:
     // many previous time steps had taken place before the restart.
     int d_generation;
 
-  #ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     std::vector<GPUDataWarehouse*> d_gpuDWs;
-  #endif
+#endif
   private:
     DataWarehouse(const DataWarehouse&);
     DataWarehouse& operator=(const DataWarehouse&);

@@ -63,6 +63,9 @@ class KokkosRandom;
 #if defined(KOKKOS_ENABLE_CUDA)
     std::unique_ptr< KokkosRandom< Kokkos::Random_XorShift1024_Pool< Kokkos::Cuda > > > cudaRandomPool;
 #endif
+#if defined(KOKKOS_ENABLE_SYCL)
+    std::unique_ptr< KokkosRandom< Kokkos::Random_XorShift1024_Pool< Kokkos::Experimental::SYCL > > > syclRandomPool;
+#endif
 
 template < typename RandomGenerator>
 class KokkosRandom {
@@ -104,6 +107,11 @@ void cleanupKokkosTools() {
       cudaRandomPool.release();
     }
 #endif
+#if defined(KOKKOS_ENABLE_SYCL)
+    if (syclRandomPool) {
+      syclRandomPool.release();
+    }
+#endif    
   }
 }
 
@@ -139,6 +147,21 @@ GetKokkosRandom1024Pool() {
 }
 #endif
 
+#if defined(KOKKOS_ENABLE_SYCL)
+template <typename ExecSpace>
+inline typename std::enable_if<std::is_same<ExecSpace, Kokkos::Experimental::SYCL>::value, Kokkos::Random_XorShift1024_Pool< Kokkos::Experimental::SYCL >>::type
+GetKokkosRandom1024Pool() {
+  {
+    std::lock_guard<Uintah::MasterLock> rand_init_mutex_guard(rand_init_mutex);
+    if (!syclRandomPool) {
+      std::unique_ptr<KokkosRandom< Kokkos::Random_XorShift1024_Pool< Kokkos::Experimental::SYCL >>> temp( new KokkosRandom< Kokkos::Random_XorShift1024_Pool< Kokkos::Experimental::SYCL >>(true) );
+      syclRandomPool = std::move(temp);
+    }
+  }
+  return syclRandomPool->getRandPool();
+}
+#endif
+  
 } // end namespace Uintah
 
 #endif // UINTAH_ENABLE_KOKKOS 

@@ -252,6 +252,7 @@ public:
     int3            device_offset;
     int3            device_size;
     //This so it can be used in an STL map
+#ifdef HAVE_CUDA
     bool operator<(const stagingVar& rhs) const {
       if (this->device_offset.x < rhs.device_offset.x) {
         return true;
@@ -284,6 +285,40 @@ public:
         return false;
       }
     }
+#elif defined(HAVE_SYCL)
+    bool operator<(const stagingVar& rhs) const {
+      if (this->device_offset.x() < rhs.device_offset.x()) {
+        return true;
+      } else if (this->device_offset.x() == rhs.device_offset.x()
+             && (this->device_offset.y() < rhs.device_offset.y())) {
+        return true;
+      } else if (this->device_offset.x() == rhs.device_offset.x()
+             && (this->device_offset.y() == rhs.device_offset.y())
+             && (this->device_offset.z() < rhs.device_offset.z())) {
+        return true;
+      } else if (this->device_offset.x() == rhs.device_offset.x()
+             && (this->device_offset.y() == rhs.device_offset.y())
+             && (this->device_offset.z() == rhs.device_offset.z())
+             && (this->device_size.x() < rhs.device_size.x())) {
+        return true;
+      } else if (this->device_offset.x() == rhs.device_offset.x()
+             && (this->device_offset.y() == rhs.device_offset.y())
+             && (this->device_offset.z() == rhs.device_offset.z())
+             && (this->device_size.x() == rhs.device_size.x())
+             && (this->device_size.y() < rhs.device_size.y())) {
+        return true;
+      } else if (this->device_offset.x() == rhs.device_offset.x()
+             && (this->device_offset.y() == rhs.device_offset.y())
+             && (this->device_offset.z() == rhs.device_offset.z())
+             && (this->device_size.x() == rhs.device_size.x())
+             && (this->device_size.y() == rhs.device_size.y())
+             && (this->device_size.z() < rhs.device_size.z())) {
+        return true;
+      } else {
+        return false;
+      }
+    }    
+#endif
   };
 
   struct stagingVarInfo {
@@ -436,14 +471,14 @@ public:
 
     varLock->unlock();
 
-    return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>( Kokkos::subview( KokkosData<T, Kokkos::Experimental::SYCLDeviceUSMSpace>( data_ptr, var_size.x, var_size.y, var_size.z )
-                                                                                      , Kokkos::pair<int,int>( 0, var_size.x )
-                                                                                      , Kokkos::pair<int,int>( 0, var_size.y )
-                                                                                      , Kokkos::pair<int,int>( 0, var_size.z )
+    return KokkosView3<T, Kokkos::Experimental::SYCLDeviceUSMSpace>( Kokkos::subview( KokkosData<T, Kokkos::Experimental::SYCLDeviceUSMSpace>( data_ptr, var_size.x(), var_size.y(), var_size.z() )
+                                                                                      , Kokkos::pair<int,int>( 0, var_size.x() )
+                                                                                      , Kokkos::pair<int,int>( 0, var_size.y() )
+                                                                                      , Kokkos::pair<int,int>( 0, var_size.z() )
                                                                                       )
-                                                                     , var_offset.x
-                                                                     , var_offset.y
-                                                                     , var_offset.z
+                                                                     , var_offset.x()
+                                                                     , var_offset.y()
+                                                                     , var_offset.z()
                                                                      , nullptr
                                                                      );
   }

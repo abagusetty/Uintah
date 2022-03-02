@@ -2634,7 +2634,8 @@ KokkosScheduler::copyDelayedDeviceVars( DetailedTask * dtask )
     CUDA_RT_SAFE_CALL(cudaMemcpyAsync(device_ptr, host_ptr, size, cudaMemcpyHostToDevice, *stream));
     #endif
     #ifdef HAVE_SYCL // Host to Device
-    stream->memcpy(device_ptr, host_ptr, size);
+    auto e = stream->memcpy(device_ptr, host_ptr, size);
+    syclEvents.push_back(e);
     #endif
 
     // Tell this task that we're managing the copies for this variable.

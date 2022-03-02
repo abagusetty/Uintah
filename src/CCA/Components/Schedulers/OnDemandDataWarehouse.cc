@@ -149,12 +149,9 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
   if (Uintah::Parallel::usingDevice()) {
     int numDevices = 0;
 
-#ifdef HAVE_CUDA
-
+    #ifdef HAVE_CUDA
     CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
-
-#elif defined(HAVE_SYCL)
-
+    #elif defined(HAVE_SYCL)
     sycl::platform platform(sycl::gpu_selector{});
     auto &gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
     for (int i = 0; i < gpu_devices.size(); i++) {
@@ -168,8 +165,7 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
         }
       }
     }
-
-#endif
+    #endif
 
     for (int i = 0; i < numDevices; i++) {
       //those gpuDWs should only live host side.

@@ -41,6 +41,7 @@
 #include <Core/Grid/TaskStatus.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 namespace Uintah {
 //----------------------------------------------------------------------------
@@ -83,7 +84,7 @@ public:
   }
 
   void setStream(void* stream){
-#if defined(HAVE_CUDA)
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     //Ignore the non-CUDA case as those streams are pointless.
     m_streams.push_back(stream);
 #endif
