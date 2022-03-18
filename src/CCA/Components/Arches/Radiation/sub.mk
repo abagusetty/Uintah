@@ -37,8 +37,18 @@ else
   SRCS += $(SRCDIR)/FakeRadPetscSolver.cc
 endif
 
-$(info   HAVE_PETSC is $(AHVE_PETSC))
-$(info   HAVE_HYPRE is $(HAVE_HYPRE))
+# Notes to avoid linking errors in CUDA, HIP, SYCL, OpenMPTarget, DORadiationModel needs to be defined
+# without HYPRE.
+SRCS += $(SRCDIR)/DORadiationModel.cc
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordr_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordrss_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordrtn_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radarray_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radcal_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radcoef_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radwsgg_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rdomsolve_fort.h
+$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rdombmcalc_fort.h
 
 ifeq ($(HAVE_HYPRE),yes)
   SRCS += $(SRCDIR)/DORadiationModel.cc \
