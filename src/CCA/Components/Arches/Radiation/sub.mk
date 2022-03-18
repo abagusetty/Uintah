@@ -37,20 +37,23 @@ else
   SRCS += $(SRCDIR)/FakeRadPetscSolver.cc
 endif
 
+$(info   HAVE_PETSC is $(AHVE_PETSC))
+$(info   HAVE_HYPRE is $(HAVE_HYPRE))
+
 ifeq ($(HAVE_HYPRE),yes)
   SRCS += $(SRCDIR)/DORadiationModel.cc \
-          $(SRCDIR)/RadHypreSolver.cc   
+          $(SRCDIR)/RadHypreSolver.cc
+
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordr_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordrss_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordrtn_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radarray_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radcal_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radcoef_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radwsgg_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rdomsolve_fort.h
+  $(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rdombmcalc_fort.h
 endif
 
-
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordr_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordrss_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rordrtn_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radarray_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radcal_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radcoef_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/radwsgg_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rdomsolve_fort.h
-$(SRCDIR)/DORadiationModel.$(OBJEXT): $(SRCDIR)/fortran/rdombmcalc_fort.h
 $(SRCDIR)/RadPropertyCalculator.$(OBJEXT): $(SRCDIR)/fortran/hottel_fort.h
 

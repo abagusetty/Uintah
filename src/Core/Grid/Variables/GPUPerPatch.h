@@ -29,7 +29,7 @@
 
 #include <Core/Grid/Variables/GPUPerPatchBase.h>
 #include <sci_defs/cuda_defs.h>
-
+#include <sci_defs/sycl_defs.h>
 #include <string>
 
 namespace Uintah {

@@ -135,7 +135,11 @@ namespace Uintah{
     return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                        , &Constant<T>::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &Constant<T>::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &Constant<T>::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                        , &Constant<T>::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 
@@ -153,7 +157,11 @@ namespace Uintah{
     return create_portable_arches_tasks<TaskInterface::TIMESTEP_INITIALIZE>( this
                                        , &Constant<T>::timestep_init<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &Constant<T>::timestep_init<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &Constant<T>::timestep_init<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                        , &Constant<T>::timestep_init<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 

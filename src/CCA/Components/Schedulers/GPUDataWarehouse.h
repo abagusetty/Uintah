@@ -318,7 +318,7 @@ public:
         return false;
       }
     }    
-#endif
+#endif // HAVE_CUDA, HAVE_SYCL
   };
 
   struct stagingVarInfo {
@@ -327,7 +327,6 @@ public:
     int             varDB_index;
     atomicDataStatus      atomicStatusInHostMemory;
     atomicDataStatus      atomicStatusInGpuMemory;
-
   };
 
   //Only raw information about the data itself should go here.  Things that should be shared
@@ -465,7 +464,7 @@ public:
     else {
       printf( "Error in getKokkosView() - I'm GPUDW with name: \"%s\" at %p \n", _internalName, this );
       printf( "Couldn't find an entry for label %s patch %d matl %d level %d\n", label, levelIndx, patchID, matlIndx );
-      GPUDataWarehouse::printGetError("GPUDataWarehouse::getKokkosView(...)", label, levelIndx, patchID, matlIndx );
+      //GPUDataWarehouse::printGetError("GPUDataWarehouse::getKokkosView(...)", label, levelIndx, patchID, matlIndx );
       exit(-1);
     }
 
@@ -615,7 +614,11 @@ public:
   //This and the function below go through the d_ghostCellData array and copies data into
   //the correct destination GPU var.  This would be the final step of a GPU ghost cell transfer.
   __host__ void copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t* stream);
+  #ifdef HAVE_SYCL
+  void copyGpuGhostCellsToGpuVars(sycl::nd_item<3>& item);  
+  #else
   __device__ void copyGpuGhostCellsToGpuVars();
+  #endif
   HOST_DEVICE bool ghostCellCopiesNeeded();
   __host__ void getSizes(int3& low, int3& high, int3& siz, GhostType& gtype, int& numGhostCells, char const* label, int patchID, int matlIndx, int levelIndx = 0);
   
@@ -637,13 +640,11 @@ private:
     printError(msg, methodName, "", 0, 0, 0);
   }
   HOST_DEVICE void printGetError( const char* msg, char const* label, int8_t matlIndx, const int patchID, int8_t levelIndx);
-  HOST_DEVICE void printGetLevelError(const char* msg, char const* label, int8_t levelIndx, int8_t matlIndx);
 
   __device__ bool isThread0_Blk0();
   __device__ bool isThread0();
   __device__ void printThread();
   __device__ void printBlock();
-
 
   std::map<labelPatchMatlLevel, allVarPointersInfo> *varPointers;
 

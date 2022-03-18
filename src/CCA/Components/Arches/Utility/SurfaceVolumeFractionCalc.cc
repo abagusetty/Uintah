@@ -32,7 +32,11 @@ TaskAssignedExecutionSpace SurfaceVolumeFractionCalc::loadTaskTimestepInitFuncti
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_INITIALIZE>( this
                                      , &SurfaceVolumeFractionCalc::timestep_init<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &SurfaceVolumeFractionCalc::timestep_init<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &SurfaceVolumeFractionCalc::timestep_init<KOKKOS_SYCL_TAG>  // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                      , &SurfaceVolumeFractionCalc::timestep_init<KOKKOS_CUDA_TAG>  // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

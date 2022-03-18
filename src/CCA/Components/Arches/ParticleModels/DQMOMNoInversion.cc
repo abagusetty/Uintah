@@ -23,7 +23,11 @@ TaskAssignedExecutionSpace DQMOMNoInversion::loadTaskInitializeFunctionPointers(
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &DQMOMNoInversion::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &DQMOMNoInversion::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#if defined(HAVE_SYCL)
+                                     , &DQMOMNoInversion::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl build                                                                  
+#elif defined(HAVE_CUDA)
                                      , &DQMOMNoInversion::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -33,7 +37,11 @@ TaskAssignedExecutionSpace DQMOMNoInversion::loadTaskEvalFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &DQMOMNoInversion::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &DQMOMNoInversion::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#if defined(HAVE_SYCL)
+                                     , &DQMOMNoInversion::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)                                                                     
                                      , &DQMOMNoInversion::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

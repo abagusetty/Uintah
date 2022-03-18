@@ -137,7 +137,11 @@ private:
     return create_portable_arches_tasks<TaskInterface::TIMESTEP_INITIALIZE>( this
                                        , &ConstantProperty<T>::timestep_init<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &ConstantProperty<T>::timestep_init<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &ConstantProperty<T>::timestep_init<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)                                                                             
                                        , &ConstantProperty<T>::timestep_init<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 

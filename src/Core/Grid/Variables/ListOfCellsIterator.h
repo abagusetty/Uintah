@@ -208,7 +208,8 @@ namespace Uintah {
     get_ref_to_iterator(ExecutionObject<ExecSpace, MemSpace>& execObj){ return listOfCells_; }
 #endif
 
-#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+//#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+#if defined( KOKKOS_ENABLE_OPENMP )    
 //    template<typename MemSpace>
 //    inline typename std::enable_if<std::is_same<MemSpace, Kokkos::HostSpace>::value, Kokkos::View<int_3*, Kokkos::HostSpace> >::type
 //    get_ref_to_iterator(){ return listOfCells_; }
@@ -249,14 +250,15 @@ namespace Uintah {
         int cur_val = __sync_val_compare_and_swap(&copied_to_gpu, 0, 1);
         if (cur_val == 0) { //comparison was successful and this is a lucky thread that gets to copy the value.
           listOfCells_gpu = Kokkos::View<int_3*, MemSpace>( "gpu_listOfCellsIterator", listOfCells_.size() );
+
           gpuStream_t* stream = static_cast<gpuStream_t*>(execObj.getStream());
 
           #if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
           cudaMemcpyAsync(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3), cudaMemcpyHostToDevice, *stream);
           cudaStreamSynchronize(*stream); //Think how cudaStreamSynchronize can be avoided. No other way to set copied_to_gpu as of now.
           #elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
-          (*stream)->memcpy(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3));
-          (*stream)->wait();
+          stream->memcpy(listOfCells_gpu.data(), listOfCells_.data(),  listOfCells_.size() * sizeof(int_3));
+          stream->ext_oneapi_submit_barrier();
           #endif
 
           bool success = __sync_bool_compare_and_swap(&copied_to_gpu, 1, 2);
@@ -309,9 +311,7 @@ namespace Uintah {
     Kokkos::View<int_3*, Kokkos::CudaSpace> listOfCells_gpu;
     //bool copied_to_gpu{false};
     volatile int copied_to_gpu{0}; //0: not copied, 1: copying, 2: copied
-#endif
-
-#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
     Kokkos::View<int_3*, Kokkos::Experimental::SYCLDeviceUSMSpace> listOfCells_gpu;
     //bool copied_to_gpu{false};
     volatile int copied_to_gpu{0}; //0: not copied, 1: copying, 2: copied

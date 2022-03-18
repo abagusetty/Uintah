@@ -90,7 +90,6 @@ namespace Uintah {
         return d_data;
       }
 
-
       HOST_DEVICE void copyZSliceData(const GPUArray3& copyFromVar);
 
 
@@ -245,132 +244,95 @@ namespace Uintah {
 
   template<class T> class GPUArray3 {
 
-    public:
+  public:
 
-      virtual ~GPUArray3(){};
+    virtual ~GPUArray3(){};
 
-      const T& operator[](const sycl::int3& idx) const
+    const T& operator[](const int3& idx) const
       {  //get data from global index
         return d_data[idx.z() - d_offset.z() + d_size.z() * (idx.y() - d_offset.y() + (idx.x() - d_offset.x()) * d_size.y())];
       }
 
-      T& operator[](const sycl::int3& idx)
+    T& operator[](const int3& idx)
       {  //get data from global index
         return d_data[idx.z() - d_offset.z() + d_size.z() * (idx.y() - d_offset.y() + (idx.x() - d_offset.x()) * d_size.y())];
       }
 
-      const T&
-      operator()(const int& x, const int& y, const int& z) const
+    const T&
+    operator()(const int& x, const int& y, const int& z) const
       {  //get data from global index
         return d_data[x - d_offset.z() + d_size.z() * (y - d_offset.y() + (z - d_offset.x()) * d_size.y())];
       }
 
-      T& operator()(const int& x, const int& y, const int& z)
+    T& operator()(const int& x, const int& y, const int& z)
       {  //get data from global index
         return d_data[x - d_offset.z() + d_size.z() * (y - d_offset.y() + (z - d_offset.x()) * d_size.y())];
       }
 
-      const T& operator()(const int& x, const int& y, const int& z, const int& m) const { //get data from global index
-        CHECK_INSIDE3(x,y,z,d_offset, d_size)
+    const T& operator()(const int& x, const int& y, const int& z, const int& m) const { //get data from global index
+      CHECK_INSIDE3(x,y,z,d_offset, d_size)
         return d_data[ x-d_offset.z() + d_size.z()*(y-d_offset.y() + (z-d_offset.x())*d_size.y())];
-      }
+    }
 
-      T& operator()(const int& x, const int& y, const int& z, const int& m) { //get data from global index
-        CHECK_INSIDE3(x,y,z,d_offset, d_size)
+    T& operator()(const int& x, const int& y, const int& z, const int& m) { //get data from global index
+      CHECK_INSIDE3(x,y,z,d_offset, d_size)
         //TODO: Get materials working with the offsets.
         //return d_data[ x-d_offset.z() + d_size.z()*(y-d_offset.y() + (z-d_offset.x())*d_size.y())];
         return d_data[ m * d_size.z() * d_size.y() * d_size.x() + x + d_size.z()*(y + (z)*d_size.y())];
-      }
+    }
 
 
-      T* getPointer() const {
-        return d_data;
-      }
+    T* getPointer() const {
+      return d_data;
+    }
 
-      void copyZSliceData(const GPUArray3& copyFromVar);
+    void copyZSliceData(const GPUArray3& copyFromVar);
 
-      size_t getMemSize() const
+    size_t getMemSize() const
       {
-        return d_size.size() * sizeof(T);
+        return d_size.x() * d_size.y() * d_size.z() * sizeof(T);
       }
 
-      sycl::int3 getLowIndex() const
+    int3 getLowIndex() const
       {
-        return sycl::int3(d_offset.z(), d_offset.y(), d_offset.x());
+        return int3(d_offset.z(), d_offset.y(), d_offset.x());
       }
-      sycl::int3 getHighIndex() const
+    int3 getHighIndex() const
       {
-        return sycl::int3(d_offset.z()+d_size.z(), d_offset.y()+d_size.y(), d_offset.x()+d_size.x());
+        return int3(d_offset.z()+d_size.z(), d_offset.y()+d_size.y(), d_offset.x()+d_size.x());
       }
 
-    protected:
+  protected:
 
-      GPUArray3() {};
+    GPUArray3() {d_data=nullptr; d_offset=(0,0,0); d_size=(0,0,0);};
 
-      void setOffsetSizePtr(const sycl::int3& offset, const sycl::int3& size, void* &ptr) const
+    void setOffsetSizePtr(const int3& offset, const int3& size, void* &ptr) const
       {
         d_offset = offset;
         d_size = size;
         d_data = (T*)ptr;
       }
 
-      void getOffsetSizePtr(sycl::int3& offset, sycl::int3& size, void* &ptr) const
+    void getOffsetSizePtr(int3& offset, int3& size, void* &ptr) const
       {
         offset = d_offset;
         size = d_size;
         ptr = (void*)d_data;
       }
 
-      mutable T*    d_data;
+    mutable T*    d_data;
 
-    private:
+  private:
 
-      //---------------------------------------------------------------
-      // global high = d_offset+d_data
-      // global low  = d_offset
-      //---------------------------------------------------------------
-      mutable sycl::int3  d_offset;  //offset from global index to local index
-      mutable sycl::int3  d_size;    //size of local storage
+    //---------------------------------------------------------------
+    // global high = d_offset+d_data
+    // global low  = d_offset
+    //---------------------------------------------------------------
+    mutable int3  d_offset;  //offset from global index to local index
+    mutable int3  d_size;    //size of local storage
 
-      GPUArray3& operator=(const GPUArray3&);
-      GPUArray3(const GPUArray3&);
-
-      //__________________________________
-      //
-      void checkBounds( const sycl::int3& idx){
-         sycl::int3 Lo = getLowIndex();
-         sycl::int3 Hi = getHighIndex();
-         if (idx.z() < Lo.z() || idx.y() < Lo.y() || idx.x() < Lo.x() ||
-             idx.z() > Hi.z() || idx.y() > Hi.y() || idx.x() > Hi.x()){
-                printf ("GPU OUT_OF_BOUND ERROR: pointer: %p (%d, %d, %d) not inside (%d, %d, %d)-(%d, %d, %d) \n",
-                        (void*)d_data, idx.z(), idx.y(), idx.x(), Lo.z(), Lo.y(), Lo.x(), Hi.z(), Hi.y(), Hi.x());
-        }
-      }
-
-      //__________________________________
-      //    const version
-      void checkBounds( const sycl::int3& idx) const{
-         sycl::int3 Lo = getLowIndex();
-         sycl::int3 Hi = getHighIndex();
-         if (idx.z() < Lo.z() || idx.y() < Lo.y() || idx.x() < Lo.x() ||
-             idx.z() > Hi.z() || idx.y() > Hi.y() || idx.x() > Hi.x()){
-                printf ("GPU OUT_OF_BOUND ERROR (const) (: pointer: %p (%d, %d, %d) not inside (%d, %d, %d)-(%d, %d, %d) \n",
-                        (void*)d_data, idx.z(), idx.y(), idx.x(), Lo.z(), Lo.y(), Lo.x(), Hi.z(), Hi.y(), Hi.x());
-        }
-      }
-      //__________________________________
-      //
-      void checkBounds3(const int& x, const int& y, const int& z ){
-        sycl::int3 idx = sycl::int3(x,y,z);
-        checkBounds(idx);
-      }
-      //__________________________________
-      //    const version
-      void checkBounds3(const int& x, const int& y, const int& z )const {
-        sycl::int3 idx = sycl::int3(x,y,z);
-        checkBounds(idx);
-      }
-
+    GPUArray3& operator=(const GPUArray3&);
+    GPUArray3(const GPUArray3&);
   };
 
   template<class T> class GPUGridVariable: public GPUGridVariableBase, public GPUArray3<T> {
@@ -378,48 +340,48 @@ namespace Uintah {
     friend class KokkosScheduler;   // allow scheduler access
     friend class UnifiedScheduler;  // allow scheduler access
 
-    public:
+  public:
 
-      GPUGridVariable() {}
-      virtual ~GPUGridVariable() {}
+    GPUGridVariable() {}
+    virtual ~GPUGridVariable() {}
 
-      virtual size_t getMemSize()
+    virtual size_t getMemSize()
       {
         return GPUArray3<T>::getMemSize();
       }
 
-      virtual sycl::int3 getLowIndex()
+    virtual int3 getLowIndex()
       {
         return GPUArray3<T>::getLowIndex();
       }
 
-      virtual sycl::int3 getHighIndex()
+    virtual int3 getHighIndex()
       {
         return GPUArray3<T>::getHighIndex();
       }
-      virtual sycl::int3 getLowIndex() const
+    virtual int3 getLowIndex() const
       {
         return GPUArray3<T>::getLowIndex();
       }
 
-      virtual sycl::int3 getHighIndex() const
+    virtual int3 getHighIndex() const
       {
         return GPUArray3<T>::getHighIndex();
       }
 
 
-      void* getVoidPointer() const {
-        return GPUArray3<T>::d_data;
-      }
+    void* getVoidPointer() const {
+      return GPUArray3<T>::d_data;
+    }
 
-    private:
+  private:
 
-      virtual void getArray3(sycl::int3& offset, sycl::int3& size, void* &ptr) const
+    virtual void getArray3(int3& offset, int3& size, void* &ptr) const
       {
         GPUArray3<T>::getOffsetSizePtr(offset, size, ptr);
       }
 
-      virtual void setArray3(const sycl::int3& offset, const sycl::int3& size, void* &ptr) const
+    virtual void setArray3(const int3& offset, const int3& size, void* &ptr) const
       {
         GPUArray3<T>::setOffsetSizePtr(offset, size, ptr);
       }

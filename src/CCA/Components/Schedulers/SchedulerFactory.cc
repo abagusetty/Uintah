@@ -36,6 +36,7 @@
 #include <Core/ProblemSpec/ProblemSpec.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/kokkos_defs.h>
 
 #include <iostream>

@@ -3733,7 +3733,7 @@ if test "$with_kokkos" != NOT_SET; then
 fi
 
 if test "$HAVE_KOKKOS" = "yes"; then
-  DEF_KOKKOS="#define UINTAH_ENABLE_KOKKOS"
+  DEF_KOKKOS="#define UINTAH_ENABLE_KOKKOS 1"
 fi
 
 AC_SUBST(HAVE_KOKKOS)

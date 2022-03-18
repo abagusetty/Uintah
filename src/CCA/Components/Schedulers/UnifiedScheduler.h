@@ -34,7 +34,7 @@
 #endif
 
 #include <sci_defs/cuda_defs.h>
-#include <sci_defs/sci_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #include <map>
 #include <string>
@@ -239,10 +239,6 @@ class UnifiedScheduler : public MPIScheduler  {
     void freeGpuStreamsFromPool();
 
     gpuStream_t* getGpuStreamFromPool( int device );
-
-    cudaError_t freeDeviceRequiresMem();
-
-    cudaError_t freeComputesMem();
 
     void assignDevice( DetailedTask * task );
 

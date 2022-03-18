@@ -170,8 +170,11 @@ void Poisson1::scheduleTimeAdvance( const LevelP     & level
                         "Poisson1::timeAdvance",
                         &Poisson1::timeAdvance<UINTAH_CPU_TAG>,
                         &Poisson1::timeAdvance<KOKKOS_OPENMP_TAG>,
-                        &Poisson1::timeAdvance<KOKKOS_CUDA_TAG>,
+#ifdef HAVE_SYCL
                         &Poisson1::timeAdvance<KOKKOS_SYCL_TAG>,
+#elif defined(HAVE_CUDA)
+                        &Poisson1::timeAdvance<KOKKOS_CUDA_TAG>,
+#endif
                         sched, level->eachPatch(), m_materialManager->allMaterials(), TASKGRAPH::DEFAULT);
 }
 

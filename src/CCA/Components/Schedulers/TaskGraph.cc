@@ -29,13 +29,10 @@
 #include <CCA/Ports/DataWarehouse.h>
 #include <CCA/Ports/LoadBalancer.h>
 
-#include <Core/Containers/FastHashTable.h>
 #include <Core/Disclosure/TypeDescription.h>
 #include <Core/Exceptions/InternalError.h>
 #include <Core/Exceptions/TypeMismatchException.h>
-#include <Core/Grid/Grid.h>
 #include <Core/Grid/Patch.h>
-#include <Core/Grid/Task.h>
 #include <Core/Malloc/Allocator.h>
 #include <Core/Parallel/ProcessorGroup.h>
 #include <Core/Parallel/Parallel.h>
@@ -44,8 +41,6 @@
 #include <Core/Util/ProgressiveWarning.h>
 
 #include <iostream>
-#include <map>
-#include <memory>
 #include <sstream>
 
 
@@ -233,7 +228,7 @@ TaskGraph::createDetailedTasks(       bool    useInternalDeps
 
   nullSort(sorted_tasks);
 
-#ifdef HAVE_CUDA
+#if defined( HAVE_CUDA ) || defined( HAVE_SYCL )
   overrideGhostCells(sorted_tasks); //DS: 01042020: fix for OnDemandDW race condition - only if using device. Do not disturb legacy CPU execution
 #endif
 //  topologicalSort(sorted_tasks);

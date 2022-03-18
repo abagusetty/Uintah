@@ -340,6 +340,8 @@ public:
     int i = 0;
     #ifdef HAVE_CUDA
     CUDA_RT_SAFE_CALL(cudaGetDevice(&i));
+    #elif defined(HAVE_SYCL)
+    syclGetDevice(&i);
     #endif
     return d_gpuDWs[i]; 
   }

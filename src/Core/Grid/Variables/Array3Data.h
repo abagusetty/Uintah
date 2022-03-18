@@ -69,7 +69,8 @@ namespace Uintah {
 template <typename T>
 class Array3Data;
 
-#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+//#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+#if defined( KOKKOS_ENABLE_OPENMP )
   template <typename T, typename MemSpace>
   using KokkosData = Kokkos::View<T***, Kokkos::LayoutLeft, MemSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 #endif
@@ -115,7 +116,8 @@ class Array3Data;
         return d_data;
       }
 
-#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+//#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+#if defined( KOKKOS_ENABLE_OPENMP )
       inline KokkosData<T, Kokkos::HostSpace> getKokkosData() const {
         return KokkosData<T, Kokkos::HostSpace>(d_data, d_size.x(), d_size.y(), d_size.z());
       }
@@ -209,7 +211,8 @@ class Array3Data;
     : d_size(size)
     {
       long s=d_size.x()*d_size.y()*d_size.z();
-      if(s){
+
+      if(s) {
         d_data=new T[s];
         d_data3=new T**[d_size.z()];
         d_data3[0]=new T*[d_size.z()*d_size.y()];

@@ -85,14 +85,14 @@ public:
 
   void setStream(void* stream){
 #if defined(HAVE_CUDA) || defined(HAVE_SYCL)
-    //Ignore the non-CUDA case as those streams are pointless.
+    //Ignore the non-CUDA/SYCL case as those streams are pointless.
     m_streams.push_back(stream);
 #endif
   }
 
   void * getStream(unsigned int i) const {
     if ( i >= m_streams.size() ) {
-      SCI_THROW(InternalError("Requested a stream that doesn't exist.", __FILE__, __LINE__));
+      SCI_THROW(InternalError("Requested a CUDA/SYCL stream that doesn't exist.", __FILE__, __LINE__));
     } else {
       return m_streams[i];
     }

@@ -39,9 +39,6 @@
 #include <Core/Util/DOUT.hpp>
 #include <Core/Util/Timers/Timers.hpp>
 
-#include <sci_defs/cuda_defs.h>
-#include <sci_defs/sycl_defs.h>
-
 #if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
   #include <Core/Grid/Variables/GPUGridVariable.h>
@@ -176,41 +173,35 @@ KokkosScheduler::KokkosScheduler( const ProcessorGroup  * myworld
   if ( Uintah::Parallel::usingDevice() ) {
     gpuInitialize();
 
-    // we need one of these for each GPU, as each device will have it's own SYCL context
-    //for (int i = 0; i < m_num_devices; i++) {
-    //  GPUMemoryPool::getGpuStreamFromPool(i);
-    //}
-
     // disable memory windowing on variables.  This will ensure that
     // each variable is allocated its own memory on each patch,
     // precluding memory blocks being defined across multiple patches.
     Uintah::OnDemandDataWarehouse::s_combine_memory = false;
 
-    sycl::platform platform(sycl::gpu_selector{});
-    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
-    std::vector<ze_device_handle_t> ze_devices{};
-    for (int i = 0; i < gpu_devices.size(); i++) {
-      if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-        auto SubDevices = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-        for (const auto &tile : SubDevices) {
-          ze_devices.push_back( tile.get_native<sycl::backend::level_zero>() );
-        }
-      }
-    }
+    auto const& gpu_devices = sycl::device::get_devices(sycl::info::device_type::gpu);
+    // std::vector<ze_device_handle_t> ze_devices{};
+    // for (int i = 0; i < gpu_devices.size(); i++) {
+    //   if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+    //     auto SubDevices = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+    //     for (const auto &tile : SubDevices) {
+    //       ze_devices.push_back( tile.get_native<sycl::backend::level_zero>() );
+    //     }
+    //   }
+    // }
 
-    int num_devices = ze_devices.size();
-    int can_access = 0;
-    for (int i = 0; i < num_devices; i++) {
-      for (int j = 0; j < num_devices; j++) {
-        if (i != j) {
-          zeDeviceCanAccessPeer(ze_devices[i], ze_devices[j], &can_access);
-          if (!can_access) {
-            std::cout << "ERROR\n GPU device [" << i << "] cannot peer access GPU device [" << j << "] " << std::endl;
-            SCI_THROW( InternalError("** ERROR P2P peer GPU not supported.", __FILE__, __LINE__) );
-          }
-        }
-      }
-    }
+    // int num_devices = ze_devices.size();
+    // ze_bool_t can_access = false;
+    // for (int i = 0; i < num_devices; i++) {
+    //   for (int j = 0; j < num_devices; j++) {
+    //     if (i != j) {
+    //       zeDeviceCanAccessPeer(ze_devices[i], ze_devices[j], &can_access);
+    //       if (!can_access) {
+    //         std::cout << "ERROR\n GPU device [" << i << "] cannot peer access GPU device [" << j << "] " << std::endl;
+    //         SCI_THROW( InternalError("** ERROR P2P peer GPU not supported.", __FILE__, __LINE__) );
+    //       }
+    //     }
+    //   }
+    // }
   }  // using Device
 
 #endif // HAVE_SYCL
@@ -237,6 +228,11 @@ KokkosScheduler::verifyAnyGpuActive()
   if (errorCode == cudaSuccess) {
     return 1;  // let 1 be a good error code
   }
+#endif
+
+#if defined(HAVE_SYCL)
+  // Attempt to access the zeroth GPU
+  syclSetDevice(0);
 #endif
 
   return 2;
@@ -330,28 +326,23 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
 #elif defined( HAVE_SYCL )
     if ( !g_gpu_ids && Uintah::Parallel::usingDevice() ) {
       int availableDevices=0;
-      sycl::platform platform(sycl::gpu_selector{});
-      auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
-      for (int i = 0; i < gpu_devices.size(); i++) {
-	if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-	  auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-	  availableDevices += SubDevicesDomainNuma.size();
-	}
-      }
+      syclGetDeviceCount(&availableDevices);
+
       std::cout << "   Using " << m_num_devices << "/" << availableDevices
                 << " available GPU(s)" << std::endl;
 
       int tmp_device_id=0;
-      for (int device_id = 0; i < gpu_devices.size(); i++) {
+      auto const& gpu_devices = sycl::device::get_devices(sycl::info::device_type::gpu);      
+      for (int device_id = 0; device_id < gpu_devices.size(); device_id++) {
         if(gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-          auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-          for (const auto &tile : SubDevicesDomainNuma) {
+          auto subDevices = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+          for (const auto &tile : subDevices) {
             std::cout << "   GPU Device " << tmp_device_id << " "
                       << tile.get_info<sycl::info::device::name>()
                       << ": with compute capability [" << tile.get_backend()
                       << "] v:" << tile.get_info<sycl::info::device::driver_version>()
                       << std::endl;
-	    tmp_device_id++;
+            tmp_device_id++;
           }
         }
       }
@@ -384,33 +375,34 @@ KokkosScheduler::problemSetup( const ProblemSpecP     & prob_spec
   if ( g_gpu_ids && Uintah::Parallel::usingDevice() ) {
     int availableDevices=0;
     std::ostringstream message;
-    sycl::platform platform(sycl::gpu_selector{});
-    auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
-    for (int i = 0; i < gpu_devices.size(); i++) {
-      if (gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-	auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-	availableDevices += SubDevicesDomainNuma.size();
-      }
-    }
+
+    syclGetDeviceCount(&availableDevices);
+    // auto const& gpu_devices = sycl::device::get_devices(sycl::info::device_type::gpu);
+    // for (int i = 0; i < gpu_devices.size(); i++) {
+    //   if (gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+    //     auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+    //     availableDevices += SubDevicesDomainNuma.size();
+    //   }
+    // }
     message << "   Rank-" << d_myworld->myRank()
             << " using " << m_num_devices << "/" << availableDevices
             << " available GPU(s)\n";
 
-    int tmp_device_id=0;
-    for (int device_id = 0; i < gpu_devices.size(); i++) {
-      if (gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-	auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-	for (const auto &tile : SubDevicesDomainNuma) {
-	  message << "   Rank-" << d_myworld->myRank()
-		  << " using GPU Device " << tmp_device_id
-		  << ": \"" << tile.get_info<sycl::info::device::name>() << "\""
-		  << " with compute capability " << tile.get_info<sycl::info::device::driver_version>()
-		  << " on backend " << tile.get_backend() << std::endl;
-	  tmp_device_id++;
-	}
-      }
-    }
-    DOUT(true, message.str());
+    // int tmp_device_id=0;
+    // for (int device_id = 0; device_id < gpu_devices.size(); device_id++) {
+    //   if (gpu_devices[device_id].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+    //     auto SubDevicesDomainNuma = gpu_devices[device_id].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+    //     for (const auto &tile : SubDevicesDomainNuma) {
+    //       message << "   Rank-" << d_myworld->myRank()
+    //     	  << " using GPU Device " << tmp_device_id
+    //     	  << ": \"" << tile.get_info<sycl::info::device::name>() << "\""
+    //     	  << " with compute capability " << tile.get_info<sycl::info::device::driver_version>()
+    //     	  << " on backend " << tile.get_backend() << std::endl;
+    //       tmp_device_id++;
+    //     }
+    //   }
+    // }
+    // DOUT(true, message.str());
   }
 #endif // HAVE_SYCL
 
@@ -543,7 +535,7 @@ KokkosScheduler::runTask( DetailedTask  * dtask
       // now so it can be used again.
       // clearForeignGpuVars(deviceVars);
     }
-#endif
+#endif // defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   MPIScheduler::postMPISends(dtask, iteration);
 
@@ -593,7 +585,6 @@ KokkosScheduler::runTask( DetailedTask  * dtask
     }
     //---------------------------------------------------------------------------
 
-
     // Add subscheduler timings to the parent scheduler and reset subscheduler timings
     if (m_parent_scheduler != nullptr) {
       for (size_t i = 0; i < m_mpi_info.size(); ++i) {
@@ -602,6 +593,7 @@ KokkosScheduler::runTask( DetailedTask  * dtask
       m_mpi_info.reset(0);
     }
   }
+
 }  // end runTask()
 
 //______________________________________________________________________
@@ -840,9 +832,7 @@ KokkosScheduler::markTaskConsumed( int          & numTasksDone
 void
 KokkosScheduler::runTasks( int thread_id )
 {
-
   while( m_num_tasks_done < m_num_tasks && !g_have_hypre_task ) {
-
     DetailedTask* readyTask = nullptr;
     DetailedTask* initTask  = nullptr;
 
@@ -871,6 +861,7 @@ KokkosScheduler::runTasks( int thread_id )
     //    If so, then update the various scheduler counters.
     // ----------------------------------------------------------------------------------
     //g_scheduler_mutex.lock();
+
     while (!havework) {
       /*
       * (1.0)
@@ -881,7 +872,6 @@ KokkosScheduler::runTasks( int thread_id )
       if ( g_have_hypre_task ) {
         return;
       }
-
       /*
        * (1.1)
        *
@@ -902,7 +892,6 @@ KokkosScheduler::runTasks( int thread_id )
         g_scheduler_mutex.unlock();
         break;
       }
-
       /*
        * (1.2)
        *
@@ -976,7 +965,7 @@ KokkosScheduler::runTasks( int thread_id )
       }
 
 #if defined(HAVE_CUDA) || defined(HAVE_SYCL)
-      else if (usingDevice){
+      else if (usingDevice) {
         /*
          * (1.4)
          *
@@ -1122,7 +1111,6 @@ KokkosScheduler::runTasks( int thread_id )
             gpuPending = true;
             markTaskConsumed(m_num_tasks_done, m_curr_phase, m_num_phases, readyTask);
             break;
-
         }
       }
 #endif
@@ -1142,7 +1130,6 @@ KokkosScheduler::runTasks( int thread_id )
       }
     } // end while (!havework)
     //g_scheduler_mutex.unlock();
-
 
     // ----------------------------------------------------------------------------------
     // Part 2
@@ -1186,13 +1173,14 @@ KokkosScheduler::runTasks( int thread_id )
         // Ghost cells from GPU same  device to variable not yet on GPU -> managed in initiateH2DCopies(), and copied with performInternalGhostCellCopies()
         // Ghost cells from GPU same  device to variable already on GPU -> Managed in initiateH2DCopies()?
         assignDevicesAndStreams(readyTask);
+
         initiateH2DCopies(readyTask);
+
         syncTaskGpuDWs(readyTask);
 
         //Determine which queue it should go into.
         //TODO: Skip queues if possible, not all tasks performed copies or ghost cell gathers
         m_detailed_tasks->addDeviceValidateRequiresAndModifiesCopies(readyTask);
-
       } else if (gpuValidateRequiresAndModifiesCopies) {
         //Mark all requires and modifies vars this task is responsible for copying in as valid.
         markDeviceRequiresAndModifiesDataAsValid(readyTask);
@@ -1284,6 +1272,7 @@ KokkosScheduler::runTasks( int thread_id )
           //So because we aren't sure which CPU tasks could use the GPU, just go ahead and assign each task
           //a GPU stream.
           //assignStatusFlagsToPrepareACpuTask(readyTask);
+
           assignDevicesAndStreams(readyTask);
 
           // Run initiateD2H on all tasks in case the data we need is in GPU memory but not in host memory.
@@ -1352,6 +1341,7 @@ KokkosScheduler::runTasks( int thread_id )
             g_have_hypre_task = true;
             return;
           }
+
           runTask(readyTask, m_curr_iteration, thread_id, CallBackEvent::CPU);
 
 #if defined(HAVE_CUDA) || defined(HAVE_SYCL)
@@ -1368,6 +1358,7 @@ KokkosScheduler::runTasks( int thread_id )
       }
     }
   }  //end while (numTasksDone < ntasks)
+
   ASSERT(m_num_tasks_done == m_num_tasks);
 }
 
@@ -1576,6 +1567,7 @@ void
 KokkosScheduler::gpuInitialize( bool reset )
 {
 #ifdef HAVE_CUDA
+
   cudaError_t retVal;
   int numDevices = 0;
   CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
@@ -1590,23 +1582,26 @@ KokkosScheduler::gpuInitialize( bool reset )
 
   // set it back to the 0th device
   CUDA_RT_SAFE_CALL(retVal = cudaSetDevice(0));
-  m_current_device = 0;
-#endif
 
-#ifdef HAVE_SYCL
+#elif defined( HAVE_SYCL )
+
   int numDevices = 0;
-  sycl::platform platform(sycl::gpu_selector{});
-  auto const& gpu_devices = platform.get_devices(sycl::info::device_type::gpu);
-  for (int i = 0; i < gpu_devices.size(); i++) {
-    if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
-      auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
-      numDevices += SubDevicesDomainNuma.size();
-    }
-  }
+  syclGetDeviceCount(&numDevices);
   m_num_devices = numDevices;
 
-  // set it back to the 0th device
-  m_current_device = 0;
+  syclSetDevice(0);
+  // auto const& gpu_devices = sycl::device::get_devices(sycl::info::device_type::gpu);
+  // for (int i = 0; i < gpu_devices.size(); i++) {
+  //   if(gpu_devices[i].get_info<sycl::info::device::partition_max_sub_devices>() > 0) {
+  //     auto SubDevicesDomainNuma = gpu_devices[i].create_sub_devices<sycl::info::partition_property::partition_by_affinity_domain>(sycl::info::partition_affinity_domain::numa);
+  //     numDevices += SubDevicesDomainNuma.size();
+  //   }
+  //   else {
+  //     numDevices++;
+  //   }
+  // }
+  // m_num_devices = numDevices;
+
 #endif
 
 }
@@ -1738,7 +1733,6 @@ void KokkosScheduler::turnIntoASuperPatch( GPUDataWarehouse* const gpudw
 void
 KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
 {
-
   const Task* task = dtask->getTask();
   dtask->clearPreparationCollections();
 
@@ -1762,6 +1756,7 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
       }
     }
   }
+
   for (const Task::Dependency* dependantVar = task->getModifies(); dependantVar != 0; dependantVar = dependantVar->m_next) {
     constHandle<PatchSubset> patches = dependantVar->getPatchesUnderDomain(dtask->getPatches());
     constHandle<MaterialSubset> matls = dependantVar->getMaterialsUnderDomain(dtask->getMaterials());
@@ -1776,6 +1771,7 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
       }
     }
   }
+
   for (const Task::Dependency* dependantVar = task->getComputes(); dependantVar != 0; dependantVar = dependantVar->m_next) {
     constHandle<PatchSubset> patches = dependantVar->getPatchesUnderDomain(dtask->getPatches());
     constHandle<MaterialSubset> matls = dependantVar->getMaterialsUnderDomain(dtask->getMaterials());
@@ -1981,9 +1977,9 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
 
               //See if it's in the GPU as a staging/foreign var
               useGpuStaging = gpudw->stagingVarExists(curDependency->m_var->getName().c_str(),
-                                                    patchID, matlID, levelID,
-                                                    make_int3(iter->low.x(), iter->low.y(), iter->low.z()),
-                                                    make_int3(iter->high.x() - iter->low.x(), iter->high.y()- iter->low.y(), iter->high.z()- iter->low.z()));
+                                                      patchID, matlID, levelID,
+                                                      make_int3(iter->low.x(), iter->low.y(), iter->low.z()),
+                                                      make_int3(iter->high.x() - iter->low.x(), iter->high.y()- iter->low.y(), iter->high.z()- iter->low.z()));
 
               //See if we have the entire neighbor patch in the GPU (not just a staging)
               useGpuGhostCells = gpudw->isValidOnGPU(curDependency->m_var->getName().c_str(), sourcePatch->getID(), matlID, levelID);
@@ -2012,9 +2008,15 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
 
                 gpudw->getSizes(ghost_host_low3, ghost_host_high3, ghost_host_size3, throwaway1, throwaway2,
                                curDependency->m_var->getName().c_str(), patchID, matlID, levelID);
-                ghost_host_low = IntVector(ghost_host_low3.x, ghost_host_low3.y, ghost_host_low3.z);
+                #ifdef HAVE_SYCL
+                ghost_host_low  = IntVector(ghost_host_low3.x(), ghost_host_low3.y(), ghost_host_low3.z());
+                ghost_host_high = IntVector(ghost_host_high3.x(), ghost_host_high3.y(), ghost_host_high3.z());
+                ghost_host_size = IntVector(ghost_host_size3.x(), ghost_host_size3.y(), ghost_host_size3.z());
+                #else
+                ghost_host_low  = IntVector(ghost_host_low3.x, ghost_host_low3.y, ghost_host_low3.z);
                 ghost_host_high = IntVector(ghost_host_high3.x, ghost_host_high3.y, ghost_host_high3.z);
                 ghost_host_size = IntVector(ghost_host_size3.x, ghost_host_size3.y, ghost_host_size3.z);
+                #endif
 
               } else if (useCpuForeign || useCpuGhostCells) {
                 iter->validNeighbor->getSizes(ghost_host_low, ghost_host_high, ghost_host_offset, ghost_host_size, ghost_host_strides);
@@ -2270,7 +2272,6 @@ KokkosScheduler::initiateH2DCopies( DetailedTask * dtask )
   prepareTaskVarsIntoTaskDW(dtask);
 
   prepareGhostCellsIntoTaskDW(dtask);
-
 }
 
 
@@ -2294,6 +2295,7 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
 
     for (std::multimap<GpuUtilities::LabelPatchMatlLevelDw, DeviceGridVariableInfo>::iterator it = varMap.begin();
         it != varMap.end(); ++it) {
+
       int whichGPU = it->second.m_whichGPU;
       int dwIndex = it->second.m_dep->mapDataWarehouse();
 
@@ -2304,9 +2306,7 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
       }
 
       if (it->second.m_staging == isStaging) {
-
         if (dtask->getDeviceVars().getTotalVars(whichGPU, dwIndex)) {
-
           void* device_ptr = nullptr;  // device base pointer to raw data
 
           const IntVector offset = it->second.m_offset;
@@ -2350,7 +2350,6 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
               break;
             }
             case TypeDescription::ReductionVariable : {
-
               GPUReductionVariableBase* reductionVar = OnDemandDataWarehouse::createGPUReductionVariable(subtype);
               gpudw->allocateAndPut(*reductionVar, label_cstr, patchID, matlIndx, levelID, elementDataSize);
               device_ptr = reductionVar->getVoidPointer();
@@ -2370,25 +2369,20 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
                   const TypeDescription::Type type = it->second.m_dep->m_var->typeDescription()->getType();
                   Patch::VariableBasis basis = Patch::translateTypeToBasis(type, false);
                   patch->computeVariableExtents(basis, it->second.m_dep->m_var->getBoundaryLayer(), dgtype, dghost, low, high);
-
-                  //DS 01022019: set CPU status to valid for the variable to be copied. Otherwise picks up default status of Unknown on host and
-                  //copies it back for the next requires CPU.
-                  //if (it->second.m_dep->m_dep_type == Task::Requires) {
-                  //  gpudw->compareAndSwapSetValidOnCPU(label_cstr, patchID, matlIndx, levelID);
-                  //}
                 }
+
                 gpudw->allocateAndPut(*device_var, label_cstr, patchID, matlIndx, levelID, staging,
-                                      make_int3(low.x(), low.y(), low.z()), make_int3(high.x(), high.y(), high.z()),
+                                      make_int3(low.x(), low.y(), low.z()),
+                                      make_int3(high.x(), high.y(), high.z()),
                                       elementDataSize, (GPUDataWarehouse::GhostType)(dgtype),
                                       dghost);
-              } else {
 
+              } else {
                 //TODO, give it an offset so it could be requested as a patch or as a level.  Right now they all get the same low/high.
                 gpudw->allocateAndPut(*device_var, label_cstr, patchID, matlIndx, levelID, staging,
                                         make_int3(low.x(), low.y(), low.z()), make_int3(high.x(), high.y(), high.z()),
                                         elementDataSize, (GPUDataWarehouse::GhostType)(it->second.m_gtype),
                                         it->second.m_numGhostCells);
-
               }
               device_ptr = device_var->getVoidPointer();
               delete device_var;
@@ -2433,6 +2427,7 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
                 //delayedCopy: call if gpudw->delayedCopyNeeded. It is needed if current patch on GPU (either valid or being copied) has lesser number of ghost cells than current)
                 //delayed copy is needed to avoid race conditions and avoid the current copy with larger ghost layer being overwritten by those queued earlier with smaller
                 //ghost layer. This race condition was observed due to using different streams.
+
                 delayedCopy = gpudw->isDelayedCopyingNeededOnGPU(label_cstr, patchID, matlIndx, levelID, numGhostCells);
               }
 
@@ -2548,7 +2543,8 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
                   }
                 }
 
-                if (host_ptr && device_ptr) {
+                if (host_ptr && device_ptr)
+                {
 
                   //Perform the copy!
 
@@ -2560,29 +2556,14 @@ KokkosScheduler::prepareDeviceVars( DetailedTask * dtask )
                     SCI_THROW(InternalError("Attempting to copy zero bytes to the GPU.  That shouldn't happen.", __FILE__, __LINE__));
                   }
 
-                  //Debug loop in case you need to see the data being sent.
-                  //if (it->second.m_varMemSize == 968) {
-                  //  printf("KokkosScheduler - d_data is %p\n", host_ptr);
-                  //  for (int i = 0; i < 968/elementDataSize; i++) {
-                  //    printf("KokkosScheduler - Array at index %d is %1.6lf\n", i, *(static_cast<double*>(host_ptr) + i));
-                  //  }
-                  //}
-
                   if (delayedCopy) {
-//                      printf("%s task: %s, prepareDeviceVars - mark for delayed copying %s %d %d %d %d: %d\n",myRankThread().c_str(), dtask->getName().c_str(), it->first.m_label.c_str(),
-//                              it->first.m_patchID, it->first.m_matlIndx, it->first.m_levelIndx, it->first.m_dataWarehouse, numGhostCells);
                     dtask->getDelayedCopyingVars().push_back(DetailedTask::delayedCopyingInfo(it->first, it->second, device_ptr, host_ptr, it->second.m_varMemSize));
-//                    while(gpudw->isValidOnGPU(label_cstr, patchID, matlIndx, levelID)==false);
                   } else {
-//                      printf("%s task: %s, prepareDeviceVars - copying %s %d %d %d %d: %d\n",myRankThread().c_str(), dtask->getName().c_str(), it->first.m_label.c_str(),
-//                                                    it->first.m_patchID, it->first.m_matlIndx, it->first.m_levelIndx, it->first.m_dataWarehouse, numGhostCells);
 		    #ifdef HAVE_CUDA
                     CUDA_RT_SAFE_CALL(cudaMemcpyAsync(device_ptr, host_ptr, it->second.m_varMemSize, cudaMemcpyHostToDevice, *stream));
-		    #endif
-		    #ifdef HAVE_SYCL
+                    #elif defined( HAVE_SYCL )
                     stream->memcpy(device_ptr, host_ptr, it->second.m_varMemSize);
 		    #endif
-
 
                     // Tell this task that we're managing the copies for this variable.
 
@@ -2635,7 +2616,7 @@ KokkosScheduler::copyDelayedDeviceVars( DetailedTask * dtask )
     #endif
     #ifdef HAVE_SYCL // Host to Device
     auto e = stream->memcpy(device_ptr, host_ptr, size);
-    syclEvents.push_back(e);
+    //syclEvents.push_back(e);
     #endif
 
     // Tell this task that we're managing the copies for this variable.
@@ -3549,6 +3530,7 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
                     device_var->getArray3(device_offset, device_size, device_ptr);
                     delete device_var;
 
+#ifdef HAVE_CUDA
                     // if offset and size is equal to CPU DW, directly copy back to CPU var memory;
                     if (   device_offset.x == host_low.x()
                         && device_offset.y == host_low.y()
@@ -3557,13 +3539,8 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
                         && device_size.y   == host_size.y()
                         && device_size.z   == host_size.z()) {
 
-#ifdef HAVE_CUDA
                       cudaError_t retVal;
                       CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
-#endif
-#ifdef HAVE_SYCL // device to host
-		      stream->memcpy(host_ptr, device_ptr, host_bytes);
-#endif
 
                       IntVector temp(0,0,0);
                       dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
@@ -3574,6 +3551,28 @@ KokkosScheduler::initiateD2HForHugeGhostCells( DetailedTask * dtask )
                                                             comp,
                                                             gtype, numGhostCells,  deviceNum,
                                                             gridVar, GpuUtilities::sameDeviceSameMpiRank);
+
+#elif defined( HAVE_SYCL )// device to host
+                    // if offset and size is equal to CPU DW, directly copy back to CPU var memory;
+                      if ( device_offset.x() == host_low.x()
+                           && device_offset.y() == host_low.y()
+                           && device_offset.z() == host_low.z()
+                           && device_size.x()   == host_size.x()
+                           && device_size.y()   == host_size.y()
+                           && device_size.z()   == host_size.z() ) {
+
+		      stream->memcpy(host_ptr, device_ptr, host_bytes);
+
+                      IntVector temp(0,0,0);
+                      dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
+                                                            false,
+                                                            IntVector(device_size.x(), device_size.y(), device_size.z()),
+                                                            host_strides.x(), host_bytes,
+                                                            IntVector(device_offset.x(), device_offset.y(), device_offset.z()),
+                                                            comp,
+                                                            gtype, numGhostCells,  deviceNum,
+                                                            gridVar, GpuUtilities::sameDeviceSameMpiRank);
+#endif
 
 #ifdef HAVE_CUDA
                       if (retVal == cudaErrorLaunchFailure) {
@@ -3714,7 +3713,6 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
     constHandle<PatchSubset> patches = dependantVar->getPatchesUnderDomain(dtask->getPatches());
     constHandle<MaterialSubset> matls = dependantVar->getMaterialsUnderDomain(dtask->getMaterials());
 
-
     // this is so we can allocate persistent events and streams to distribute when needed
     //   one stream and one event per variable per H2D copy (numPatches * numMatls)
 
@@ -3778,207 +3776,6 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
 
     const std::string varName = dependantVar->m_var->getName();
 
-    // TODO: Titan production hack.  A clean hack, but should be fixed. Brad P Dec 1 2016
-    // There currently exists a race condition.  Suppose cellType is in both host and GPU
-    // memory.  Currently the GPU data warehouse knows it is in GPU memory, but it doesn't
-    // know if it's in host memory (the GPU DW doesn't track lifetimes of host DW vars).
-    // Thread 2 - Task A requests a requires var for cellType for the host newDW, and gets it.
-    // Thread 3 - Task B invokes the initiateD2H check, thinks there is no host instance of cellType,
-    //            so it initiates a D2H, which performs another host allocateAndPut, and the subsequent put
-    //            deletes the old entry and creates a new entry.
-    // Race condition is that thread 2's pointer has been cleaned up, while thread 3 has a new one.
-    // A temp fix could be to check if all host vars exist in the host dw prior to launching the task.
-    // For now, the if statement's job is to ignore a GPU task's *requires* that nay get pulled D2H
-    // by subsequent CPU tasks.  For example, RMCRT computes divQ, RMCRTboundFlux, and radiationVolq.
-    // and requires other variables.  So the logic is "If it wasn't one of the computes", then we
-    // don't need to copy it back D2H"
-
-    // DS 04222020: Commented hack_foundAComputes hack as now CPU validity status of a variable is
-    // maintained in OnDemandWH and whether D2H copy is needed can be determined dynamically.
-//    bool hack_foundAComputes{false};
-//
-//    // RMCRT hack:
-//    if ( (varName == "divQ")           ||
-//         (varName == "RMCRTboundFlux") ||
-//         (varName == "radiationVolq")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // almgren-mmsBC.ups hack
-//    // almgren-mms_conv.ups hack
-//    if ( (varName == "uVelocity") ||
-//         (varName == "vVelocity") ||
-//         (varName == "wVelocity")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // box1.ups hack
-//    if ( (varName == "length_0_x_dflux") ||
-//         (varName == "length_0_y_dflux") ||
-//         (varName == "length_0_z_dflux") ||
-//         (varName == "length_1_x_dflux") ||
-//         (varName == "length_1_y_dflux") ||
-//         (varName == "length_1_z_dflux") ||
-//         (varName == "pU_0_x_dflux")     ||
-//         (varName == "pU_0_y_dflux")     ||
-//         (varName == "pU_0_z_dflux")     ||
-//         (varName == "pV_0_x_dflux")     ||
-//         (varName == "pV_0_y_dflux")     ||
-//         (varName == "pV_0_z_dflux")     ||
-//         (varName == "pW_0_x_dflux")     ||
-//         (varName == "pW_0_y_dflux")     ||
-//         (varName == "pW_0_z_dflux")     ||
-//         (varName == "pU_1_x_dflux")     ||
-//         (varName == "pU_1_y_dflux")     ||
-//         (varName == "pU_1_z_dflux")     ||
-//         (varName == "pV_1_x_dflux")     ||
-//         (varName == "pV_1_y_dflux")     ||
-//         (varName == "pV_1_z_dflux")     ||
-//         (varName == "pW_1_x_dflux")     ||
-//         (varName == "pW_1_y_dflux")     ||
-//         (varName == "pW_1_z_dflux")     ||
-//         (varName == "w_qn0_x_dflux")    ||
-//         (varName == "w_qn0_y_dflux")    ||
-//         (varName == "w_qn0_z_dflux")    ||
-//         (varName == "w_qn1_x_dflux")    ||
-//         (varName == "w_qn1_y_dflux")    ||
-//         (varName == "w_qn1_z_dflux")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // dqmom_example_char_no_pressure.ups hack:
-//    // All the computes are char_ps_qn4, char_ps_qn4_gasSource, char_ps_qn4_particletempSource, char_ps_qn4_particleSizeSource
-//    // char_ps_qn4_surfacerate, char_gas_reaction0_qn4, char_gas_reaction1_qn4, char_gas_reaction2_qn4.  Note that the qn# goes
-//    // from qn0 to qn4.  Also, the char_gas_reaction0_qn4 variable is both a computes in the newDW and a requires in the oldDW
-//    if ( (varName.substr(0,10) == "char_ps_qn")                                  ||
-//         (varName.substr(0,17) == "char_gas_reaction" && dwIndex == Task::NewDW) ||
-//         (varName == "raw_coal_0_x_dflux")                                       ||
-//         (varName == "raw_coal_0_y_dflux")                                       ||
-//         (varName == "raw_coal_1_x_dflux")                                       ||
-//         (varName == "raw_coal_1_y_dflux")                                       ||
-//         (varName == "raw_coal_1_z_dflux")                                       ||
-//         (varName == "w_qn2_x_dflux")                                            ||
-//         (varName == "w_qn2_y_dflux")                                            ||
-//         (varName == "w_qn3_x_dflux")                                            ||
-//         (varName == "w_qn4_x_dflux")                                            ||
-//         (varName == "w_qn4_y_dflux")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // heliumKS_pressureBC.ups hack
-//    if ( (varName == "A_press")            ||
-//         (varName == "b_press")            ||
-//         (varName == "cellType")           ||
-//         (varName == "continuity_balance") ||
-//         (varName == "density")            ||
-//         (varName == "density_star")       ||
-//         (varName == "drhodt")             ||
-//         (varName == "gamma")              ||
-//         (varName == "gravity_z")          ||
-//         (varName == "gridX")              ||
-//         (varName == "gridY")              ||
-//         (varName == "gridZ")              ||
-//         (varName == "guess_press")        ||
-//         (varName == "phi")                ||
-//         (varName == "phi_x_dflux")        ||
-//         (varName == "phi_y_dflux")        ||
-//         (varName == "phi_z_dflux")        ||
-//         (varName == "phi_x_flux")         ||
-//         (varName == "phi_y_flux")         ||
-//         (varName == "phi_z_flux")         ||
-//         (varName == "pressure")           ||
-//         (varName == "rho_phi")            ||
-//         (varName == "rho_phi_RHS")        ||
-//         (varName == "sigma11")            ||
-//         (varName == "sigma12")            ||
-//         (varName == "sigma13")            ||
-//         (varName == "sigma22")            ||
-//         (varName == "sigma23")            ||
-//         (varName == "sigma33")            ||
-//         (varName == "t_viscosity")        ||
-//         (varName == "ucell_xvel")         ||
-//         (varName == "ucell_yvel")         ||
-//         (varName == "ucell_zvel")         ||
-//         (varName == "vcell_xvel")         ||
-//         (varName == "vcell_yvel")         ||
-//         (varName == "vcell_zvel")         ||
-//         (varName == "wcell_xvel")         ||
-//         (varName == "wcell_yvel")         ||
-//         (varName == "wcell_zvel")         ||
-//         (varName == "ucellX")             ||
-//         (varName == "vcellY")             ||
-//         (varName == "wcellZ")             ||
-//         (varName == "uVel")               ||
-//         (varName == "vVel")               ||
-//         (varName == "wVel")               ||
-//         (varName == "uVel_cc")            ||
-//         (varName == "vVel_cc")            ||
-//         (varName == "wVel_cc")            ||
-//         (varName == "volFraction")        ||
-//         (varName == "volFractionX")       ||
-//         (varName == "volFractionY")       ||
-//         (varName == "volFractionZ")       ||
-//         (varName == "x-mom")              ||
-//         (varName == "x-mom_RHS")          ||
-//         (varName == "x-mom_x_flux")       ||
-//         (varName == "x-mom_y_flux")       ||
-//         (varName == "x-mom_z_flux")       ||
-//         (varName == "y-mom")              ||
-//         (varName == "y-mom_RHS")          ||
-//         (varName == "z-mom")              ||
-//         (varName == "z-mom_RHS")          ||
-//         (varName == "z-mom_x_flux")       ||
-//         (varName == "z-mom_y_flux")       ||
-//         (varName == "z-mom_z_flux")       ||
-//         (varName == "hypre_solver_label")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // isotropic_kokkos_dynSmag_unpacked_noPress.ups hack:
-//    if ( (varName == "uVelocity_cc") ||
-//         (varName == "vVelocity_cc") ||
-//         (varName == "wVelocity_cc")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // isotropic_kokkos_wale.ups hack:
-//    if ( (varName == "wale_model_visc")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    // poisson1.ups hack:
-//    if ( (varName == "phi")      ||
-//         (varName == "residual")
-//       )
-//    {
-//      hack_foundAComputes = true;
-//    }
-//
-//    if (g_d2h_dbg) {
-//      std::ostringstream message;
-//      message << "  " << varName << ": Device-to-Host Copy May Be Needed";
-//      DOUT(true, message.str());
-//    }
-//
-//    if (!hack_foundAComputes) {
-//      continue; // This variable wasn't a computes, we shouldn't do a device-to-host transfer
-//                // Go start the loop over and get the next potential variable.
-//    }
-
     if (gpudw != nullptr) {
       // It's not valid on the CPU but it is on the GPU.  Copy it on over.
       if (!dw->isValidOnCPU( varName.c_str(), patchID, matlID, levelID) &&
@@ -4013,13 +3810,14 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                   OnDemandDataWarehouse::getTypeDescriptionSize(dependantVar->m_var->typeDescription()->getSubType()->getType());
 
               // The device will have our best knowledge of the exact dimensions/ghost cells of the variable, so lets get those values.
-              int3 device_low;
-              int3 device_offset;
-              int3 device_high;
-              int3 device_size;
+              int3 device_low{0};
+              int3 device_offset{0};
+              int3 device_high{0};
+              int3 device_size{0};
               GPUDataWarehouse::GhostType tempgtype;
               Ghost::GhostType gtype;
-              int numGhostCells;
+              int numGhostCells{0};
+
               gpudw->getSizes(device_low, device_high, device_size, tempgtype, numGhostCells, varName.c_str(), patchID, matlID, levelID);
               gtype = (Ghost::GhostType) tempgtype;
               device_offset = device_low;
@@ -4050,12 +3848,21 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
               bool proceedWithCopy = false;
               // See if the size of the host var and the device var match.
 
+              #ifdef HAVE_SYCL
+              if ( device_offset.x() == host_low.x()
+                   && device_offset.y() == host_low.y()
+                   && device_offset.z() == host_low.z()
+                   && device_size.x()   == host_size.x()
+                   && device_size.y()   == host_size.y()
+                   && device_size.z()   == host_size.z()) {
+              #else
               if (   device_offset.x == host_low.x()
                   && device_offset.y == host_low.y()
                   && device_offset.z == host_low.z()
                   && device_size.x   == host_size.x()
                   && device_size.y   == host_size.y()
                   && device_size.z   == host_size.z()) {
+              #endif
                 proceedWithCopy = true;
 
                 //Note, race condition possible here
@@ -4090,12 +3897,21 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                 patch->computeExtents(basis, dependantVar->m_var->getBoundaryLayer(), host_lowOffset, host_highOffset, host_low, host_high);
 
                 host_size = host_high - host_low;
+                #ifdef HAVE_SYCL
+                if (device_offset.x() == host_low.x()
+                    && device_offset.y() == host_low.y()
+                    && device_offset.z() == host_low.z()
+                    && device_size.x()   == host_size.x()
+                    && device_size.y()   == host_size.y()
+                    && device_size.z()   == host_size.z()) {
+                #else
                 if (   device_offset.x == host_low.x()
                     && device_offset.y == host_low.y()
                     && device_offset.z == host_low.z()
                     && device_size.x   == host_size.x()
                     && device_size.y   == host_size.y()
                     && device_size.z   == host_size.z()) {
+                #endif
 
                   proceedWithCopy = true;
 
@@ -4117,12 +3933,21 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                   // The sizes STILL don't match. One more last ditch effort.  Assume it was using up to 32768 ghost cells.
                   level->findCellIndexRange(host_low, host_high);
                   host_size = host_high - host_low;
+                  #ifdef HAVE_SYCL
+                  if (device_offset.x() == host_low.x()
+                      && device_offset.y() == host_low.y()
+                      && device_offset.z() == host_low.z()
+                      && device_size.x() == host_size.x()
+                      && device_size.y() == host_size.y()
+                      && device_size.z() == host_size.z()) {
+                  #else
                   if (device_offset.x == host_low.x()
                        && device_offset.y == host_low.y()
                        && device_offset.z == host_low.z()
                        && device_size.x == host_size.x()
                        && device_size.y == host_size.y()
                        && device_size.z == host_size.z()) {
+                  #endif
 
                     // ok, this worked.  Allocate it the large ghost cell way with getRegion
                     // Note, race condition possible here
@@ -4136,7 +3961,11 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                     }
                     proceedWithCopy = true;
                   } else {
-                    printf("ERROR:\nKokkosScheduler::initiateD2H() - Device and host sizes didn't match.  Device size is (%d, %d, %d), and host size is (%d, %d, %d)\n", device_size.x, device_size.y, device_size.y,host_size.x(), host_size.y(),host_size.z());
+                    #ifdef HAVE_SYCL
+                    printf("ERROR:\nKokkosScheduler::initiateD2H() - Device and host sizes didn't match. Device size is (%d, %d, %d), and host size is (%d, %d, %d)\n", device_size.x(), device_size.y(), device_size.z(),host_size.x(), host_size.y(),host_size.z());
+                    #else
+                    printf("ERROR:\nKokkosScheduler::initiateD2H() - Device and host sizes didn't match.  Device size is (%d, %d, %d), and host size is (%d, %d, %d)\n", device_size.x, device_size.y, device_size.z,host_size.x(), host_size.y(),host_size.z());
+                    #endif
                     SCI_THROW( InternalError("KokkosScheduler::initiateD2H() - Device and host sizes didn't match.", __FILE__, __LINE__));
                   }
                 }
@@ -4160,10 +3989,6 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
 #ifdef HAVE_CUDA
                 cudaError_t retVal;
                 CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
-#endif
-#ifdef HAVE_SYCL
-                stream->memcpy(host_ptr, device_ptr, host_bytes);
-#endif
 
                 IntVector temp(0,0,0);
                 dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
@@ -4174,6 +3999,21 @@ KokkosScheduler::initiateD2H( DetailedTask * dtask )
                                                       dependantVar,
                                                       gtype, numGhostCells,  deviceNum,
                                                       gridVar, GpuUtilities::sameDeviceSameMpiRank);
+
+#elif defined( HAVE_SYCL )
+                stream->memcpy(host_ptr, device_ptr, host_bytes);
+
+                IntVector temp(0,0,0);
+                dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID,
+                                                      false,
+                                                      IntVector(device_size.x(), device_size.y(), device_size.z()),
+                                                      elementDataSize, host_bytes,
+                                                      IntVector(device_offset.x(), device_offset.y(), device_offset.z()),
+                                                      dependantVar,
+                                                      gtype, numGhostCells,  deviceNum,
+                                                      gridVar, GpuUtilities::sameDeviceSameMpiRank);
+#endif
+
 
 #ifdef HAVE_CUDA
                 if (retVal == cudaErrorLaunchFailure) {
@@ -4297,6 +4137,7 @@ KokkosScheduler::createTaskGpuDWs( DetailedTask * dtask )
   // See the bottom of the GPUDataWarehouse.h for more information.
 
   std::set<unsigned int> deviceNums = dtask->getDeviceNums();
+
   for (std::set<unsigned int>::const_iterator deviceNums_it = deviceNums.begin(); deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const unsigned int currentDevice = *deviceNums_it;
     unsigned int numItemsInDW = dtask->getTaskVars().getTotalVars(currentDevice, Task::OldDW) + dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::OldDW);
@@ -4359,11 +4200,11 @@ KokkosScheduler::assignDevicesAndStreams( DetailedTask * dtask )
           dtask->setGpuStreamForThisTask(i, stream);
         }
       }
-
     } else {
       cerrLock.lock();
       {
-        std::cerr << "ERROR: Could not find the assigned GPU for this patch." << std::endl;
+        std::cerr << "ERROR: Could not find the assigned GPU for this patch. patch: " << patch->getID() <<
+          " " << __FILE__ << ":" << __LINE__ << std::endl;
       }
       cerrLock.unlock();
       exit(-1);
@@ -4371,38 +4212,6 @@ KokkosScheduler::assignDevicesAndStreams( DetailedTask * dtask )
   }
 }
 
-
-/*
-  void
-  KokkosScheduler::assignDevicesAndStreams( DetailedTask * dtask )
-  {
-
-    // Figure out which device this patch was assigned to.
-    // If a task has multiple patches, then assign all.  Most tasks should
-    // only end up on one device.  Only tasks like data archiver's output variables
-    // work on multiple patches which can be on multiple devices.
-    std::map<const Patch *, int>::iterator it;
-    for (int i = 0; i < dtask->getPatches()->size(); i++) {
-      const Patch* patch = dtask->getPatches()->get(i);
-      int index = GpuUtilities::getGpuIndexForPatch(patch);
-      if (index >= 0) {
-        // See if this task doesn't yet have a stream for this GPU device.
-        if (dtask->getGpuStreamForThisTask(index) == nullptr) {
-          dtask->assignDevice(index);
-          gpuStream_t* stream = GPUMemoryPool::getGpuStreamFromPool(index);
-          dtask->setGpuStreamForThisTask(index, stream);
-        }
-      } else {
-        cerrLock.lock();
-        {
-          std::cerr << "ERROR: Could not find the assigned GPU for this patch." << std::endl;
-        }
-        cerrLock.unlock();
-        exit(-1);
-      }
-    }
-  }
-*/
 //______________________________________________________________________
 //
 void
@@ -4559,12 +4368,13 @@ KokkosScheduler::syncTaskGpuDWs( DetailedTask * dtask )
 void
 KokkosScheduler::performInternalGhostCellCopies( DetailedTask * dtask )
 {
-
   // For each GPU datawarehouse, see if there are ghost cells listed to be copied
   // if so, launch a kernel that copies them.
   std::set<unsigned int> deviceNums = dtask->getDeviceNums();
+
   for (std::set<unsigned int>::const_iterator deviceNums_it = deviceNums.begin(); deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const unsigned int currentDevice = *deviceNums_it;
+
     if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW) != nullptr
         && dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)->ghostCellCopiesNeeded()) {
       dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)->copyGpuGhostCellsToGpuVarsInvoker(dtask->getGpuStreamForThisTask(currentDevice));
@@ -4582,7 +4392,6 @@ KokkosScheduler::performInternalGhostCellCopies( DetailedTask * dtask )
 void
 KokkosScheduler::copyAllGpuToGpuDependences( DetailedTask * dtask )
 {
-
   // Iterate through the ghostVars, find all whose destination is another GPU same MPI rank
   // Get the destination device, the size
   // And do a straight GPU to GPU copy.
@@ -4714,12 +4523,21 @@ KokkosScheduler::copyAllExtGpuDependenciesToHost( DetailedTask * dtask )
         device_var->getArray3(device_offset, device_size, device_ptr);
 
         // if offset and size is equal to CPU DW, directly copy back to CPU var memory;
+        #ifdef HAVE_SYCL
+        if (device_offset.x() == host_low.x()
+            && device_offset.y() == host_low.y()
+            && device_offset.z() == host_low.z()
+            && device_size.x() == host_size.x()
+            && device_size.y() == host_size.y()
+            && device_size.z() == host_size.z()) {
+        #else
         if (device_offset.x == host_low.x()
             && device_offset.y == host_low.y()
             && device_offset.z == host_low.z()
             && device_size.x == host_size.x()
             && device_size.y == host_size.y()
             && device_size.z == host_size.z()) {
+        #endif
 
           // Since we know we need a stream, obtain one.
           gpuStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_sourceDeviceNum);
@@ -4727,8 +4545,7 @@ KokkosScheduler::copyAllExtGpuDependenciesToHost( DetailedTask * dtask )
 
 	  #ifdef HAVE_CUDA
           CUDA_RT_SAFE_CALL(cudaMemcpyAsync(host_ptr, device_ptr, host_bytes, cudaMemcpyDeviceToHost, *stream));
-	  #endif
-	  #ifdef HAVE_SYCL
+          #elif defined( HAVE_SYCL )
 	  stream->memcpy(host_ptr, device_ptr, host_bytes);
 	  #endif
           copiesExist = true;

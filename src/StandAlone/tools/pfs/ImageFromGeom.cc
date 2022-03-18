@@ -28,11 +28,12 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <cstddef> // for std::byte
 
 using namespace Uintah;
 using namespace std;
 
-typedef unsigned char byte;
+//typedef unsigned char byte;
 
 // forwared function declarations
 void usage( char *prog_name );
@@ -89,10 +90,10 @@ int main(int argc, char *argv[])
   int nsize = res[0]*res[1]*res[2];
   byte* pimg = scinew byte[nsize];
 
-  // Initialize pimg to zero
-  for(int n=0;n<nsize;n++){
-    pimg[n] = 0;
-  }
+  // // Initialize pimg to zero
+  // for(int n=0;n<nsize;n++){
+  //   pimg[n] = 0;
+  // }
 
   // Loop over spheres
   for(unsigned int ns = 0; ns<xcen.size(); ns++){
@@ -120,7 +121,8 @@ int main(int argc, char *argv[])
          if(isPointInsideSphere(xv,yv,zv,xcen[ns],ycen[ns],zcen[ns],rad[ns])){
            //find the index into pimg and increment pimg
            unsigned int p=k*(res[0]*res[1])+j*res[0]+i;
-           pimg[p]++;
+           // pimg[p]++; // todo abb: 03032022 (compile errors)
+           //pimg[p] = pimg[p] + 1;           
          }
        }
      }

@@ -138,7 +138,11 @@ private:
     return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                        , &FaceParticleVel<T>::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &FaceParticleVel<T>::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &FaceParticleVel<T>::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                    
+#elif defined(HAVE_CUDA)
                                        , &FaceParticleVel<T>::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 
@@ -149,7 +153,11 @@ private:
     return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                        , &FaceParticleVel<T>::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &FaceParticleVel<T>::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &FaceParticleVel<T>::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                        , &FaceParticleVel<T>::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 

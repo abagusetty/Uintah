@@ -39,9 +39,6 @@
 #include <Core/Util/DOUT.hpp>
 #include <Core/Util/Timers/Timers.hpp>
 
-#include <sci_defs/cuda_defs.h>
-#include <sci_defs/sycl_defs.h>
-
 #if defined(HAVE_CUDA)
   #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
   #include <Core/Grid/Variables/GPUGridVariable.h>

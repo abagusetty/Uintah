@@ -186,7 +186,8 @@ doConvection(       ExecutionObject<ExecSpace, MemSpace> & execObj
     }
 }
 
-#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+//#if defined( _OPENMP ) && defined( KOKKOS_ENABLE_OPENMP )
+#if defined( KOKKOS_ENABLE_OPENMP )    
 template <typename ExecSpace, typename MemSpace, unsigned int Cscheme>
 inline
 typename std::enable_if<std::is_same<MemSpace, Kokkos::HostSpace>::value, void>::type
@@ -212,10 +213,10 @@ doConvection( ExecutionObject<ExecSpace, MemSpace> & execObj
 }
 #endif
 
-#if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
+#if (defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )) || (defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL ))    
 template <typename ExecSpace, typename MemSpace, unsigned int Cscheme>
 inline
-typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, void>::type
+typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value || std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, void>::type
 doConvection( ExecutionObject<ExecSpace, MemSpace> & execObj
             , Uintah::BlockRange                   & range_conv
             , KokkosView3<const double, MemSpace>    phi
@@ -269,7 +270,11 @@ doConvection( ExecutionObject<ExecSpace, MemSpace> & execObj
     return create_portable_arches_tasks<TaskInterface::BC>( this
                                        , &KScalarRHS<T, PT>::compute_bcs<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &KScalarRHS<T, PT>::compute_bcs<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &KScalarRHS<T, PT>::compute_bcs<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                        , &KScalarRHS<T, PT>::compute_bcs<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 
@@ -280,7 +285,11 @@ doConvection( ExecutionObject<ExecSpace, MemSpace> & execObj
     return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                        , &KScalarRHS<T, PT>::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &KScalarRHS<T, PT>::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &KScalarRHS<T, PT>::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                        , &KScalarRHS<T, PT>::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 
@@ -291,7 +300,11 @@ doConvection( ExecutionObject<ExecSpace, MemSpace> & execObj
     return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                        , &KScalarRHS<T, PT>::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &KScalarRHS<T, PT>::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &KScalarRHS<T, PT>::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)                                                                       
                                        , &KScalarRHS<T, PT>::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 

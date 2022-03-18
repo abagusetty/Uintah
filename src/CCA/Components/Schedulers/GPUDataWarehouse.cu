@@ -29,24 +29,14 @@
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
 
-#include <Core/Grid/Variables/GPUVariable.h>
-#include <Core/Grid/Variables/GPUGridVariable.h>
-#include <Core/Grid/Variables/GPUReductionVariable.h>
-#include <Core/Grid/Variables/GPUPerPatch.h>
-#include <Core/Parallel/MasterLock.h>
 #include <Core/Parallel/Parallel.h>
 #include <Core/Parallel/ProcessorGroup.h>
 #include <Core/Util/DebugStream.h>
-
-
-#include <sci_defs/cuda_defs.h>
 
 #ifndef __CUDA_ARCH__
   #include <string.h>
   #include <string>
 #endif
-
-#include <map>
 
 extern Uintah::MasterLock cerrLock;
 
@@ -1617,7 +1607,6 @@ GPUDataWarehouse::getItem(char const* label, const int patchID, const int8_t mat
 
   // So to prevent this scenario, we have one more __syncthreads listed immediately below.
   __syncthreads();  //sync before get
-
 
 
   short numThreads = blockDim.x * blockDim.y * blockDim.z;
@@ -3677,35 +3666,7 @@ GPUDataWarehouse::printError(const char* msg, const char* methodName, char const
 #endif
 }
 
-//______________________________________________________________________
 //
-HOST_DEVICE void
-GPUDataWarehouse::printGetLevelError(const char* msg, char const* label, int8_t levelIndx, int8_t matlIndx)
-{
-#ifdef __CUDA_ARCH__
-  __syncthreads();
-
-  if ( isThread0() ) {
-    printf("  \nERROR: %s( \"%s\", levelIndx: %i, matl: %i)  unknown variable\n", msg,  label, levelIndx, matlIndx);
-    //Should this just loop through the variable database and print out only items with a
-    //levelIndx value greater than zero? -- Brad
-
-    __syncthreads();
-
-    printThread();
-    printBlock();
-
-    // we know this is fatal and why, so just stop kernel execution
-    __threadfence();
-    asm("trap;");
-  }
-#else
-  //__________________________________
-  //  CPU code
-  printf("  \nERROR: %s( \"%s\", levelIndx: %i, matl: %i)  unknown variable\n", msg, label, levelIndx, matlIndx);
-#endif
-}
-
 //______________________________________________________________________
 //
 HOST_DEVICE void

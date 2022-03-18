@@ -30,6 +30,14 @@
 
 namespace Uintah {
 
+#ifdef HAVE_SYCL
+  // abb 03032022: Mostly used by RNCRT (RayGPU.cuh) only
+  using gpuIntVector = sycl::int3;
+  using uInt3        = sycl::uint3;
+  using gpuVector    = sycl::double3;
+  using gpuPoint     = sycl::double3;  
+  
+#else
 class gpuIntVector : public int3 {
   public:
     HOST_DEVICE gpuIntVector() {}
@@ -98,6 +106,8 @@ class gpuPoint : public double3 {
     HOST_DEVICE gpuPoint(const double3& copy) : double3(copy) {}
 };
 
+#endif
+  
 } // end namespace Uintah
 
 #endif // end #ifndef CORE_GEOMETRY_GPUVECTOR_H

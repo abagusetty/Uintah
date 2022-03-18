@@ -25,8 +25,6 @@
 #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 
 #include <cstdio>
-#include <map>
-#include <set>
 
 //______________________________________________________________________
 //

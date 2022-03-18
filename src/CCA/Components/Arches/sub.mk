@@ -36,7 +36,7 @@ SRCDIR := CCA/Components/Arches
 # Do not put the .cc on the file name as the .cc or .cu will be added automatically
 # as needed.
 #
-CUDA_ENABLED_SRCS :=         
+CUDA_ENABLED_SRCS :=
 
 ifeq ($(HAVE_CUDA),yes)
    # CUDA enabled files, listed here (and with a rule at the end of
@@ -123,7 +123,7 @@ endif
 
 ifeq ($(HAVE_PETSC),yes)
    SRCS += $(SRCDIR)/Filter.cc      \
-           $(SRCDIR)/PetscCommon.cc 
+           $(SRCDIR)/PetscCommon.cc
    LIBS := $(LIBS) $(PETSC_LIBRARY)
    INCLUDES += $(PETSC_INCLUDE)
 endif
@@ -139,7 +139,7 @@ LIBS := $(LIBS) $(XML2_LIBRARY) $(F_LIBRARY) $(MPI_LIBRARY) $(M_LIBRARY) \
         $(BOOST_LIBRARY) $(Z_LIBRARY) \
 
 INCLUDES := $(INCLUDES) $(BOOST_INCLUDE) \
-            $(TABPROPS_INCLUDE) $(RADPROPS_INCLUDE) 
+            $(TABPROPS_INCLUDE) $(RADPROPS_INCLUDE)
 
 
 ########################################################################
@@ -156,7 +156,7 @@ $(SRCDIR)/Source.$(OBJEXT) : \
           $(SRCDIR)/fortran/pressrcpred_var_fort.h  \
           $(SRCDIR)/fortran/uvelsrc_fort.h          \
           $(SRCDIR)/fortran/vvelsrc_fort.h          \
-          $(SRCDIR)/fortran/wvelsrc_fort.h          
+          $(SRCDIR)/fortran/wvelsrc_fort.h
 
 #ifeq ($(HAVE_CUDA),yes)
 #   EXTRA_DIR=$(OBJTOP_ABS)/
@@ -170,7 +170,7 @@ $(EXTRA_DIR)$(SRCDIR)/BoundaryCondition.$(REAL_EXT) :  $(SRCDIR)/fortran/mmbcvel
                                                        $(SRCDIR)/fortran/mm_computevel_fort.h        \
                                                        $(SRCDIR)/fortran/mm_explicit_fort.h          \
                                                        $(SRCDIR)/fortran/mm_explicit_oldvalue_fort.h \
-                                                       $(SRCDIR)/fortran/mm_explicit_vel_fort.h      
+                                                       $(SRCDIR)/fortran/mm_explicit_vel_fort.h
 $(EXTRA_DIR)$(SRCDIR)/Discretization.$(REAL_EXT) :  \
                                                        $(SRCDIR)/fortran/prescoef_var_fort.h         \
                                                        $(SRCDIR)/fortran/uvelcoef_fort.h             \
@@ -178,7 +178,7 @@ $(EXTRA_DIR)$(SRCDIR)/Discretization.$(REAL_EXT) :  \
                                                        $(SRCDIR)/fortran/uvelcoef_upwind_fort.h      \
                                                        $(SRCDIR)/fortran/uvelcoef_mixed_fort.h       \
                                                        $(SRCDIR)/fortran/uvelcoef_hybrid_fort.h      \
-                                                       $(SRCDIR)/fortran/vvelcoef_fort.h             
+                                                       $(SRCDIR)/fortran/vvelcoef_fort.h
 $(EXTRA_DIR)$(SRCDIR)/Discretization.$(REAL_EXT) : \
                                                        $(SRCDIR)/fortran/vvelcoef_central_fort.h     \
                                                        $(SRCDIR)/fortran/vvelcoef_upwind_fort.h      \
@@ -188,7 +188,7 @@ $(EXTRA_DIR)$(SRCDIR)/Discretization.$(REAL_EXT) : \
                                                        $(SRCDIR)/fortran/wvelcoef_central_fort.h     \
                                                        $(SRCDIR)/fortran/wvelcoef_upwind_fort.h      \
                                                        $(SRCDIR)/fortran/wvelcoef_mixed_fort.h       \
-                                                       $(SRCDIR)/fortran/wvelcoef_hybrid_fort.h      
+                                                       $(SRCDIR)/fortran/wvelcoef_hybrid_fort.h
 
 ########################################################################
 # DigitalFilterGenerator
@@ -220,7 +220,7 @@ SUBDIRS := $(SRCDIR)/ChemMix             \
            $(SRCDIR)/ParticleModels      \
            $(SRCDIR)/PropertyModels      \
            $(SRCDIR)/PropertyModelsV2    \
-					 $(SRCDIR)/ChemMixV2           \
+	   $(SRCDIR)/ChemMixV2           \
            $(SRCDIR)/BoundaryConditions  \
            $(SRCDIR)/Radiation           \
            $(SRCDIR)/Radiation/fortran   \
@@ -228,7 +228,7 @@ SUBDIRS := $(SRCDIR)/ChemMix             \
            $(SRCDIR)/SourceTermsV2       \
            $(SRCDIR)/Task                \
            $(SRCDIR)/Transport           \
-					 $(SRCDIR)/TurbulenceModels    \
+  	   $(SRCDIR)/TurbulenceModels    \
            $(SRCDIR)/TransportEqns       \
            $(SRCDIR)/Utility             \
            $(SRCDIR)/WallHTModels        \
@@ -246,4 +246,3 @@ SUBDIRS := $(SRCDIR)/fortran
 
 include $(SCIRUN_SCRIPTS)/recurse.mk
 #### End handle subdirs
-

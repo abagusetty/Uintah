@@ -27,7 +27,11 @@ TaskAssignedExecutionSpace SurfaceNormals::loadTaskInitializeFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &SurfaceNormals::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &SurfaceNormals::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &SurfaceNormals::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                  
+#elif defined(HAVE_CUDA)
                                      , &SurfaceNormals::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -43,7 +47,11 @@ TaskAssignedExecutionSpace SurfaceNormals::loadTaskTimestepInitFunctionPointers(
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_INITIALIZE>( this
                                      , &SurfaceNormals::timestep_init<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &SurfaceNormals::timestep_init<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &SurfaceNormals::timestep_init<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                      , &SurfaceNormals::timestep_init<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

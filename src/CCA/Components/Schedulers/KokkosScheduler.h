@@ -227,10 +227,6 @@ class KokkosScheduler : public MPIScheduler  {
 
     gpuStream_t* getGpuStreamFromPool( int device );
 
-    cudaError_t freeDeviceRequiresMem();
-
-    cudaError_t freeComputesMem();
-
     void assignDevice( DetailedTask * task );
 
     struct GPUGridVariableInfo {
@@ -265,7 +261,6 @@ class KokkosScheduler : public MPIScheduler  {
     std::map<VarLabelMatl<Patch>, GPUGridVariableInfo>  m_host_computes_ptrs;
 
     int  m_num_devices;
-    int  m_current_device;
 
     std::vector< std::string > m_material_names;
 

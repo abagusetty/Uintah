@@ -138,7 +138,11 @@ TaskAssignedExecutionSpace VarInterpolation<T, IT>::loadTaskInitializeFunctionPo
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &VarInterpolation<T, IT>::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &VarInterpolation<T, IT>::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &VarInterpolation<T, IT>::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                  
+#elif defined(HAVE_CUDA)
                                      , &VarInterpolation<T, IT>::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -149,7 +153,11 @@ TaskAssignedExecutionSpace VarInterpolation<T, IT>::loadTaskEvalFunctionPointers
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &VarInterpolation<T, IT>::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &VarInterpolation<T, IT>::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &VarInterpolation<T, IT>::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                     
+#elif defined(HAVE_CUDA)
                                      , &VarInterpolation<T, IT>::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

@@ -26,7 +26,6 @@
 
 #include <CCA/Components/Schedulers/DetailedTasks.h>
 #include <CCA/Components/Schedulers/OnDemandDataWarehouse.h>
-#include <CCA/Components/Schedulers/OnDemandDataWarehouseP.h>
 #include <CCA/Components/Schedulers/TaskGraph.h>
 
 #include <CCA/Ports/ApplicationInterface.h>
@@ -63,10 +62,8 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <map>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include <unistd.h>
 
@@ -877,7 +874,7 @@ SchedulerCommon::addTask(       Task        * task
                         )
 {
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   //DS 12062019: Store max ghost cell count for this variable across all GPU tasks. update it in dependencies of all gpu tasks before task graph compilation
   //in case modifieswithscratchghost is used.
   //tg_num != 1 avoid updating max ghosts from RMCRT task graphs.

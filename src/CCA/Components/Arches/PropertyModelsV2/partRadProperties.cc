@@ -64,7 +64,11 @@ TaskAssignedExecutionSpace partRadProperties::loadTaskEvalFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &partRadProperties::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &partRadProperties::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &partRadProperties::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                     
+#elif defined(HAVE_CUDA)
                                      , &partRadProperties::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

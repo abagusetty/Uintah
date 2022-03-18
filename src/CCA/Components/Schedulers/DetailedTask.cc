@@ -41,8 +41,6 @@
 #include <Core/Util/DOUT.hpp>
 
 #include <sci_defs/config_defs.h>
-#include <sci_defs/cuda_defs.h>
-#include <sci_defs/sycl_defs.h>
 
 #include <sstream>
 #include <string>
@@ -164,24 +162,24 @@ DetailedTask::doit( const ProcessorGroup                      * pg
     // we want to design tasks so each task runs on only once device, instead of a one to many relationship.
     //for (std::set<unsigned int>::const_iterator deviceNums_it = deviceNums_.begin(); deviceNums_it != deviceNums_.end(); ++deviceNums_it) {
     //  const unsigned int currentDevice = *deviceNums_it;
-      int currentDevice = 0;
-      OnDemandDataWarehouse::uintahSetGpuDevice(currentDevice);
-      GPUDataWarehouse* host_oldtaskdw = getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
-      GPUDataWarehouse* device_oldtaskdw = nullptr;
-      if (host_oldtaskdw) {
-        device_oldtaskdw = host_oldtaskdw->getdevice_ptr();
-      }
-      GPUDataWarehouse* host_newtaskdw = getTaskGpuDataWarehouse(currentDevice, Task::NewDW);
-      GPUDataWarehouse* device_newtaskdw = nullptr;
-      if (host_newtaskdw) {
-        device_newtaskdw = host_newtaskdw->getdevice_ptr();
-      }
+    int currentDevice = 0;
+    OnDemandDataWarehouse::uintahSetGpuDevice(currentDevice);
+    GPUDataWarehouse* host_oldtaskdw = getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
+    GPUDataWarehouse* device_oldtaskdw = nullptr;
+    if (host_oldtaskdw) {
+      device_oldtaskdw = host_oldtaskdw->getdevice_ptr();
+    }
+    GPUDataWarehouse* host_newtaskdw = getTaskGpuDataWarehouse(currentDevice, Task::NewDW);
+    GPUDataWarehouse* device_newtaskdw = nullptr;
+    if (host_newtaskdw) {
+      device_newtaskdw = host_newtaskdw->getdevice_ptr();
+    }
 
-      // Load up the uintahParams object with task data warehouses (if they are needed)
-      uintahParams.setTaskDWs(device_oldtaskdw, device_newtaskdw);
+    // Load up the uintahParams object with task data warehouses (if they are needed)
+    uintahParams.setTaskDWs(device_oldtaskdw, device_newtaskdw);
 
-      m_task->doit( m_patches, m_matls, dws, uintahParams );
-   //}
+    m_task->doit( m_patches, m_matls, dws, uintahParams );
+    //}
 #else
     SCI_THROW(InternalError("A task was marked as GPU enabled, but Uintah was not compiled for CUDA/SYCL support", __FILE__, __LINE__));
 #endif
@@ -816,13 +814,17 @@ DetailedTask::checkGpuStreamDoneForThisTask( unsigned int device_id ) const
     return false;
   }
 #elif defined(HAVE_SYCL)
-  auto eventStat = (it->second)->ext_oneapi_submit_barrier();
-  if (eventStat.get_info<sycl::info::event::command_execution_status>() ==
-      sycl::info::event_command_status::submitted) {
-    return true;
-  } else {
-    return false;
-  }
+
+  (it->second)->wait();
+  return true;
+
+  // auto eventStat = (it->second)->ext_oneapi_submit_barrier();
+  // if (eventStat.get_info<sycl::info::event::command_execution_status>() ==
+  //     sycl::info::event_command_status::submitted) {
+  //   return true;
+  // } else {
+  //   return false;
+  // }
 #endif
 
 }
@@ -945,7 +947,11 @@ DetailedTask::deleteTemporaryTaskVars()
 {
   // clean out the host list
   while (!taskHostMemoryPoolItems.empty()) {
-    cudaHostUnregister(taskHostMemoryPoolItems.front());
+    // TODO abb 0302022: next line cudaHostUnregister commented out
+    // since support might not be needed in SYCL
+    // Also being used only from RMCRT::RayGPU/RayGPUkernel
+
+    // cudaHostUnregister(taskHostMemoryPoolItems.front());
     //TODO: Deletes a void*, and that doesn't call any object destructors
     delete[] taskHostMemoryPoolItems.front();
     taskHostMemoryPoolItems.pop();

@@ -231,7 +231,11 @@ TaskAssignedExecutionSpace CharOxidationps<T>::loadTaskEvalFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &CharOxidationps<T>::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &CharOxidationps<T>::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &CharOxidationps<T>::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                     
+#elif defined(HAVE_CUDA)                                                                     
                                      , &CharOxidationps<T>::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -1085,28 +1089,28 @@ CharOxidationps<T>::eval( const Patch                                * patch
 
       if ( count > 90 ) {
       //if ( count > 1 ) {
-        printf( "warning no solution found in char ox: [env %d %d, %d, %d ]\n", local_Nenv, i, j, k );
-        printf( "F[0]: %g\n",            F[0] );
-        printf( "F[1]: %g\n",            F[1] );
-        printf( "F[2]: %g\n",            F[2] );
-        printf( "p_void: %g\n",          p_void );
-        printf( "gas_rho: %g\n",         gas_rho );
-        printf( "gas_T: %g\n",           gas_T );
-        printf( "p_T: %g\n",             p_T );
-        printf( "p_diam: %g\n",          p_diam );
-        printf( "w: %g\n",               w );
-        printf( "MW: %g\n",              MW );
-        printf( "r_devol_ns: %g\n",      r_devol_ns );
-        printf( "D_oxid_mix_l[0]: %g\n", D_oxid_mix_l[0] );
-        printf( "D_oxid_mix_l[1]: %g\n", D_oxid_mix_l[1] );
-        printf( "D_oxid_mix_l[2]: %g\n", D_oxid_mix_l[2] );
-        printf( "rh_l_new[0]: %g\n",     rh_l_new[0] );
-        printf( "rh_l_new[1]: %g\n",     rh_l_new[1] );
-        printf( "rh_l_new[2]: %g\n",     rh_l_new[2] );
-        printf( "org: %g\n",             rc + ch );
-        printf( "x_org: %g\n",           x_org );
-        printf( "p_rho: %g\n",           p_rho );
-        printf( "p_void0: %g\n",         local_p_void0 );
+        // printf( "warning no solution found in char ox: [env %d %d, %d, %d ]\n", local_Nenv, i, j, k );
+        // printf( "F[0]: %g\n",            F[0] );
+        // printf( "F[1]: %g\n",            F[1] );
+        // printf( "F[2]: %g\n",            F[2] );
+        // printf( "p_void: %g\n",          p_void );
+        // printf( "gas_rho: %g\n",         gas_rho );
+        // printf( "gas_T: %g\n",           gas_T );
+        // printf( "p_T: %g\n",             p_T );
+        // printf( "p_diam: %g\n",          p_diam );
+        // printf( "w: %g\n",               w );
+        // printf( "MW: %g\n",              MW );
+        // printf( "r_devol_ns: %g\n",      r_devol_ns );
+        // printf( "D_oxid_mix_l[0]: %g\n", D_oxid_mix_l[0] );
+        // printf( "D_oxid_mix_l[1]: %g\n", D_oxid_mix_l[1] );
+        // printf( "D_oxid_mix_l[2]: %g\n", D_oxid_mix_l[2] );
+        // printf( "rh_l_new[0]: %g\n",     rh_l_new[0] );
+        // printf( "rh_l_new[1]: %g\n",     rh_l_new[1] );
+        // printf( "rh_l_new[2]: %g\n",     rh_l_new[2] );
+        // printf( "org: %g\n",             rc + ch );
+        // printf( "x_org: %g\n",           x_org );
+        // printf( "p_rho: %g\n",           p_rho );
+        // printf( "p_void0: %g\n",         local_p_void0 );
       }
 
       double char_mass_rate      = 0.0;

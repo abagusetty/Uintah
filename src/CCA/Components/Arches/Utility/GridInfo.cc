@@ -17,7 +17,11 @@ TaskAssignedExecutionSpace GridInfo::loadTaskInitializeFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &GridInfo::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &GridInfo::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &GridInfo::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                      , &GridInfo::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -33,7 +37,11 @@ TaskAssignedExecutionSpace GridInfo::loadTaskTimestepInitFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_INITIALIZE>( this
                                      , &GridInfo::timestep_init<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &GridInfo::timestep_init<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &GridInfo::timestep_init<KOKKOS_SYCL_TAG>  // Task supports Kokkos::Sycl builds                                                                           
+#elif defined(HAVE_CUDA)
                                      , &GridInfo::timestep_init<KOKKOS_CUDA_TAG>  // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

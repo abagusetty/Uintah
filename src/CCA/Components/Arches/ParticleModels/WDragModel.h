@@ -136,7 +136,11 @@ private:
     return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                        , &WDragModel<T>::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &WDragModel<T>::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &WDragModel<T>::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                        , &WDragModel<T>::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 
@@ -147,7 +151,11 @@ private:
     return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                        , &WDragModel<T>::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                        , &WDragModel<T>::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                       , &WDragModel<T>::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)                                                                       
                                        , &WDragModel<T>::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                        );
   }
 

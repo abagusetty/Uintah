@@ -157,7 +157,11 @@ TaskAssignedExecutionSpace UnweightVariable<T>::loadTaskComputeBCsFunctionPointe
   return create_portable_arches_tasks<TaskInterface::BC>( this
                                      , &UnweightVariable<T>::compute_bcs<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &UnweightVariable<T>::compute_bcs<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &UnweightVariable<T>::compute_bcs<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                      , &UnweightVariable<T>::compute_bcs<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -168,7 +172,11 @@ TaskAssignedExecutionSpace UnweightVariable<T>::loadTaskInitializeFunctionPointe
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &UnweightVariable<T>::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &UnweightVariable<T>::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &UnweightVariable<T>::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                      , &UnweightVariable<T>::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -179,7 +187,11 @@ TaskAssignedExecutionSpace UnweightVariable<T>::loadTaskEvalFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &UnweightVariable<T>::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &UnweightVariable<T>::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &UnweightVariable<T>::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds
+#elif defined(HAVE_CUDA)
                                      , &UnweightVariable<T>::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

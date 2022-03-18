@@ -41,12 +41,13 @@
 #include <Core/Lockfree/Lockfree_Pool.hpp>
 
 
-#ifdef HAVE_CUDA
+#if defined( HAVE_CUDA ) || defined( HAVE_SYCL )
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
 #endif
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #include <map>
 #include <queue>
@@ -234,7 +235,7 @@ public:
     return m_task_priority_alg;
   }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   void addDeviceValidateRequiresAndModifiesCopies( DetailedTask * dtask );
 
@@ -296,7 +297,7 @@ public:
                                               ,       IntVector        & totalHigh
                                               ,       DetailedDep      * &parent_dep
                                               );
-#endif
+#endif // defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
 protected:
 
@@ -397,7 +398,7 @@ private:
   DetailedTasks& operator=(DetailedTasks &&)      = delete;
 
 
-#ifdef HAVE_CUDA
+#if defined( HAVE_CUDA ) || defined( HAVE_SYCL )
 
   using TaskPool = Lockfree::Pool< DetailedTask *
                                  , uint64_t
@@ -415,7 +416,7 @@ private:
   TaskPool             host_checkIfExecutable_pool{};
   TaskPool             host_readyToExecute_pool{};
 
-#endif
+#endif // defined( HAVE_CUDA ) || defined( HAVE_SYCL )
 
 }; // class DetailedTasks
 

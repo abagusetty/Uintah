@@ -874,7 +874,7 @@ Ray::rayTrace( const PatchSubset* patches,
 //        RT_flags.startCell = (i/static_cast<double>(numKernels)) * numCells;
 //        RT_flags.endCell = ((i+1)/static_cast<double>(numKernels)) * numCells;
 //        RT_flags.cellsPerGroup = hiRange.x();
-//        range.setValues((cudaStream_t*)dtask->getGpuStreamForThisTask(i), IntVector(0,0,0), IntVector(RT_flags.cellsPerGroup,0,0) );
+//        range.setValues((gpuStream_t*)dtask->getGpuStreamForThisTask(i), IntVector(0,0,0), IntVector(RT_flags.cellsPerGroup,0,0) );
 //        rayTrace_solveDivQFunctor< T, Kokkos::Random_XorShift1024_Pool<Kokkos::Cuda>   >
 //#else
 //      {
@@ -1373,8 +1373,9 @@ struct rayTrace_dataOnion_solveDivQFunctor {
         if ( offset[0] > m_levelParamsML[my_L].Dx[0] ||
              offset[1] > m_levelParamsML[my_L].Dx[1] ||
              offset[2] > m_levelParamsML[my_L].Dx[2] ) {
-          printf(" Warning:ray_Origin  The Kokkos random number generator has returned garbage (%g, %g, %g) Now forcing the ray origin to be located at the cell-center\n",
-              offset[0], offset[1], offset[2]);
+          //TODO: abb cant use printf from with a SYCL kernel (03032022)
+          // printf(" Warning:ray_Origin  The Kokkos random number generator has returned garbage (%g, %g, %g) Now forcing the ray origin to be located at the cell-center\n",
+          //     offset[0], offset[1], offset[2]);
           offset[0] = 0.5 * m_levelParamsML[my_L].Dx[0];
           offset[1] = 0.5 * m_levelParamsML[my_L].Dx[1];
           offset[2] = 0.5 * m_levelParamsML[my_L].Dx[2];

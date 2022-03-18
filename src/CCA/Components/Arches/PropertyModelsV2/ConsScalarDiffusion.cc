@@ -23,7 +23,11 @@ TaskAssignedExecutionSpace ConsScalarDiffusion::loadTaskInitializeFunctionPointe
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &ConsScalarDiffusion::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &ConsScalarDiffusion::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &ConsScalarDiffusion::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                  
+#elif defined(HAVE_CUDA)
                                      , &ConsScalarDiffusion::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -33,7 +37,11 @@ TaskAssignedExecutionSpace ConsScalarDiffusion::loadTaskEvalFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &ConsScalarDiffusion::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &ConsScalarDiffusion::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &ConsScalarDiffusion::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                     
+#elif defined(HAVE_CUDA)
                                      , &ConsScalarDiffusion::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 

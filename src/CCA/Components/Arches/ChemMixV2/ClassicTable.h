@@ -152,7 +152,30 @@ struct ClassicTableInfo {
            Kokkos::deep_copy(g_indep,indep);
            Kokkos::deep_copy(g_ind_1,ind_1);
            Kokkos::deep_copy(g_table2,table2);
-#endif
+#elif defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+           int numDim=d_allIndepVarNo.size();
+           int max_size=0;
+           int size=d_allIndepVarNo(0); // size of a single dep variable
+           for (int i = 0; i < numDim- 1; i++) {
+            max_size=max(max_size, d_allIndepVarNo(i+1)); // pad this non-square portion of the table = (
+            size*=d_allIndepVarNo(i+1);
+           }
+
+           g_d_allIndepVarNo= intContainer<Kokkos::Experimental::SYCLDeviceUSMSpace>
+("COPY_array_of_ind_var_sizes",numDim);            ///< std::vector storing the grid size for the Independent variables
+           g_indep= tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace>
+("COPY_secondary_independent_variables",numDim-1,max_size);
+           g_ind_1= tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace>
+("COPY_primary_independent_variable",d_allIndepVarNo(numDim-1),d_allIndepVarNo(0));
+           g_table2= tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace>
+("COPY_ClassicMixingTable",table2.size()/size,size);
+
+
+           Kokkos::deep_copy(g_d_allIndepVarNo,d_allIndepVarNo);
+           Kokkos::deep_copy(g_indep,indep);
+           Kokkos::deep_copy(g_ind_1,ind_1);
+           Kokkos::deep_copy(g_table2,table2);
+#endif           
 }
 
            ~Interp_class() {
@@ -392,10 +415,10 @@ struct ClassicTableInfo {
     ) const {
        find_val<MemSpace>(one_cell_iv1,depVarIndexes,depVarValues,TDMS_table2,TDMS_d_allIndepVarNo,TDMS_indep,TDMS_ind_1);
     }
-#if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
+#if (defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )) || (defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL ))
     template< typename MemSpace, unsigned int numOfDep>
     KOKKOS_INLINE_FUNCTION 
-    typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, void >::type
+    typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value || std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, void>::type
     find_val_type_correct( const struct1DArray<double,MAX_TABLE_DIMENSION>& one_cell_iv1, const struct1DArray<int,numOfDep>& depVarIndexes, struct1DArray<double,numOfDep>& depVarValues,
    tableContainer<MemSpace>  TDMS_table2,  
    intContainer<MemSpace>    TDMS_d_allIndepVarNo,
@@ -405,7 +428,7 @@ struct ClassicTableInfo {
       //printf("GPU table reading is being done incorrectly by the Arches Developers; Use CPU for this application.\n");
     find_val<MemSpace>(one_cell_iv1,depVarIndexes,depVarValues,TDMS_table2,TDMS_d_allIndepVarNo,TDMS_indep,TDMS_ind_1);
     }
-#endif // end HAVE_CUDA && KOKKOS_ENABLE_CUDA
+#endif // end HAVE_CUDA && KOKKOS_ENABLE_CUDA || HAVE_SYCL && KOKKOS_ENABLE_SYCL
 #endif // end UINTAH_ENABLE_KOKKOS
 
     template< typename MemSpace, unsigned int numOfDep>
@@ -443,15 +466,15 @@ struct ClassicTableInfo {
     find_val_wrapper( const struct1DArray<double,MAX_TABLE_DIMENSION>& one_cell_iv1, const struct1DArray<int,numOfDep>& depVarIndexes, struct1DArray<double,numOfDep>& depVarValues){
        find_val<MemSpace>(one_cell_iv1,depVarIndexes,depVarValues,table2,d_allIndepVarNo,indep,ind_1);
     }
-#if defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )
+#if (defined( HAVE_CUDA ) && defined( KOKKOS_ENABLE_CUDA )) || (defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL ))
     template< typename MemSpace, unsigned int numOfDep>
     KOKKOS_INLINE_FUNCTION 
-    typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, void >::type
+    typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value || std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, void>::type
     find_val_wrapper( const struct1DArray<double,MAX_TABLE_DIMENSION>& one_cell_iv1, const struct1DArray<int,numOfDep>& depVarIndexes, struct1DArray<double,numOfDep>& depVarValues){
       //printf("GPU table reading is being done incorrectly by the Arches Developers; Use CPU for this application.\n");
     find_val<MemSpace>(one_cell_iv1,depVarIndexes,depVarValues,g_table2,g_d_allIndepVarNo,g_indep,g_ind_1);
     }
-#endif // end HAVE_CUDA && KOKKOS_ENABLE_CUDA
+#endif // end HAVE_CUDA && KOKKOS_ENABLE_CUDA || HAVE_SYCL && KOKKOS_ENABLE_SYCL
 #endif // end UINTAH_ENABLE_KOKKOS
 
     template< typename MemSpace, unsigned int numOfDep>
@@ -762,6 +785,32 @@ typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, tableC
   }
 #endif
 
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  template<typename MemSpace>
+typename std::enable_if<std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getTable(){
+    return g_table2;
+  }
+
+  template<typename MemSpace>
+typename std::enable_if<std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, intContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getInts(){
+    return g_d_allIndepVarNo;
+  }
+
+  template<typename MemSpace>
+typename std::enable_if<std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getSecondaryVar(){
+    return g_indep;
+  }
+
+  template<typename MemSpace>
+typename std::enable_if<std::is_same<MemSpace, Kokkos::Experimental::SYCLDeviceUSMSpace>::value, tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> >::type
+  getPrimaryVar(){
+    return g_ind_1;
+  }
+#endif
+                  
   protected:
 
 #ifdef UINTAH_ENABLE_KOKKOS // HARD CODED TO RUN ON CPU ONLY (HOST SPACE)  and optimized for GPU (layoutLeft??)
@@ -788,6 +837,14 @@ typename std::enable_if<std::is_same<MemSpace, Kokkos::CudaSpace>::value, tableC
     tableContainer<Kokkos::CudaSpace> g_ind_1;           // independent variable N
 #endif
 
+#if defined( HAVE_SYCL ) && defined( KOKKOS_ENABLE_SYCL )
+  protected:
+    tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> g_table2;          // All dependent variables
+    intContainer<Kokkos::Experimental::SYCLDeviceUSMSpace>   g_d_allIndepVarNo; // size of independent variable array, for all independent variables
+    tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> g_indep;           // independent variables 1 to N-1
+    tableContainer<Kokkos::Experimental::SYCLDeviceUSMSpace> g_ind_1;           // independent variable N
+#endif
+                  
   };
 }
 #endif

@@ -53,17 +53,14 @@ ifeq ($(HAVE_CUDA),yes)
           $(SRCDIR)/GPUGridVariableInfo.cc    \
           $(SRCDIR)/GPUGridVariableGhosts.cc  \
           $(SRCDIR)/GPUMemoryPool.cc
-
   DLINK_FILES += CCA/Components/Schedulers/GPUDataWarehouse.o
 endif
 
 ifeq ($(HAVE_SYCL),yes)
-  SRCS += $(SRCDIR)/GPUDataWarehouse.cpp      \
+  SRCS += $(SRCDIR)/GPUDataWarehouse.cc       \
           $(SRCDIR)/GPUGridVariableInfo.cc    \
           $(SRCDIR)/GPUGridVariableGhosts.cc  \
           $(SRCDIR)/GPUMemoryPool.cc
-
-  DLINK_FILES += CCA/Components/Schedulers/GPUDataWarehouse.o
 endif
 
 PSELIBS := \
@@ -80,6 +77,10 @@ PSELIBS := \
         Core/ProblemSpec \
         Core/Util
 
-LIBS := $(XML2_LIBRARY) $(MPI_LIBRARY) $(CUDA_LIBRARY)
+ifeq ($(HAVE_CUDA),yes)
+  LIBS := $(XML2_LIBRARY) $(MPI_LIBRARY) $(CUDA_LIBRARY)
+else
+  LIBS := $(XML2_LIBRARY) $(MPI_LIBRARY)
+endif
 
 include $(SCIRUN_SCRIPTS)/smallso_epilogue.mk

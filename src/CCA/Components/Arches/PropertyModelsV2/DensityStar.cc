@@ -25,7 +25,11 @@ TaskAssignedExecutionSpace DensityStar::loadTaskInitializeFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::INITIALIZE>( this
                                      , &DensityStar::initialize<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &DensityStar::initialize<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
-                                     , &DensityStar::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#ifdef HAVE_SYCL
+                                     , &DensityStar::initialize<KOKKOS_SYCL_TAG>    // Task supports Kokkos ::Sycl builds                                                                  
+#elif defined(HAVE_CUDA)                                                                  
+                                     , &DensityStar::initialize<KOKKOS_CUDA_TAG>    // Task supports Kokkos ::Cuda builds
+#endif
                                      );
 }
 
@@ -35,7 +39,11 @@ TaskAssignedExecutionSpace DensityStar::loadTaskEvalFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_EVAL>( this
                                      , &DensityStar::eval<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &DensityStar::eval<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &DensityStar::eval<KOKKOS_SYCL_TAG>    // Task supports Kokkos::Sycl builds                                                                     
+#elif defined(HAVE_CUDA)
                                      , &DensityStar::eval<KOKKOS_CUDA_TAG>    // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
@@ -45,7 +53,11 @@ TaskAssignedExecutionSpace DensityStar::loadTaskTimestepInitFunctionPointers()
   return create_portable_arches_tasks<TaskInterface::TIMESTEP_INITIALIZE>( this
                                      , &DensityStar::timestep_init<UINTAH_CPU_TAG>     // Task supports non-Kokkos builds
                                      , &DensityStar::timestep_init<KOKKOS_OPENMP_TAG>  // Task supports Kokkos::OpenMP builds
+#ifdef HAVE_SYCL
+                                     , &DensityStar::timestep_init<KOKKOS_SYCL_TAG>  // Task supports Kokkos::Sycl builds                                                                           
+#elif defined(HAVE_CUDA)
                                      , &DensityStar::timestep_init<KOKKOS_CUDA_TAG>  // Task supports Kokkos::Cuda builds
+#endif
                                      );
 }
 
