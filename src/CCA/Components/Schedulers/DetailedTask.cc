@@ -632,7 +632,8 @@ public:
   }
 
   int operator*() {
-    const Patch *patch = *m_const_iter; // vector<Patch*>::iterator::operator*();
+    const Patch *patch =
+        *m_const_iter; // vector<Patch*>::iterator::operator*();
     return patch ? patch->getID() : -1;
   }
 
@@ -890,7 +891,7 @@ void DetailedTask::setTaskGpuDataWarehouse(const int whichDevice,
     temp.TaskGpuDW[1] = nullptr;
     temp.TaskGpuDW[DW] = TaskDW;
     TaskGpuDWs.insert(
-      std::pair<unsigned int, TaskGpuDataWarehouses>(whichDevice, temp));
+        std::pair<unsigned int, TaskGpuDataWarehouses>(whichDevice, temp));
   }
 }
 
@@ -934,11 +935,11 @@ void DetailedTask::clearPreparationCollections() {
 void DetailedTask::addTempHostMemoryToBeFreedOnCompletion(void *host_ptr) {
   taskHostMemoryPoolItems.push(host_ptr);
 }
-void*
+void *
 DetailedTask::addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id,
-						    std::size_t sizeinbytes) {
-  void* dev_ptr{nullptr};
-  auto& memGPUPool = GPUMemoryPool::getInstance();
+                                                    std::size_t sizeinbytes) {
+  void *dev_ptr{nullptr};
+  auto &memGPUPool = GPUMemoryPool::getInstance();
   dev_ptr = memGPUPool.allocateGpuSpaceFromPool(device_id, sizeinbytes);
   gpuMemoryPoolDevicePtrItem gpuItem(device_id, dev_ptr, sizeinbytes);
   taskGpuMemoryPoolItems.push_back(gpuItem);
@@ -958,7 +959,7 @@ void DetailedTask::deleteTemporaryTaskVars() {
   }
 
   // and the device
-  auto& memGPUPool = GPUMemoryPool::getInstance();
+  auto &memGPUPool = GPUMemoryPool::getInstance();
   for (auto p : taskGpuMemoryPoolItems) {
     memGPUPool.freeGpuSpaceToPool(p.device_id, p.ptr, p.sizeinbytes);
   }

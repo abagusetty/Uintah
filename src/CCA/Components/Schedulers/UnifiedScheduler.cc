@@ -93,7 +93,7 @@ Uintah::MasterLock g_lb_mutex{};  // load balancer lock
 
 } // namespace
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
 extern Uintah::MasterLock cerrLock;
 
 namespace Uintah {
@@ -109,15 +109,15 @@ Dout gpu_ids(
     "detailed information to identify GPU(s) used when using multiple per node",
     false);
 } // namespace Uintah
-#endif // HAVE_CUDA
+#endif // HAVE_CUDA, HAVE_HIP
 
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 namespace {
 Uintah::MasterLock
     g_GridVarSuperPatch_mutex{}; // An ugly hack to get superpatches for host
                                  // levels to work.
 }
-#endif // HAVE_CUDA, HAVE_SYCL
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
 //______________________________________________________________________
 //
@@ -530,7 +530,7 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
         }
       }
     }
-#endif // HAVE_CUDA
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
   }
 
 #ifdef HAVE_CUDA
@@ -619,7 +619,7 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
       }
     }
   }
-#endif
+#endif // if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   // this spawns threads, sets affinity, etc
   init_threads(this, num_threads);
@@ -1982,7 +1982,7 @@ void UnifiedScheduler::turnIntoASuperPatch(
   // accomplished by claiming patches in *sorted* order, and no scheduler thread
   // can attempt to claim any later patch if it hasn't yet claimed a former
   // patch.  The first thread to claim all will have claimed the "superpatch"
-  //region.
+  // region.
 
   // Superpatches essentially are just windows into a shared variable, it uses
   // shared_ptrs behind the scenes With this later only one alloaction or H2D
@@ -2516,7 +2516,8 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
                     curDependency->m_var, patch,
                     patch, /*We're merging the staging variable on in*/
                     matlID, levelID, true, false,
-                    iter->low, /*Assuming ghost cell region is the variable size*/
+                    iter->low, /*Assuming ghost cell region is the variable
+                                  size*/
                     IntVector(iter->high.x() - iter->low.x(),
                               iter->high.y() - iter->low.y(),
                               iter->high.z() - iter->low.z()),
@@ -3313,13 +3314,13 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
                       // problem is that we need this temporary variable to live
                       // long enough to perform a device-to-host copy.
                       //* In one scenario with no ghost cells, you get back the
-                      //same window/data just with refcounts incremented by 1.
+                      // same window/data just with refcounts incremented by 1.
                       //* In another scenario with ghost cells, the ref counts
-                      //are at least 2, so deleting the gridVar won't
-                      //automatically deallocate it
+                      // are at least 2, so deleting the gridVar won't
+                      // automatically deallocate it
                       //* In another scenario with ghost cells, you get back a
-                      //gridvar holding different window/data, their refcounts
-                      //are 1
+                      // gridvar holding different window/data, their refcounts
+                      // are 1
                       //   and so so deleting the gridVar will invoke
                       //   deallocation.  That would be bad if an async
                       //   device-to-host copy is needed.
@@ -3465,8 +3466,8 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
     isStaging = !isStaging;
   }
   //} end for (std::set<int>::const_iterator deviceNums_it =
-  //deviceNums.begin() - this is commented out for now until multi-device
-  //support is added
+  // deviceNums.begin() - this is commented out for now until multi-device
+  // support is added
 }
 
 //______________________________________________________________________
@@ -4256,8 +4257,7 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
           }
           const int levelID = level->getID();
 
-          const int deviceNum =
-              GpuUtilities::getGpuIndexForPatch(patch);
+          const int deviceNum = GpuUtilities::getGpuIndexForPatch(patch);
           GPUDataWarehouse *gpudw = dw->getGPUDW(deviceNum);
           OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
           gpuStream_t *stream = dtask->getGpuStreamForThisTask(deviceNum);
@@ -5080,8 +5080,7 @@ void UnifiedScheduler::createTaskGpuDWs(DetailedTask *dtask) {
   // GPUDataWarehouse.h for more information.
 
   std::set<int> deviceNums = dtask->getDeviceNums();
-  for (std::set<int>::const_iterator deviceNums_it =
-           deviceNums.begin();
+  for (std::set<int>::const_iterator deviceNums_it = deviceNums.begin();
        deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
     int numItemsInDW =
@@ -5094,7 +5093,8 @@ void UnifiedScheduler::createTaskGpuDWs(DetailedTask *dtask) {
           sizeof(GPUDataWarehouse::dataItem) * MAX_VARDB_ITEMS +
           sizeof(GPUDataWarehouse::dataItem) * numItemsInDW;
 
-      GPUDataWarehouse *old_taskGpuDW = (GPUDataWarehouse *)malloc(objectSizeInBytes);
+      GPUDataWarehouse *old_taskGpuDW =
+          (GPUDataWarehouse *)malloc(objectSizeInBytes);
       // cudaHostRegister(old_taskGpuDW, objectSizeInBytes,
       // cudaHostRegisterDefault);
       std::ostringstream out;
@@ -5146,12 +5146,12 @@ void UnifiedScheduler::assignDevicesAndStreams(DetailedTask *dtask) {
 
     // TODO ABB: check if gpuID can be negative and a exit is necessary ??
     if (gpuID >= 0) {
-      // ABB: 06/21/22 support for multi-stream per task is removed since it is being
-      // used by just RMCRT (e.g., tsk->usesDevice(true, 4))
-        if (dtask->getGpuStreamForThisTask(gpuID) == nullptr) {
-          dtask->setGpuStreamForThisTask(
-	    gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
-        }
+      // ABB: 06/21/22 support for multi-stream per task is removed since it is
+      // being used by just RMCRT (e.g., tsk->usesDevice(true, 4))
+      if (dtask->getGpuStreamForThisTask(gpuID) == nullptr) {
+        dtask->setGpuStreamForThisTask(
+            gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
+      }
     } else {
       exit(-1);
     }
@@ -5172,7 +5172,7 @@ void UnifiedScheduler::assignDevicesAndStreamsFromGhostVars(
     // see if this task was already assigned a stream.
     if (dtask->getGpuStreamForThisTask(*iter) == nullptr) {
       dtask->setGpuStreamForThisTask(
-	*iter, GPUStreamPool<>::getInstance().getGpuStreamFromPool(*iter));
+          *iter, GPUStreamPool<>::getInstance().getGpuStreamFromPool(*iter));
     }
   }
   // std::cout << "2. UnifiedScheduler::assignDevicesAndStreamsFromGhostVars()
@@ -5355,8 +5355,7 @@ void UnifiedScheduler::syncTaskGpuDWs(DetailedTask *dtask) {
   // copied if so, launch a kernel that copies them.
   std::set<int> deviceNums = dtask->getDeviceNums();
   GPUDataWarehouse *taskgpudw;
-  for (std::set<int>::const_iterator deviceNums_it =
-           deviceNums.begin();
+  for (std::set<int>::const_iterator deviceNums_it = deviceNums.begin();
        deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
     taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
@@ -5377,8 +5376,7 @@ void UnifiedScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
   // For each GPU datawarehouse, see if there are ghost cells listed to be
   // copied if so, launch a kernel that copies them.
   std::set<int> deviceNums = dtask->getDeviceNums();
-  for (std::set<int>::const_iterator deviceNums_it =
-           deviceNums.begin();
+  for (std::set<int>::const_iterator deviceNums_it = deviceNums.begin();
        deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
     if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW) != nullptr &&
@@ -5524,7 +5522,7 @@ void UnifiedScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
           it->second.m_sourceDeviceNum, memSize, stream));
 #elif defined(HAVE_SYCL)
       stream->memcpy(device_dest_ptr, device_source_ptr,
-                    memSize); // SYCL P2P memcpy
+                     memSize); // SYCL P2P memcpy
 #endif
     }
   }

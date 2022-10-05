@@ -33,47 +33,52 @@
 
 namespace Uintah {
 
-  class GPUMemoryPool {
-  protected:
-    using pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
-    std::vector<std::unique_ptr<pool_mr>> per_device_mr_;
+class GPUMemoryPool {
+protected:
+  using pool_mr =
+      rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
+  std::vector<std::unique_ptr<pool_mr>> per_device_mr_;
 
-  private:
-    GPUMemoryPool() {
-      // GPU Stream Pool as singleton object
-      // It is important to set-device first before getting a stream handle from pool
-      auto& streamPool = GPUStreamPool<>::getInstance();
-      
-      int ngpus{};
-      gpuGetDeviceCount(&ngpus);
-      for (int devID=0; devID<ngpus; devID++) {
-	gpuSetDevice(devID);
-	auto dev_stream = streamPool.getDefaultGpuStreamFromPool(devID);
-	per_device_mr_.push_back( std::make_unique<pool_mr>(rmm::mr::get_per_device_resource(devID), dev_stream) );
-      }
-    }
+private:
+  GPUMemoryPool() {
+    // GPU Stream Pool as singleton object
+    // It is important to set-device first before getting a stream handle from
+    // pool
+    auto &streamPool = GPUStreamPool<>::getInstance();
 
-  public:
-    void* allocateGpuSpaceFromPool(int device_id, std::size_t memSize) {
-      auto& streamPool = GPUStreamPool<>::getInstance();
-      void *addr = per_device_mr_[device_id].get()->allocate(memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
-      return addr;
+    int ngpus{};
+    gpuGetDeviceCount(&ngpus);
+    for (int devID = 0; devID < ngpus; devID++) {
+      gpuSetDevice(devID);
+      auto dev_stream = streamPool.getDefaultGpuStreamFromPool(devID);
+      per_device_mr_.push_back(std::make_unique<pool_mr>(
+          rmm::mr::get_per_device_resource(devID), dev_stream));
     }
-    void freeGpuSpaceToPool(int device_id, void* addr, std::size_t memSize) {
-      auto& streamPool = GPUStreamPool<>::getInstance();
-      per_device_mr_[device_id].get()->deallocate(addr, memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
-    }
-    
-    /// Returns the instance of GPUMemoryPool singleton.
-    inline static GPUMemoryPool& getInstance() {
-      static GPUMemoryPool m_mempool_{};
-      return m_mempool_;
-    }
+  }
 
-    GPUMemoryPool(const GPUMemoryPool&)            = delete;
-    GPUMemoryPool& operator=(const GPUMemoryPool&) = delete;
-    GPUMemoryPool(GPUMemoryPool&&)                 = delete;
-    GPUMemoryPool& operator=(GPUMemoryPool&&)      = delete;
-  };
+public:
+  void *allocateGpuSpaceFromPool(int device_id, std::size_t memSize) {
+    auto &streamPool = GPUStreamPool<>::getInstance();
+    void *addr = per_device_mr_[device_id].get()->allocate(
+        memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
+    return addr;
+  }
+  void freeGpuSpaceToPool(int device_id, void *addr, std::size_t memSize) {
+    auto &streamPool = GPUStreamPool<>::getInstance();
+    per_device_mr_[device_id].get()->deallocate(
+        addr, memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
+  }
+
+  /// Returns the instance of GPUMemoryPool singleton.
+  inline static GPUMemoryPool &getInstance() {
+    static GPUMemoryPool m_mempool_{};
+    return m_mempool_;
+  }
+
+  GPUMemoryPool(const GPUMemoryPool &) = delete;
+  GPUMemoryPool &operator=(const GPUMemoryPool &) = delete;
+  GPUMemoryPool(GPUMemoryPool &&) = delete;
+  GPUMemoryPool &operator=(GPUMemoryPool &&) = delete;
+};
 
 } // namespace Uintah

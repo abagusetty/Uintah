@@ -25,24 +25,17 @@
 #ifndef CCA_COMPONENTS_SCHEDULERS_DETAILEDTASK_H
 #define CCA_COMPONENTS_SCHEDULERS_DETAILEDTASK_H
 
-#include <CCA/Components/Schedulers/DetailedDependency.h>
 #include <CCA/Components/Schedulers/DWDatabase.h>
+#include <CCA/Components/Schedulers/DetailedDependency.h>
 #include <CCA/Components/Schedulers/OnDemandDataWarehouseP.h>
 #include <CCA/Components/Schedulers/RuntimeStats.hpp>
 
-#if defined( HAVE_CUDA ) || defined(HAVE_HIP) || defined( HAVE_SYCL )
-  #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
+#include <sci_defs/gpu_defs.h>
 #endif
 
 #include <Core/Grid/Task.h>
-
-#if defined( HAVE_CUDA )
-#include <sci_defs/cuda_defs.h>
-#elif defined(HAVE_HIP)
-#include <sci_defs/hip_defs.h>
-#elif defined(HAVE_SYCL)
-#include <sci_defs/sycl_defs.h>
-#endif
 
 #include <atomic>
 #include <list>
@@ -57,139 +50,128 @@ class ProcessorGroup;
 class DependencyBatch;
 class DetailedTasks;
 
-
 //_____________________________________________________________________________
 //
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
-  struct TaskGpuDataWarehouses {
-    GPUDataWarehouse* TaskGpuDW[2];
-  };
+struct TaskGpuDataWarehouses {
+  GPUDataWarehouse *TaskGpuDW[2];
+};
 
 #endif
 
-
 //_____________________________________________________________________________
 //
-enum ProfileType {
-    Normal
-  , Fine
-};
-
+enum ProfileType { Normal, Fine };
 
 //_____________________________________________________________________________
 //
 struct InternalDependency {
-  InternalDependency(       DetailedTask * prerequisiteTask
-                    ,       DetailedTask * dependentTask
-                    , const VarLabel     * var
-                    ,       long           satisfiedGeneration
-                    )
-    : m_prerequisite_task(prerequisiteTask)
-    , m_dependent_task(dependentTask)
-    , m_satisfied_generation(satisfiedGeneration)
-  {
+  InternalDependency(DetailedTask *prerequisiteTask,
+                     DetailedTask *dependentTask, const VarLabel *var,
+                     long satisfiedGeneration)
+      : m_prerequisite_task(prerequisiteTask), m_dependent_task(dependentTask),
+        m_satisfied_generation(satisfiedGeneration) {
     addVarLabel(var);
   }
 
-  void addVarLabel(const VarLabel* var)
-  {
-    m_vars.insert(var);
-  }
+  void addVarLabel(const VarLabel *var) { m_vars.insert(var); }
 
-  DetailedTask                                 * m_prerequisite_task;
-  DetailedTask                                 * m_dependent_task;
-  std::set<const VarLabel*, VarLabel::Compare>   m_vars;
-  unsigned long                                  m_satisfied_generation;
+  DetailedTask *m_prerequisite_task;
+  DetailedTask *m_dependent_task;
+  std::set<const VarLabel *, VarLabel::Compare> m_vars;
+  unsigned long m_satisfied_generation;
 };
-
 
 //_____________________________________________________________________________
 //
-  
+
 class DetailedTask {
 
 public:
-
-  DetailedTask(       Task           * task
-              , const PatchSubset    * patches
-              , const MaterialSubset * matls
-              ,       DetailedTasks  * taskGroup
-              );
+  DetailedTask(Task *task, const PatchSubset *patches,
+               const MaterialSubset *matls, DetailedTasks *taskGroup);
 
   ~DetailedTask();
 
-  void setProfileType( ProfileType type )
-  {
-    m_profile_type = type;
-  }
+  void setProfileType(ProfileType type) { m_profile_type = type; }
 
-  ProfileType getProfileType()
-  {
-    return m_profile_type;
-  }
+  ProfileType getProfileType() { return m_profile_type; }
 
-  void doit( const ProcessorGroup                      * pg
-           ,       std::vector<OnDemandDataWarehouseP> & oddws
-           ,       std::vector<DataWarehouseP>         & dws
-           ,       Task::CallBackEvent                   event = Task::CPU
-           );
+  void doit(const ProcessorGroup *pg,
+            std::vector<OnDemandDataWarehouseP> &oddws,
+            std::vector<DataWarehouseP> &dws,
+            Task::CallBackEvent event = Task::CPU);
 
   // Called after doit and MPI data sent (packed in buffers) finishes.
   // Handles internal dependencies and scrubbing. Called after doit finishes.
-  void done( std::vector<OnDemandDataWarehouseP> & dws );
+  void done(std::vector<OnDemandDataWarehouseP> &dws);
 
   std::string getName() const;
 
-  const Task*           getTask() const {      return m_task; }
-  const PatchSubset*    getPatches() const {   return m_patches; }
-  const MaterialSubset* getMaterials() const { return m_matls; }
+  const Task *getTask() const { return m_task; }
+  const PatchSubset *getPatches() const { return m_patches; }
+  const MaterialSubset *getMaterials() const { return m_matls; }
 
-  void assignResource( int idx ) { m_resource_index = idx; }
-  int  getAssignedResourceIndex() const { return m_resource_index; }
+  void assignResource(int idx) { m_resource_index = idx; }
+  int getAssignedResourceIndex() const { return m_resource_index; }
 
-  void assignStaticOrder( int i )  { m_static_order = i; }
-  int  getStaticOrder() const { return m_static_order; }
+  void assignStaticOrder(int i) { m_static_order = i; }
+  int getStaticOrder() const { return m_static_order; }
 
-  DetailedTasks* getTaskGroup() const { return m_task_group; }
+  DetailedTasks *getTaskGroup() const { return m_task_group; }
 
-  std::map<DependencyBatch*, DependencyBatch*>& getRequires() { return m_reqs; }
-  std::map<DependencyBatch*, DependencyBatch*>& getInternalRequires() { return m_internal_reqs; }
-
-  DependencyBatch* getComputes() const { return m_comp_head; }
-  DependencyBatch* getInternalComputes() const { return m_internal_comp_head; }
-
-  void findRequiringTasks( const VarLabel * var , std::list<DetailedTask*> & requiringTasks );
-
-  void emitEdges( ProblemSpecP edgesElement );
-
-  bool addInternalRequires( DependencyBatch * req );
-
-  void addInternalComputes( DependencyBatch * comp );
-
-  bool addRequires( DependencyBatch * req );
-
-  void addComputes( DependencyBatch * comp );
-
-  void addInternalDependency( DetailedTask * prerequisiteTask, const VarLabel * var );
-
-  // external dependencies will count how many messages this task is waiting for.
-  // When it hits 0, we can add it to the  DetailedTasks::mpiCompletedTasks list.
-  void resetDependencyCounts();
-
-  void markInitiated()
-  {
-    m_wait_timer.start();
-    m_initiated.store( true, std::memory_order_seq_cst );
+  std::map<DependencyBatch *, DependencyBatch *> &getRequires() {
+    return m_reqs;
+  }
+  std::map<DependencyBatch *, DependencyBatch *> &getInternalRequires() {
+    return m_internal_reqs;
   }
 
-  void incrementExternalDepCount() { m_external_dependency_count.fetch_add( 1, std::memory_order_seq_cst ); }
-  void decrementExternalDepCount() { m_external_dependency_count.fetch_sub( 1, std::memory_order_seq_cst ); }
+  DependencyBatch *getComputes() const { return m_comp_head; }
+  DependencyBatch *getInternalComputes() const { return m_internal_comp_head; }
+
+  void findRequiringTasks(const VarLabel *var,
+                          std::list<DetailedTask *> &requiringTasks);
+
+  void emitEdges(ProblemSpecP edgesElement);
+
+  bool addInternalRequires(DependencyBatch *req);
+
+  void addInternalComputes(DependencyBatch *comp);
+
+  bool addRequires(DependencyBatch *req);
+
+  void addComputes(DependencyBatch *comp);
+
+  void addInternalDependency(DetailedTask *prerequisiteTask,
+                             const VarLabel *var);
+
+  // external dependencies will count how many messages this task is waiting
+  // for. When it hits 0, we can add it to the  DetailedTasks::mpiCompletedTasks
+  // list.
+  void resetDependencyCounts();
+
+  void markInitiated() {
+    m_wait_timer.start();
+    m_initiated.store(true, std::memory_order_seq_cst);
+  }
+
+  void incrementExternalDepCount() {
+    m_external_dependency_count.fetch_add(1, std::memory_order_seq_cst);
+  }
+  void decrementExternalDepCount() {
+    m_external_dependency_count.fetch_sub(1, std::memory_order_seq_cst);
+  }
 
   void checkExternalDepCount();
-  int  getExternalDepCount() { return m_external_dependency_count.load(std::memory_order_seq_cst); }
+  int getExternalDepCount() {
+    return m_external_dependency_count.load(std::memory_order_seq_cst);
+  }
 
-  bool areInternalDependenciesSatisfied() { return ( m_num_pending_internal_dependencies == 0 ); }
+  bool areInternalDependenciesSatisfied() {
+    return (m_num_pending_internal_dependencies == 0);
+  }
 
   double task_wait_time() const { return m_wait_timer().seconds(); }
   double task_exec_time() const { return m_exec_timer().seconds(); }
@@ -198,144 +180,156 @@ public:
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   // Most tasks will only run on one device.
-  // But some, such as the data archiver task or send_old_data could run on multiple devices.
-  // This is not a good idea.  A task should only run on one device.  But the capability for a task
-  // to run on multiple nodes exists.
+  // But some, such as the data archiver task or send_old_data could run on
+  // multiple devices. This is not a good idea.  A task should only run on one
+  // device.  But the capability for a task to run on multiple nodes exists.
   std::set<int> getDeviceNums() const;
 
   std::map<int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setGpuStreamForThisTask( int deviceNum, gpuStream_t* s);
+  void setGpuStreamForThisTask(int deviceNum, gpuStream_t *s);
   void clearGpuStreamsForThisTask();
-  bool checkGpuStreamDoneForThisTask( int device_id, gpuStream_t* taskGpuStream ) const;
+  bool checkGpuStreamDoneForThisTask(int device_id,
+                                     gpuStream_t *taskGpuStream) const;
   bool checkAllGpuStreamsDoneForThisTask() const;
 
-  void setTaskGpuDataWarehouse( int     deviceNum
-                              , Task::WhichDW      DW
-                              , GPUDataWarehouse * TaskDW
-                              );
+  void setTaskGpuDataWarehouse(int deviceNum, Task::WhichDW DW,
+                               GPUDataWarehouse *TaskDW);
 
-  GPUDataWarehouse* getTaskGpuDataWarehouse( int deviceNum, Task::WhichDW DW );
+  GPUDataWarehouse *getTaskGpuDataWarehouse(int deviceNum, Task::WhichDW DW);
 
   void deleteTaskGpuDataWarehouses();
 
-  gpuStream_t* getGpuStreamForThisTask( int deviceNum ) const;
+  gpuStream_t *getGpuStreamForThisTask(int deviceNum) const;
 
-  DeviceGridVariables& getDeviceVars() { return deviceVars; }
+  DeviceGridVariables &getDeviceVars() { return deviceVars; }
 
-  DeviceGridVariables& getTaskVars() { return taskVars; }
+  DeviceGridVariables &getTaskVars() { return taskVars; }
 
-  DeviceGhostCells&    getGhostVars() { return ghostVars; }
+  DeviceGhostCells &getGhostVars() { return ghostVars; }
 
-  DeviceGridVariables& getVarsToBeGhostReady() { return varsToBeGhostReady; }
+  DeviceGridVariables &getVarsToBeGhostReady() { return varsToBeGhostReady; }
 
-  DeviceGridVariables& getVarsBeingCopiedByTask() { return varsBeingCopiedByTask; }
+  DeviceGridVariables &getVarsBeingCopiedByTask() {
+    return varsBeingCopiedByTask;
+  }
 
   void clearPreparationCollections();
 
-  // The below two memory holder functions acts as a booking-keeping on the obtained pointers
-  // from the pool. They neither get or put back the memory to the pool. When the dtask is
-  // complete, deleteTemporaryTaskVars() would clear the book keeping and release the memory
-  // back to the pool for reuse.
+  // The below two memory holder functions acts as a booking-keeping on the
+  // obtained pointers from the pool. They neither get or put back the memory to
+  // the pool. When the dtask is complete, deleteTemporaryTaskVars() would clear
+  // the book keeping and release the memory back to the pool for reuse.
   void addTempHostMemoryToBeFreedOnCompletion(void *host_ptr);
-  void* addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id, std::size_t sizeinbytes);
+  void *addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id,
+                                              std::size_t sizeinbytes);
   void deleteTemporaryTaskVars();
 
 #endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
-//-----------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------
 
 protected:
-
   friend class TaskGraph;
 
-
 private:
-
   // eliminate copy, assignment and move
-  DetailedTask(const DetailedTask &)            = delete;
-  DetailedTask& operator=(const DetailedTask &) = delete;
-  DetailedTask(DetailedTask &&)                 = delete;
-  DetailedTask& operator=(DetailedTask &&)      = delete;
+  DetailedTask(const DetailedTask &) = delete;
+  DetailedTask &operator=(const DetailedTask &) = delete;
+  DetailedTask(DetailedTask &&) = delete;
+  DetailedTask &operator=(DetailedTask &&) = delete;
 
   // called by done()
-  void scrub( std::vector<OnDemandDataWarehouseP> & dws );
+  void scrub(std::vector<OnDemandDataWarehouseP> &dws);
 
   // Called when prerequisite tasks (dependencies) call done.
-  void dependencySatisfied(InternalDependency * dep);
+  void dependencySatisfied(InternalDependency *dep);
 
-  Task                                         * m_task { nullptr };
-  const PatchSubset                            * m_patches { nullptr };
-  const MaterialSubset                         * m_matls { nullptr };
-  std::map<DependencyBatch*, DependencyBatch*>   m_reqs;
-  std::map<DependencyBatch*, DependencyBatch*>   m_internal_reqs;
-  DependencyBatch                              * m_comp_head { nullptr };
-  DependencyBatch                              * m_internal_comp_head { nullptr };
-  DetailedTasks                                * m_task_group { nullptr };
+  Task *m_task{nullptr};
+  const PatchSubset *m_patches{nullptr};
+  const MaterialSubset *m_matls{nullptr};
+  std::map<DependencyBatch *, DependencyBatch *> m_reqs;
+  std::map<DependencyBatch *, DependencyBatch *> m_internal_reqs;
+  DependencyBatch *m_comp_head{nullptr};
+  DependencyBatch *m_internal_comp_head{nullptr};
+  DetailedTasks *m_task_group{nullptr};
 
-  std::atomic<bool> m_initiated { false };
-  std::atomic<bool> m_externally_ready { false };
-  std::atomic<int>  m_external_dependency_count { 0 };
+  std::atomic<bool> m_initiated{false};
+  std::atomic<bool> m_externally_ready{false};
+  std::atomic<int> m_external_dependency_count{0};
 
-  mutable std::string m_name;  // doesn't get set until getName() is called the first time.
+  mutable std::string
+      m_name; // doesn't get set until getName() is called the first time.
 
   // Internal dependencies are dependencies within the same process.
   std::list<InternalDependency> m_internal_dependencies;
 
   // internalDependents will point to InternalDependency's in the
   // internalDependencies list of the requiring DetailedTasks.
-  std::map<DetailedTask*, InternalDependency*> m_internal_dependents;
+  std::map<DetailedTask *, InternalDependency *> m_internal_dependents;
 
-  unsigned long m_num_pending_internal_dependencies { 0 };
+  unsigned long m_num_pending_internal_dependencies{0};
 
-  int m_resource_index { -1 };
-  int m_static_order   { -1 };
+  int m_resource_index{-1};
+  int m_static_order{-1};
 
   // specifies the type of task this is:
   //   * Normal executes on either the patches cells or the patches coarse cells
   //   * Fine   executes on the patches fine cells (for example coarsening)
-  ProfileType m_profile_type { Normal };
+  ProfileType m_profile_type{Normal};
 
   RuntimeStats::TaskExecTimer m_exec_timer{this};
   RuntimeStats::TaskWaitTimer m_wait_timer{this};
 
-  bool operator<(const DetailedTask & other);
-
+  bool operator<(const DetailedTask &other);
 
 //-----------------------------------------------------------------------------
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
-  // list of GPU-IDs this task is assigned to. For tasks where there are multiple devices for the task (i.e. data archiver output tasks)
-  std::set<int>               deviceNums_;
-  // map of GPU-ID to the stream assigned on that particular GPU-ID. A task can have more than 1 device and corresponding stream assigned to it. (i.e., data-archiver's output variables)
-  std::map<int, gpuStream_t*> d_gpuStreams;
+  // list of GPU-IDs this task is assigned to. For tasks where there are
+  // multiple devices for the task (i.e. data archiver output tasks)
+  std::set<int> deviceNums_;
+  // map of GPU-ID to the stream assigned on that particular GPU-ID. A task can
+  // have more than 1 device and corresponding stream assigned to it. (i.e.,
+  // data-archiver's output variables)
+  std::map<int, gpuStream_t *> d_gpuStreams;
 
   // Store information about each set of grid variables.
-  // This will help later when we figure out the best way to store data into the GPU.
-  // It may be stored contiguously.  It may handle material data.  It just helps to gather it all up
-  // into a collection prior to copying data.
-  DeviceGridVariables deviceVars;  // Holds variables that will need to be copied into the GPU
-  DeviceGridVariables taskVars;    // Holds variables that will be needed for a GPU task (a Task DW has a snapshot of
-                                   // all important pointer info from the host-side GPU DW)
-  DeviceGhostCells ghostVars;      // Holds ghost cell meta data copy information
+  // This will help later when we figure out the best way to store data into the
+  // GPU. It may be stored contiguously.  It may handle material data.  It just
+  // helps to gather it all up into a collection prior to copying data.
+  DeviceGridVariables
+      deviceVars; // Holds variables that will need to be copied into the GPU
+  DeviceGridVariables
+      taskVars; // Holds variables that will be needed for a GPU task (a Task DW
+                // has a snapshot of all important pointer info from the
+                // host-side GPU DW)
+  DeviceGhostCells ghostVars; // Holds ghost cell meta data copy information
 
-  DeviceGridVariables varsToBeGhostReady;  // Holds a list of vars this task is managing to ensure their ghost cells will be ready.
-                                           // This means this task is the exclusive ghost cell gatherer and ghost cell validator for any
-                                           // label/patch/matl/level vars it has listed in here
-                                           // But it is NOT the exclusive copier.  Because some ghost cells from one patch may be used by
-                                           // two or more destination patches.  We only want to copy ghost cells once.
+  DeviceGridVariables
+      varsToBeGhostReady; // Holds a list of vars this task is managing to
+                          // ensure their ghost cells will be ready. This means
+                          // this task is the exclusive ghost cell gatherer and
+                          // ghost cell validator for any label/patch/matl/level
+                          // vars it has listed in here But it is NOT the
+                          // exclusive copier.  Because some ghost cells from
+                          // one patch may be used by two or more destination
+                          // patches.  We only want to copy ghost cells once.
 
-  DeviceGridVariables varsBeingCopiedByTask;  // Holds a list of the vars that this task is actually copying into the GPU.
+  DeviceGridVariables
+      varsBeingCopiedByTask; // Holds a list of the vars that this task is
+                             // actually copying into the GPU.
 
   struct gpuMemoryPoolDevicePtrItem {
 
-    unsigned int  device_id;
-    void         *ptr;
-    std::size_t   sizeinbytes;
+    unsigned int device_id;
+    void *ptr;
+    std::size_t sizeinbytes;
 
-    gpuMemoryPoolDevicePtrItem( unsigned int device_id, void *ptr, std::size_t size) {
+    gpuMemoryPoolDevicePtrItem(unsigned int device_id, void *ptr,
+                               std::size_t size) {
       this->device_id = device_id;
-      this->ptr       = ptr;
+      this->ptr = ptr;
       this->sizeinbytes = size;
     }
 
@@ -345,8 +339,8 @@ private:
     // 	if (this->device_id < right.device_id) {
     // 	  return true;
     // 	}
-    // 	else if ((this->device_id == right.device_id) && (this->ptr < right.ptr)) {
-    // 	  return true;
+    // 	else if ((this->device_id == right.device_id) && (this->ptr <
+    // right.ptr)) { 	  return true;
     // 	}
     // 	else {
     // 	  return false;
@@ -355,16 +349,15 @@ private:
   };
 
   std::vector<gpuMemoryPoolDevicePtrItem> taskGpuMemoryPoolItems;
-  std::queue<void*>                       taskHostMemoryPoolItems;
+  std::queue<void *> taskHostMemoryPoolItems;
 
 #endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
-//-----------------------------------------------------------------------------
-
+  //-----------------------------------------------------------------------------
 
 }; // class DetailedTask
 
-std::ostream& operator<<( std::ostream & out, const Uintah::DetailedTask & task );
+std::ostream &operator<<(std::ostream &out, const Uintah::DetailedTask &task);
 
-}  // namespace Uintah
+} // namespace Uintah
 
 #endif // CCA_COMPONENTS_SCHEDULERS_DETAILEDTASK_H
