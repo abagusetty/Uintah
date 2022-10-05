@@ -191,10 +191,9 @@ Task::usesThreads(bool state)
 //______________________________________________________________________
 //
 void
-Task::usesDevice(bool state, int maxStreamsPerTask /* = 1 */ )
+Task::usesDevice(bool state)
 {
   m_uses_device = state;
-  m_max_streams_per_task = maxStreamsPerTask;
 }
 
 //______________________________________________________________________
@@ -987,8 +986,8 @@ Task::doit( DetailedTask                * task
           , std::vector<DataWarehouseP> & dws
           , void                        * oldTaskGpuDW
           , void                        * newTaskGpuDW
-          , void                        * stream
-          , int                           deviceID
+          , gpuStream_t                 * stream
+          , unsigned short                deviceID
           )
 {
   DataWarehouse* fromDW = mapDataWarehouse(Task::OldDW, dws);
@@ -1274,4 +1273,3 @@ Task::mapDataWarehouse( WhichDW dw, std::vector<DataWarehouseP> & dws ) const
     return dws[m_dwmap[dw]].get_rep();
   }
 }
-

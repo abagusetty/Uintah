@@ -51,7 +51,7 @@ unifiedSchedulerTestKernel( int                patchID
                           , uint3              domainHigh
                           , GPUDataWarehouse * old_gpudw
                           , GPUDataWarehouse * new_gpudw
-                          , cudaStream_t     * stream
+                          , gpuStream_t     * stream
                           )
 {
 
@@ -117,7 +117,7 @@ unifiedSchedulerTestKernel( int                patchID
 void
 launchUnifiedSchedulerTestKernel( dim3               dimGrid
                                 , dim3               dimBlock
-                                , cudaStream_t     * stream
+                                , gpuStream_t     * stream
                                 , int                patchID
                                 , uint3              patchNodeLowIndex
                                 , uint3              patchNodeHighIndex

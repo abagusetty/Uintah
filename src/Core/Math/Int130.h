@@ -50,7 +50,6 @@ class Int130 {
   // access operator
   inline int operator[] (int i) const;
   inline int & operator[] (int i);
-  static const std::string& get_h_file_path();
 };
 
 inline Int130::Int130()

@@ -144,10 +144,9 @@ public:
     : m_handle{std::move(handle)}
   {}
 
-  CommRequest() = default;
-
-  CommRequest( const CommRequest & )            = default;
-  CommRequest& operator=( const CommRequest & ) = default;
+  CommRequest()                                 = default;
+  CommRequest( const CommRequest & )            = delete;
+  CommRequest& operator=( const CommRequest & ) = delete;
   CommRequest( CommRequest && )                 = default;
   CommRequest& operator=( CommRequest && )      = default;
 

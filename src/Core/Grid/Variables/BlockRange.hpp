@@ -25,9 +25,8 @@
 #ifndef UINTAH_HOMEBREW_BLOCK_RANGE_HPP
 #define UINTAH_HOMEBREW_BLOCK_RANGE_HPP
 
-#include <sci_defs/kokkos_defs.h>
-
 #ifdef UINTAH_ENABLE_KOKKOS
+#include <sci_defs/kokkos_defs.h>
 #include <Kokkos_Core.hpp>
 #endif //UINTAH_ENABLE_KOKKOS
 

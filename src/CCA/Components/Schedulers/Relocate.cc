@@ -55,7 +55,7 @@ Relocate::~Relocate()
     delete m_reloc_matls;
   }
 
-  for (size_t p = 0; p < m_destroyMe.size(); p++) {
+  for (std::size_t p = 0; p < m_destroyMe.size(); p++) {
     VarLabel::destroy(m_destroyMe[p]);
   }
 }
@@ -202,11 +202,11 @@ Relocate::scheduleParticleRelocation(       Scheduler                           
   std::vector<std::vector<const VarLabel*> > postRelocOtherLabels;
   // fill the list of post relocation variables
 
-  for (size_t m = 0; m < otherLabels.size(); m++) {
+  for (std::size_t m = 0; m < otherLabels.size(); m++) {
     std::vector<const VarLabel*> tmp;
     postRelocOtherLabels.push_back(tmp);
 
-    for (size_t p = 0; p < otherLabels[m].size(); p++) {
+    for (std::size_t p = 0; p < otherLabels[m].size(); p++) {
       const VarLabel* pVarLabel = otherLabels[m][p];
       const std::string pPostRelocVarName = pVarLabel->getName() + "+";
       const VarLabel* pPostRelocVarLabel;
@@ -1343,7 +1343,7 @@ Relocate::relocateParticlesModifies( const ProcessorGroup* pg,
       new_dw->put(*pPos, m_reloc_old_posLabel, true);
 
       // go over the list of particle variables
-      for (size_t i = 0; i < m_reloc_new_labels[m].size(); i++) {
+      for (std::size_t i = 0; i < m_reloc_new_labels[m].size(); i++) {
         const VarLabel* pVarLabel = m_reloc_old_labels[m][i];
         const VarLabel* relocVarLabel = m_reloc_new_labels[m][i];
         ParticleVariableBase* pvar = new_dw->getParticleVariable(relocVarLabel,matl, patch);

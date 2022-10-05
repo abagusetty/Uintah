@@ -38,9 +38,11 @@
 #include <Core/Util/DOUT.hpp>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/hip_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/visit_defs.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
   #include <Core/Parallel/CrowdMonitor.hpp>
 #endif
 
@@ -56,7 +58,7 @@ namespace Uintah {
 
   // used externally in DetailedTask.cc
   Dout g_scrubbing_dbg(      "Scrubbing", "DetailedTasks", "report var scrubbing: see DetailedTasks.cc for usage", false);
-  
+
   // used externally in DetailedTask.cc
   // for debugging - set the variable name (inside the quotes) and patchID to watch one in the scrubout
   std::string g_var_scrub_dbg   = "";
@@ -66,16 +68,16 @@ namespace Uintah {
 namespace {
 
   Uintah::MasterLock g_internal_ready_mutex{}; // synchronizes access to the internal-ready task queue
-  
+
   Dout g_detailed_dw_dbg(    "DetailedDWDBG", "DetailedTasks", "report when var is saved in varDB", false);
   Dout g_detailed_tasks_dbg( "DetailedTasks", "DetailedTasks", "general bdg info for DetailedTasks", false);
   Dout g_message_tags_dbg(           "MessageTags",         "DetailedTasks", "info on MPI message tag assignment", false);
   Dout g_message_tags_stats_dbg(     "MessageTagStats",     "DetailedTasks", "stats on MPI message tag assignment", false);
 #ifdef HAVE_VISIT
   Dout g_message_tags_task_stats_dbg("MessageTagTaskStats", "DetailedTasks", "stats on MPI message tag task assignment", false);
-#endif  
+#endif
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) //|| defined(HAVE_SYCL)
   struct device_transfer_complete_queue_tag{};
   struct device_finalize_prep_queue_tag{};
   struct device_ready_queue_tag{};
@@ -89,7 +91,7 @@ namespace {
   using  device_completed_queue_monitor         = Uintah::CrowdMonitor<device_completed_queue_tag>;
   using  host_finalize_prep_queue_monitor       = Uintah::CrowdMonitor<host_finalize_prep_queue_tag>;
   using  host_ready_queue_monitor               = Uintah::CrowdMonitor<host_ready_queue_tag>;
-#endif
+#endif // HAVE_CUDA, HAVE_SYCL
 
 }
 
@@ -138,11 +140,11 @@ DetailedTasks::~DetailedTasks()
   // Free dynamically allocated SrubItems
   m_scrub_count_table.remove_all();
 
-  for (size_t i = 0; i < m_dep_batches.size(); i++) {
+  for (std::size_t i = 0; i < m_dep_batches.size(); i++) {
     delete m_dep_batches[i];
   }
 
-  for (size_t i = 0; i < m_tasks.size(); i++) {
+  for (std::size_t i = 0; i < m_tasks.size(); i++) {
     delete m_tasks[i];
   }
 
@@ -169,12 +171,12 @@ DetailedTasks::assignMessageTags( unsigned int index )
   m_comm_info[ allTasks ].setKeyName( "Rank" );
   m_comm_info[ allTasks ].insert( CommPTPMsgTo,   std::string("ToRank")  , "messages" );
   m_comm_info[ allTasks ].insert( CommPTPMsgFrom, std::string("FromRank"), "messages" );
-    
+
   // Map for individual task pairs.
   std::map< std::pair< std::string, std::string >, int > taskPairs;
 
   // Loop through all of the tasks to get the counts.
-  for (size_t i = 0; i < m_dep_batches.size(); i++) {
+  for (std::size_t i = 0; i < m_dep_batches.size(); i++) {
     DependencyBatch* batch = m_dep_batches[i];
 
     int from = batch->m_from_task->getAssignedResourceIndex();
@@ -210,16 +212,16 @@ DetailedTasks::assignMessageTags( unsigned int index )
 #ifdef HAVE_VISIT
         // Individual task comm stats.
         ++m_comm_info[taskPair][ to ][CommPTPMsgTo];
-#endif  
+#endif
       }
-      
+
       if( to == me ) {
         m_dep_batches[i]->m_message_tag = ++m_comm_info[allTasks][ from ][CommPTPMsgFrom];
 
 #ifdef HAVE_VISIT
         // Individual task comm stats.
         ++m_comm_info[taskPair][ from ][CommPTPMsgFrom];
-#endif  
+#endif
       }
 
       DOUT(g_message_tags_dbg, "Rank-" << me
@@ -238,7 +240,7 @@ DetailedTasks::assignMessageTags( unsigned int index )
   for (auto& info: m_comm_info) {
 
     std::pair< std::string, std::string > taskPair = info.first;
-    
+
     // Do the stats first so they are not affected by adding in the
     // other (possibly) unused ranks.
     info.second.calculateMinimum( true );
@@ -253,7 +255,7 @@ DetailedTasks::assignMessageTags( unsigned int index )
       double simTime = m_sched_common->getApplication()->getSimTime();
       std::string title = "Communication TG [" + std::to_string(index) + "] " +
         "for task <" + taskPair.first + "|" + taskPair.second + ">";
-      
+
       info.second.reportSummaryStats   ( title.c_str(), "", me,
                                          nRanks, timeStep, simTime,
                                          BaseInfoMapper::Dout, false );
@@ -265,13 +267,13 @@ DetailedTasks::assignMessageTags( unsigned int index )
     // If the number of keys (ranks) is different then add in the
     // missing ranks (the counts will be zero).
     if( info.second.size() != m_comm_info[allTasks].size() ) {
-      
+
       unsigned int nComms = m_comm_info[allTasks].size();
-      
+
       for( unsigned int i=0; i<nComms; ++i) {
-        
+
         unsigned int key = m_comm_info[allTasks].getKey(i); // rank
-        
+
         // This call adds in the ranks and inits the value to zero.
         info.second[ key ];
       }
@@ -362,8 +364,8 @@ DetailedTasks::initializeScrubs( std::vector<OnDemandDataWarehouseP> & dws, int 
     }
     OnDemandDataWarehouse* dw = dws[dwmap[i]].get_rep();
     if (dw != nullptr && dw->getScrubMode() == DataWarehouse::ScrubComplete) {
-      // only a OldDW or a CoarseOldDW will have scrubComplete 
-      //   But we know a future taskgraph (in a w-cycle) will need the vars if there are fine dws 
+      // only a OldDW or a CoarseOldDW will have scrubComplete
+      //   But we know a future taskgraph (in a w-cycle) will need the vars if there are fine dws
       //   between New and Old.  In this case, the scrub count needs to be complemented with CoarseOldDW
       int tgtype = getTaskGraph()->getType();
       if (!initialized[dwmap[i]] || tgtype == Scheduler::IntermediateTaskGraph) {
@@ -633,10 +635,10 @@ DetailedTasks::findMatchingDetailedDep(       DependencyBatch  * batch
  * This function will create the detailed dependency for the
  * parameters passed in.  If a similar detailed dependency
  * already exists it will combine those dependencies into a single
- * dependency.  
+ * dependency.
  *
- * Dependencies are ordered from oldest to newest in a linked list.  It is vital that 
- * this order is maintained.  Failure to maintain this order can cause messages to be combined 
+ * Dependencies are ordered from oldest to newest in a linked list.  It is vital that
+ * this order is maintained.  Failure to maintain this order can cause messages to be combined
  * inconsistently across different tasks causing various problems.  New dependencies are added
  * to the end of the list.  If a dependency was combined then the extended dependency is added
  * at the same location that it was first combined.  This is to ensure all future dependencies
@@ -921,7 +923,7 @@ DetailedTasks::getOldDWSendTask( int proc )
     std::cout << m_proc_group->myRank() << " Error trying to get oldDWSendTask for processor: " << proc << " but it does not exist\n";
     throw InternalError("oldDWSendTask does not exist", __FILE__, __LINE__);
   }
-#endif 
+#endif
   return m_tasks[m_send_old_map[proc]];
 }
 
@@ -1203,7 +1205,7 @@ DetailedTaskPriorityComparison::operator()( DetailedTask *& ltask
 
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
 //_____________________________________________________________________________
 //
@@ -1215,7 +1217,7 @@ DetailedTasks::getDeviceValidateRequiresCopiesTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_validateRequiresCopies_pool_iter = device_validateRequiresCopies_pool.find_any(ready_request);
 
   if (device_validateRequiresCopies_pool_iter) {
@@ -1238,7 +1240,7 @@ DetailedTasks::getDevicePerformGhostCopiesTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_performGhostCopies_pool_iter = device_performGhostCopies_pool.find_any(ready_request);
 
   if (device_performGhostCopies_pool_iter) {
@@ -1261,7 +1263,7 @@ DetailedTasks::getDeviceValidateGhostCopiesTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_validateGhostCopies_pool_iter = device_validateGhostCopies_pool.find_any(ready_request);
 
   if (device_validateGhostCopies_pool_iter) {
@@ -1274,7 +1276,6 @@ DetailedTasks::getDeviceValidateGhostCopiesTask(DetailedTask *& dtask)
   return retVal;
 }
 
-
 //______________________________________________________________________
 //
 bool
@@ -1285,7 +1286,7 @@ DetailedTasks::getDeviceCheckIfExecutableTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_checkIfExecutable_pool_iter = device_checkIfExecutable_pool.find_any(ready_request);
   if (device_checkIfExecutable_pool_iter) {
     dtask = *device_checkIfExecutable_pool_iter;
@@ -1307,7 +1308,7 @@ DetailedTasks::getDeviceReadyToExecuteTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_readyToExecute_pool_iter = device_readyToExecute_pool.find_any(ready_request);
   if (device_readyToExecute_pool_iter) {
     dtask = *device_readyToExecute_pool_iter;
@@ -1319,7 +1320,6 @@ DetailedTasks::getDeviceReadyToExecuteTask(DetailedTask *& dtask)
   return retVal;
 }
 
-
 //______________________________________________________________________
 //
 bool
@@ -1330,7 +1330,7 @@ DetailedTasks::getDeviceExecutionPendingTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator device_executionPending_pool_iter = device_executionPending_pool.find_any(ready_request);
   if (device_executionPending_pool_iter) {
     dtask = *device_executionPending_pool_iter;
@@ -1352,7 +1352,7 @@ DetailedTasks::getHostValidateRequiresCopiesTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator host_validateRequiresCopies_pool_iter = host_validateRequiresCopies_pool.find_any(ready_request);
 
   if (host_validateRequiresCopies_pool_iter) {
@@ -1375,7 +1375,7 @@ DetailedTasks::getHostCheckIfExecutableTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator host_checkIfExecutable_pool_iter = host_checkIfExecutable_pool.find_any(ready_request);
   if (host_checkIfExecutable_pool_iter) {
     dtask = *host_checkIfExecutable_pool_iter;
@@ -1397,7 +1397,7 @@ DetailedTasks::getHostReadyToExecuteTask(DetailedTask *& dtask)
   bool retVal = false;
   dtask = nullptr;
 
-  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllCudaStreamsDoneForThisTask(); };
+  auto ready_request = [](DetailedTask *& dtask)->bool { return dtask->checkAllGpuStreamsDoneForThisTask(); };
   TaskPool::iterator host_readyToExecute_pool_iter = host_readyToExecute_pool.find_any(ready_request);
   if (host_readyToExecute_pool_iter) {
     dtask = *host_readyToExecute_pool_iter;
@@ -1789,4 +1789,4 @@ DetailedDep* DetailedTasks::findMatchingInternalDetailedDep(DependencyBatch     
   return valid_dep;
 }
 
-#endif
+#endif //HAVE_CUDA, HAVE_SYCL

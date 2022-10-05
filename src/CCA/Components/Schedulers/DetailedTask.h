@@ -30,13 +30,19 @@
 #include <CCA/Components/Schedulers/OnDemandDataWarehouseP.h>
 #include <CCA/Components/Schedulers/RuntimeStats.hpp>
 
-#ifdef HAVE_CUDA
+#if defined( HAVE_CUDA ) || defined(HAVE_HIP) || defined( HAVE_SYCL )
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 #endif
 
 #include <Core/Grid/Task.h>
 
+#if defined( HAVE_CUDA )
 #include <sci_defs/cuda_defs.h>
+#elif defined(HAVE_HIP)
+#include <sci_defs/hip_defs.h>
+#elif defined(HAVE_SYCL)
+#include <sci_defs/sycl_defs.h>
+#endif
 
 #include <atomic>
 #include <list>
@@ -44,8 +50,6 @@
 #include <queue>
 #include <set>
 #include <vector>
-
-
 
 namespace Uintah {
 
@@ -56,7 +60,7 @@ class DetailedTasks;
 
 //_____________________________________________________________________________
 //
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   struct TaskGpuDataWarehouses {
     GPUDataWarehouse* TaskGpuDW[2];
@@ -76,7 +80,6 @@ enum ProfileType {
 //_____________________________________________________________________________
 //
 struct InternalDependency {
-
   InternalDependency(       DetailedTask * prerequisiteTask
                     ,       DetailedTask * dependentTask
                     , const VarLabel     * var
@@ -98,12 +101,12 @@ struct InternalDependency {
   DetailedTask                                 * m_dependent_task;
   std::set<const VarLabel*, VarLabel::Compare>   m_vars;
   unsigned long                                  m_satisfied_generation;
-
 };
 
 
 //_____________________________________________________________________________
 //
+  
 class DetailedTask {
 
 public:
@@ -192,36 +195,31 @@ public:
   double task_exec_time() const { return m_exec_timer().seconds(); }
 
 //-----------------------------------------------------------------------------
-#ifdef HAVE_CUDA
-
-  void assignDevice( unsigned int device );
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   // Most tasks will only run on one device.
   // But some, such as the data archiver task or send_old_data could run on multiple devices.
   // This is not a good idea.  A task should only run on one device.  But the capability for a task
   // to run on multiple nodes exists.
-  std::set<unsigned int> getDeviceNums() const;
+  std::set<int> getDeviceNums() const;
 
-  std::map<unsigned int, TaskGpuDataWarehouses> TaskGpuDWs;
+  std::map<int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setCudaStreamForThisTask( unsigned int deviceNum, cudaStream_t * s );
+  void setGpuStreamForThisTask( int deviceNum, gpuStream_t* s);
+  void clearGpuStreamsForThisTask();
+  bool checkGpuStreamDoneForThisTask( int device_id, gpuStream_t* taskGpuStream ) const;
+  bool checkAllGpuStreamsDoneForThisTask() const;
 
-  void clearCudaStreamsForThisTask();
-
-  bool checkCudaStreamDoneForThisTask( unsigned int deviceNum ) const;
-
-  bool checkAllCudaStreamsDoneForThisTask() const;
-
-  void setTaskGpuDataWarehouse( unsigned int       deviceNum
+  void setTaskGpuDataWarehouse( int     deviceNum
                               , Task::WhichDW      DW
                               , GPUDataWarehouse * TaskDW
                               );
 
-  GPUDataWarehouse* getTaskGpuDataWarehouse( unsigned int deviceNum, Task::WhichDW DW );
+  GPUDataWarehouse* getTaskGpuDataWarehouse( int deviceNum, Task::WhichDW DW );
 
   void deleteTaskGpuDataWarehouses();
 
-  cudaStream_t*        getCudaStreamForThisTask( unsigned int deviceNum ) const;
+  gpuStream_t* getGpuStreamForThisTask( int deviceNum ) const;
 
   DeviceGridVariables& getDeviceVars() { return deviceVars; }
 
@@ -235,15 +233,17 @@ public:
 
   void clearPreparationCollections();
 
-  void addTempHostMemoryToBeFreedOnCompletion( void * ptr );
-
-  void addTempCudaMemoryToBeFreedOnCompletion( unsigned int device_ptr, void * ptr );
-
+  // The below two memory holder functions acts as a booking-keeping on the obtained pointers
+  // from the pool. They neither get or put back the memory to the pool. When the dtask is
+  // complete, deleteTemporaryTaskVars() would clear the book keeping and release the memory
+  // back to the pool for reuse.
+  void addTempHostMemoryToBeFreedOnCompletion(void *host_ptr);
+  void* addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id, std::size_t sizeinbytes);
   void deleteTemporaryTaskVars();
 
-#endif
-//-----------------------------------------------------------------------------
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
+//-----------------------------------------------------------------------------
 
 protected:
 
@@ -303,14 +303,12 @@ private:
 
 
 //-----------------------------------------------------------------------------
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
-  bool         deviceExternallyReady_{false};
-  bool         completed_{false};
-  unsigned int deviceNum_{0};
-
-  std::set<unsigned int>                deviceNums_;
-  std::map<unsigned int, cudaStream_t*> d_cudaStreams;
+  // list of GPU-IDs this task is assigned to. For tasks where there are multiple devices for the task (i.e. data archiver output tasks)
+  std::set<int>               deviceNums_;
+  // map of GPU-ID to the stream assigned on that particular GPU-ID. A task can have more than 1 device and corresponding stream assigned to it. (i.e., data-archiver's output variables)
+  std::map<int, gpuStream_t*> d_gpuStreams;
 
   // Store information about each set of grid variables.
   // This will help later when we figure out the best way to store data into the GPU.
@@ -331,34 +329,35 @@ private:
 
   struct gpuMemoryPoolDevicePtrItem {
 
-    unsigned int   device_id;
-    void         * ptr;
+    unsigned int  device_id;
+    void         *ptr;
+    std::size_t   sizeinbytes;
 
-    gpuMemoryPoolDevicePtrItem( unsigned int device_id, void * ptr )
-    {
+    gpuMemoryPoolDevicePtrItem( unsigned int device_id, void *ptr, std::size_t size) {
       this->device_id = device_id;
       this->ptr       = ptr;
+      this->sizeinbytes = size;
     }
 
-    // This so it can be used in an STL map
-    bool operator<( const gpuMemoryPoolDevicePtrItem & right ) const
-    {
-      if (this->device_id < right.device_id) {
-        return true;
-      }
-      else if ((this->device_id == right.device_id) && (this->ptr < right.ptr)) {
-        return true;
-      }
-      else {
-        return false;
-      }
-    }
+    // // This so it can be used in an STL map
+    // bool operator<( const gpuMemoryPoolDevicePtrItem & right ) const
+    //   {
+    // 	if (this->device_id < right.device_id) {
+    // 	  return true;
+    // 	}
+    // 	else if ((this->device_id == right.device_id) && (this->ptr < right.ptr)) {
+    // 	  return true;
+    // 	}
+    // 	else {
+    // 	  return false;
+    // 	}
+    //   }
   };
 
-  std::vector<gpuMemoryPoolDevicePtrItem> taskCudaMemoryPoolItems;
+  std::vector<gpuMemoryPoolDevicePtrItem> taskGpuMemoryPoolItems;
   std::queue<void*>                       taskHostMemoryPoolItems;
 
-#endif
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 //-----------------------------------------------------------------------------
 
 
@@ -369,4 +368,3 @@ std::ostream& operator<<( std::ostream & out, const Uintah::DetailedTask & task 
 }  // namespace Uintah
 
 #endif // CCA_COMPONENTS_SCHEDULERS_DETAILEDTASK_H
-

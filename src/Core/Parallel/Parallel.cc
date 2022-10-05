@@ -29,12 +29,13 @@
 #include <Core/Parallel/ProcessorGroup.h>
 #include <Core/Parallel/UintahMPI.h>
 
+#ifdef UINTAH_ENABLE_KOKKOS
 #include <sci_defs/kokkos_defs.h>
+#endif
 
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
-#include <thread>
 
 #ifdef _OPENMP
   #include <omp.h>
@@ -150,6 +151,7 @@ Parallel::getMainThreadID()
 void
 Parallel::setNumThreads( int num )
 {
+  // ABB: TODO check the max-number of hardware threads
   s_num_threads = num;
 }
 

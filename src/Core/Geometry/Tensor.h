@@ -99,9 +99,6 @@ public:
                           const Vector &e3,
                           double v1, double v2, double v3);
 
-  //! support dynamic compilation
-  static const std::string& get_h_file_path();
-
 };
 
 inline bool operator<(Tensor t1, Tensor t2)

@@ -28,6 +28,7 @@
 #include <CCA/Components/Schedulers/DynamicMPIScheduler.h>
 #include <CCA/Components/Schedulers/KokkosOpenMPScheduler.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
+#include <CCA/Components/Schedulers/SYCLScheduler.hpp>
 
 #include <Core/Exceptions/ProblemSetupException.h>
 #include <Core/Parallel/Parallel.h>
@@ -35,6 +36,8 @@
 #include <Core/ProblemSpec/ProblemSpec.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/hip_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/kokkos_defs.h>
 
 #include <iostream>
@@ -59,8 +62,15 @@ SchedulerFactory::create( const ProblemSpecP   & ps
   /////////////////////////////////////////////////////////////////////
   // Default settings - nothing specified in the input file
   if (scheduler == "") {
-#if defined( UINTAH_ENABLE_KOKKOS ) && !defined( HAVE_CUDA )
+#if defined( UINTAH_ENABLE_KOKKOS ) && !defined( HAVE_CUDA ) && !defined( HAVE_HIP ) && !defined( HAVE_SYCL ) 
     scheduler = "KokkosOpenMP";
+#elif defined(HAVE_SYCL)
+    if (Uintah::Parallel::getNumThreads() > 0) {
+      scheduler = "SYCL";
+    }
+    else {
+      scheduler = "MPI";
+    }    
 #else
     if (Uintah::Parallel::getNumThreads() > 0) {
       scheduler = "Unified";
@@ -86,6 +96,10 @@ SchedulerFactory::create( const ProblemSpecP   & ps
     sch = scinew UnifiedScheduler(world, nullptr);
   }
 
+  else if (scheduler == "SYCL") {
+    sch = scinew SYCLScheduler(world, nullptr);
+  }
+  
   else if (scheduler == "KokkosOpenMP") {
     sch = scinew KokkosOpenMPScheduler(world, nullptr);
   }
@@ -98,25 +112,28 @@ SchedulerFactory::create( const ProblemSpecP   & ps
   }
 
   //__________________________________
-  //  bulletproofing
+  //  bulletproofing for Unified
 
   // "-nthreads" at command line, something other than "Unified" specified in UPS file (w/ -do_not_validate)
-  if ((Uintah::Parallel::getNumThreads() > 0) && (scheduler != "Unified")) {
-    throw ProblemSetupException("\nERROR<Scheduler>: Unified Scheduler needed for '-nthreads <n>' option.\n", __FILE__, __LINE__);
+  if ((Uintah::Parallel::getNumThreads() > 0) && (scheduler != "Unified" || scheduler != "SYCL") ) {
+    throw ProblemSetupException("\nERROR<Scheduler>: SYCL/Unified Scheduler needed for '-nthreads <n>' option.\n", __FILE__, __LINE__);
   }
 
   // "-gpu" provided at command line, but not using "Unified"
-  if ((scheduler != "Unified") && Uintah::Parallel::usingDevice()) {
-    std::string error = "\nERROR<Scheduler>: To use '-gpu' option you must invoke the Unified Scheduler.  Add '-nthreads <n>' to the sus command line.\n";
+  if ((scheduler != "Unified" || scheduler != "SYCL")  && Uintah::Parallel::usingDevice()) {
+    std::string error = "\nERROR<Scheduler>: To use '-gpu' option you must invoke the SYCL/Unified Scheduler.  Add '-nthreads <n>' to the sus command line.\n";
     throw ProblemSetupException(error, __FILE__, __LINE__);
   }
 
   // "Unified" specified in UPS file, but "-nthreads" not given at command line
-  if ((scheduler == "Unified") && !(Uintah::Parallel::getNumThreads() > 0)) {
-    std::string error = "\nERROR<Scheduler>: Add '-nthreads <n>' to the sus command line if you are specifying Unified in your input file.\n";
+  if ((scheduler == "Unified" || scheduler == "SYCL") && !(Uintah::Parallel::getNumThreads() > 0)) {
+    std::string error = "\nERROR<Scheduler>: Add '-nthreads <n>' to the sus command line if you are specifying SYCL/Unified in your input file.\n";
     throw ProblemSetupException(error, __FILE__, __LINE__);
   }
 
+  //__________________________________
+  //
+  
   // Output which scheduler will be used
   proc0cout << "Scheduler: \t\t" << scheduler << std::endl;
 

@@ -25,8 +25,6 @@
 #include <CCA/Ports/DataWarehouse.h>
 #include <CCA/Ports/Scheduler.h>
 
-#include <Core/Geometry/Vector.h>
-
 using namespace Uintah;
 
 DataWarehouse::DataWarehouse( const ProcessorGroup * myworld

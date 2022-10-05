@@ -153,7 +153,7 @@ namespace Uintah {
 
 void launchUnifiedSchedulerTestKernel( dim3               dimGrid
                                      , dim3               dimBlock
-                                     , cudaStream_t     * stream
+                                     , gpuStream_t     * stream
                                      , int                patchID
                                      , uint3              patchNodeLowIndex
                                      , uint3              patchNodeHighIndex

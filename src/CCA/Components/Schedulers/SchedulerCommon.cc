@@ -199,7 +199,7 @@ SchedulerCommon::checkMemoryUse( unsigned long & memUsed
   memUsed   = 0;
 
 #if !defined(DISABLE_SCI_MALLOC)
-  size_t nalloc,  sizealloc, nfree,  sizefree, nfillbin,
+  std::size_t nalloc,  sizealloc, nfree,  sizefree, nfillbin,
          nmmap, sizemmap, nmunmap, sizemunmap, highwater_alloc,  
          highwater_mmap, bytes_overhead, bytes_free, bytes_fragmented, bytes_inuse, bytes_inhunks;
   
@@ -1118,9 +1118,9 @@ SchedulerCommon::initialize( int numOldDW /* = 1 */
 
   // During initialization or restart, use only one task graph
   bool is_init = m_is_init_timestep || m_is_restart_init_timestep;
-  size_t num_task_graphs = (is_init) ? 1 : m_num_task_graphs;
+  std::size_t num_task_graphs = (is_init) ? 1 : m_num_task_graphs;
 
-  for (size_t i = 0; i < num_task_graphs; ++i) {
+  for (std::size_t i = 0; i < num_task_graphs; ++i) {
     addTaskGraph(NormalTaskGraph, i);
   }
 }
@@ -2311,7 +2311,7 @@ SchedulerCommon::sumTaskMonitoringValues( DetailedTask * dtask )
 
         // For a local task strip off the attribute name.
         if (i == 1) {
-          size_t found = taskName.find_last_of("::");
+          std::size_t found = taskName.find_last_of("::");
           // std::string attribute = taskName.substr(found + 1);
           taskName = taskName.substr(0, found - 1);
         }

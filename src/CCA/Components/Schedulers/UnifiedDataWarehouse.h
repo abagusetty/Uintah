@@ -286,7 +286,7 @@ public:
                             const PatchSubset*, const MaterialSubset*, void * detailedTask,
                             bool replace, const PatchSubset*) = 0;
 
-  virtual size_t emit(OutputContext&, const VarLabel* label,
+  virtual std::size_t emit(OutputContext&, const VarLabel* label,
         int matlIndex, const Patch* patch) = 0;
 
 #if HAVE_PIDX
@@ -295,7 +295,7 @@ public:
                         int matlIndex,
                         const Patch* patch,
                         unsigned char* buffer,
-                        size_t bufferSize) = 0;
+                        std::size_t bufferSize) = 0;
 #endif
 
 

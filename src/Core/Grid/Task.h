@@ -36,6 +36,10 @@
 #include <Core/Util/DOUT.hpp>
 #include <Core/Util/TupleHelpers.hpp>
 
+#include <sci_defs/cuda_defs.h>
+#include <sci_defs/hip_defs.h>
+#include <sci_defs/sycl_defs.h>
+
 #include <set>
 #include <vector>
 #include <string>
@@ -101,8 +105,8 @@ protected: // class Task
                        ,       DataWarehouse  * toDW
                        ,       void           * oldTaskGpuDW
                        ,       void           * newTaskGpuDW
-                       ,       void           * stream
-                       ,       int              deviceID
+                       ,       gpuStream_t    * stream
+                       ,       unsigned short   deviceID
                        ) = 0;
   };
 
@@ -154,8 +158,8 @@ private: // class Task
                      ,       DataWarehouse  * toDW
                      ,       void           * oldTaskGpuDW
                      ,       void           * newTaskGpuDW
-                     ,       void           * stream
-                     ,       int              deviceID
+                     ,       gpuStream_t    * stream
+                     ,       unsigned short   deviceID
                      )
     {
       doit_impl(pg, patches, matls, fromDW, toDW, typename Tuple::gens<sizeof...(Args)>::type());
@@ -192,8 +196,8 @@ private: // class Task
                   ,       DataWarehouse  * toDW
                   ,       void           * oldTaskGpuDW
                   ,       void           * newTaskGpuDW
-                  ,       void           * stream
-                  ,       int              deviceID
+                  ,       gpuStream_t    * stream
+                  ,       unsigned short   deviceID
                   ,       Args...          args
                   );
     std::tuple<Args...> m_args;
@@ -211,8 +215,8 @@ private: // class Task
                                 ,       DataWarehouse  * toDW
                                 ,       void           * oldTaskGpuDW
                                 ,       void           * newTaskGpuDW
-                                ,       void           * stream
-                                ,       int              deviceID
+                                ,       gpuStream_t    * stream
+                                ,       unsigned short   deviceID
                                 ,       Args...          args
                                 )
                , Args... args
@@ -233,11 +237,12 @@ private: // class Task
                      ,       DataWarehouse  * toDW
                      ,       void           * oldTaskGpuDW
                      ,       void           * newTaskGpuDW
-                     ,       void           * stream
-                     ,       int              deviceID
+                     ,       gpuStream_t    * stream
+                     ,       unsigned short   deviceID
                      )
     {
-      doit_impl(dtask, event, pg, patches, matls, fromDW, toDW, oldTaskGpuDW, newTaskGpuDW, stream, deviceID, typename Tuple::gens<sizeof...(Args)>::type());
+      doit_impl(dtask, event, pg, patches, matls, fromDW, toDW, oldTaskGpuDW, newTaskGpuDW, stream, deviceID,
+		typename Tuple::gens<sizeof...(Args)>::type());
     }
 
   private : // class ActionDevice
@@ -252,28 +257,28 @@ private: // class Task
                   ,       DataWarehouse  * toDW
                   ,       void           * oldTaskGpuDW
                   ,       void           * newTaskGpuDW
-                  ,       void           * stream
-                  ,       int              deviceID
+                  ,       gpuStream_t    * stream
+                  ,       unsigned short   deviceID
                   ,       Tuple::seq<S...>
                   )
       {
-        (ptr->*pmf)(dtask, event, pg, patches, matls, fromDW, toDW, oldTaskGpuDW, newTaskGpuDW, stream, deviceID, std::get<S>(m_args)...);
+        (ptr->*pmf)(dtask, event, pg, patches, matls, fromDW, toDW, oldTaskGpuDW, newTaskGpuDW, stream, deviceID,
+		    std::get<S>(m_args)...);
       }
 
   };  // end GPU (device) Action constructor
 
-
 public: // class Task
 
   enum WhichDW {
-     None        = -1
-  ,  OldDW       = 0
-  ,  NewDW       = 1
-  ,  CoarseOldDW = 2
-  ,  CoarseNewDW = 3
-  ,  ParentOldDW = 4
-  ,  ParentNewDW = 5
-  ,  TotalDWs    = 6
+    None        = -1
+    ,  OldDW       = 0
+    ,  NewDW       = 1
+    ,  CoarseOldDW = 2
+    ,  CoarseNewDW = 3
+    ,  ParentOldDW = 4
+    ,  ParentNewDW = 5
+    ,  TotalDWs    = 6
   };
 
   enum {
@@ -321,6 +326,7 @@ public: // class Task
     initialize();
   }
 
+//#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   // Device (GPU) Task constructor
   template<typename T, typename... Args>
   Task( const std::string & taskName
@@ -334,8 +340,8 @@ public: // class Task
                       ,       DataWarehouse  * toDW
                       ,       void           * old_TaskGpuDW
                       ,       void           * new_TaskGpuDW
-                      ,       void           * stream
-                      ,       int              deviceID
+                      ,       gpuStream_t    * stream
+                      ,       unsigned short   deviceID
                       ,       Args...          args
                       )
       , Args... args
@@ -346,6 +352,7 @@ public: // class Task
     initialize();
     d_tasktype = Normal;
   }
+//#endif // HAVE_CUDA, HAVE_SYCL
 
   void initialize();
 
@@ -360,9 +367,8 @@ public: // class Task
          void usesThreads(bool state);
   inline bool usesThreads() const { return m_uses_threads; }
 
-         void usesDevice(bool state, int maxStreamsPerTask = 1);
+  void usesDevice(bool state);
   inline bool usesDevice() const { return m_uses_device; }
-  inline int  maxStreamsPerTask() const { return  m_max_streams_per_task; }
 
   enum MaterialDomainSpec {
       NormalDomain  // <- Normal/default setting
@@ -615,11 +621,20 @@ public: // class Task
                    , const PatchSubset                 *
                    , const MaterialSubset              *
                    ,       std::vector<DataWarehouseP> & dws
+                   );
+//#if defined(HAVE_CUDA) && defined(HAVE_SYCL)
+  virtual void doit(       DetailedTask                * task
+                   ,       CallBackEvent                 event
+                   , const ProcessorGroup              * pg
+                   , const PatchSubset                 *
+                   , const MaterialSubset              *
+                   ,       std::vector<DataWarehouseP> & dws
                    ,       void                        * oldTaskGpuDW
                    ,       void                        * newTaskGpuDW
-                   ,       void                        * stream
-                   ,       int                           deviceID
+                   ,       gpuStream_t                 * stream
+                   ,       unsigned short                deviceID
                    );
+//#endif // HAVE_CUDA, HAVE_SYCL
 
   inline const std::string & getName() const { return m_task_name; }
 
@@ -856,7 +871,6 @@ protected: // class Task
   bool m_uses_mpi{false};
   bool m_uses_threads{false};
   bool m_uses_device{false};
-  int  m_max_streams_per_task{1};
   bool m_subpatch_capable{false};
   bool m_has_subscheduler{false};
 

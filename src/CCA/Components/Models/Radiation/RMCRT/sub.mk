@@ -27,8 +27,7 @@
 SRCDIR := CCA/Components/Models/Radiation/RMCRT
 
 SRCS += $(SRCDIR)/RMCRTCommon.cc \
-        $(SRCDIR)/Radiometer.cc \
-        $(SRCDIR)/RayGPU.cc
+        $(SRCDIR)/Radiometer.cc
 
 ifeq ($(HAVE_KOKKOS),yes)
   SRCS += $(SRCDIR)/RayKokkos.cc
@@ -36,13 +35,19 @@ else
   SRCS += $(SRCDIR)/Ray.cc
 endif
 
-ifneq ($(HAVE_CUDA),)
-  SRCS += $(SRCDIR)/RayGPUKernel.cu
+ifeq ($(HAVE_CUDA),yes)
+  SRCS += $(SRCDIR)/RayGPU.cc \
+	  $(SRCDIR)/RayGPUKernel.cu
   DLINK_FILES += CCA/Components/Models/Radiation/RMCRT/RayGPUKernel.o
+endif
+
+ifeq ($(HAVE_SYCL),yes)
+  SRCS += $(SRCDIR)/RayGPU.cc \
+	  $(SRCDIR)/RayGPUKernel.cc
 endif
 
 LIBS :=
 
-ifneq ($(HAVE_CUDA),)
+ifeq ($(HAVE_CUDA),yes)
   LIBS := $(LIBS) $(CUDA_LIBRARY)
 endif

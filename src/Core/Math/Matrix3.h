@@ -250,8 +250,6 @@ namespace Uintah {
     inline bool solve(Vector rhs, Vector& xp,
                       std::vector<Vector>& xg_basis,
                       double relative_scale /* MaxAbsElem() suggested */) const;
-    //! support dynamic compilation
-     static const std::string& get_h_file_path();
 
     /*! Calculate eigenvalues */
      void eigen(Vector& eval, Matrix3& evec);

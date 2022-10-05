@@ -2355,7 +2355,7 @@ ProblemSpecReader::recursiveFindElementTag( xmlNode *   nodeTree,
         // If this is the last element in the xmlPath "apples" then search
         // for the correct attribute(s) "type" & "size" and value(s) "granny" & "small"
 
-        if ( (i == elements.size() -1 ) ){
+        if ( i == elements.size()-1 ){
 
           const int depth = 0;
           bool foundAllAttr = findAttributeValue( node, nodeAttributes, depth );

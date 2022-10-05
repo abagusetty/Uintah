@@ -28,11 +28,13 @@
 #include <Core/Parallel/MasterLock.h>
 #include <Core/Util/DebugStream.h>
 
+#ifndef HAVE_SYCL
 extern Uintah::MasterLock cerrLock;
 
 namespace Uintah {
   extern DebugStream gpu_stats;
 }
+#endif
 
 using LabelPatchMatlLevelDW  = GpuUtilities::LabelPatchMatlLevelDw;
 using TupleVariableMap       = std::map<LabelPatchMatlLevelDW, DeviceGridVariableInfo>;
@@ -44,8 +46,8 @@ DeviceGridVariableInfo::DeviceGridVariableInfo(       Variable          * var
                                               ,       DeviceVarDest       dest
                                               ,       bool                staging
                                               ,       IntVector           sizeVector
-                                              ,       size_t              sizeOfDataType
-                                              ,       size_t              varMemSize
+                                              ,       std::size_t              sizeOfDataType
+                                              ,       std::size_t              varMemSize
                                               ,       IntVector           offset
                                               ,       int                 matlIndx
                                               ,       int                 levelIndx
@@ -77,8 +79,8 @@ DeviceGridVariableInfo::DeviceGridVariableInfo(       Variable          * var
 DeviceGridVariableInfo::DeviceGridVariableInfo(       Variable         * var
                                               ,       DeviceVarDest      dest
                                               ,       bool               staging
-                                              ,       size_t             sizeOfDataType
-                                              ,       size_t             varMemSize
+                                              ,       std::size_t             sizeOfDataType
+                                              ,       std::size_t             varMemSize
                                               ,       int                matlIndx
                                               ,       int                levelIndx
                                               , const Patch            * patchPointer
@@ -117,8 +119,8 @@ DeviceGridVariables::add( const Patch            * patchPointer
                         ,       int                levelIndx
                         ,       bool               staging
                         ,       IntVector          sizeVector
-                        ,       size_t             varMemSize
-                        ,       size_t             sizeOfDataType
+                        ,       std::size_t             varMemSize
+                        ,       std::size_t             sizeOfDataType
                         ,       IntVector          offset
                         , const Task::Dependency * dep
                         ,       Ghost::GhostType   gtype
@@ -136,6 +138,7 @@ DeviceGridVariables::add( const Patch            * patchPointer
   for (auto it = ret.first; it != ret.second; ++it) {
     if (it->second == tmp) {
       if (staging) {
+        #ifndef HAVE_SYCL
         if (gpu_stats.active()) {
           cerrLock.lock();
           {
@@ -152,7 +155,7 @@ DeviceGridVariables::add( const Patch            * patchPointer
           }
           cerrLock.unlock();
         }
-
+        #endif
         return;
 
       } else {
@@ -198,6 +201,7 @@ DeviceGridVariables::add( const Patch            * patchPointer
 
   // contiguous array calculations
   vars.insert( TupleVariableMap::value_type( lpmld, tmp ) );
+  #ifndef HAVE_SYCL
   if (gpu_stats.active()) {
     cerrLock.lock();
     {
@@ -215,7 +219,7 @@ DeviceGridVariables::add( const Patch            * patchPointer
     }
     cerrLock.unlock();
   }
-
+  #endif
   // TODO: Do we bother refining it if one copy is wholly inside another one?
 }
 
@@ -227,8 +231,8 @@ void
 DeviceGridVariables::add( const Patch            * patchPointer
                         ,       int                matlIndx
                         ,       int                levelIndx
-                        ,       size_t             varMemSize
-                        ,       size_t             sizeOfDataType
+                        ,       std::size_t             varMemSize
+                        ,       std::size_t             sizeOfDataType
                         , const Task::Dependency * dep
                         ,       unsigned int       whichGPU
                         ,       Variable         * var
@@ -288,6 +292,7 @@ DeviceGridVariables::varAlreadyExists( const VarLabel * label
   std::pair <TupleVariableMultiMap::iterator, TupleVariableMultiMap::iterator> ret = vars.equal_range(lpmld);
   for (auto it = ret.first; it != ret.second; ++it) {
     if (it->second.m_staging == false) {
+      #ifndef HAVE_SYCL
       if (gpu_stats.active()) {
           cerrLock.lock();
           {
@@ -302,9 +307,11 @@ DeviceGridVariables::varAlreadyExists( const VarLabel * label
           }
           cerrLock.unlock();
        }
+      #endif
       return true;
     }
   }
+  #ifndef HAVE_SYCL
   if (gpu_stats.active()) {
     cerrLock.lock();
     {
@@ -319,6 +326,7 @@ DeviceGridVariables::varAlreadyExists( const VarLabel * label
     }
     cerrLock.unlock();
   }
+  #endif
   return false;
 }
 
@@ -353,7 +361,7 @@ void
 DeviceGridVariables::addTaskGpuDWVar( const Patch            * patchPointer
                                     ,       int                matlIndx
                                     ,       int                levelIndx
-                                    ,       size_t             sizeOfDataType
+                                    ,       std::size_t             sizeOfDataType
                                     , const Task::Dependency * dep
                                     ,       unsigned int       whichGPU
                                     )
@@ -386,6 +394,7 @@ DeviceGridVariables::addTaskGpuDWVar( const Patch            * patchPointer
   // Should contiguous arrays be organized by task???
   DeviceGridVariableInfo tmp(nullptr, GpuUtilities::unknown, false, sizeOfDataType, 0, matlIndx, levelIndx, patchPointer, dep, whichGPU);
   vars.insert( TupleVariableMap::value_type( lpmld, tmp ) );
+  #ifndef HAVE_SYCL
   if (gpu_stats.active()) {
     cerrLock.lock();
     {
@@ -401,6 +410,7 @@ DeviceGridVariables::addTaskGpuDWVar( const Patch            * patchPointer
     }
     cerrLock.unlock();
   }
+  #endif
 }
 
 
@@ -412,12 +422,11 @@ DeviceGridVariables::addTaskGpuDWStagingVar( const Patch            * patchPoint
                                            ,       int                levelIndx
                                            ,       IntVector          offset
                                            ,       IntVector          sizeVector
-                                           ,       size_t             sizeOfDataType
+                                           ,       std::size_t        sizeOfDataType
                                            , const Task::Dependency * dep
                                            ,       unsigned int       whichGPU
                                            )
 {
-
   //Since this is a queue, we aren't likely to have the parent variable of the staging var,
   //as that likely went into the regular host-side gpudw as a computes in the last timestep.
   //Just make sure we haven't already added this exact staging variable.
@@ -427,22 +436,6 @@ DeviceGridVariables::addTaskGpuDWStagingVar( const Patch            * patchPoint
   for (auto it = ret.first; it != ret.second; ++it) {
     if (it->second.m_staging == true && it->second.m_sizeVector == sizeVector && it->second.m_offset == offset) {
       //Don't add the same device var twice.
-      if (gpu_stats.active()) {
-        cerrLock.lock();
-        {
-          gpu_stats << UnifiedScheduler::myRankThread()
-              << " DeviceGridVariables::addTaskGpuDWStagingVar() - "
-              << " This preparation queue for a task datawarehouse already added this exact staging variable.  No need to add it again.  For label "
-              << dep->m_var->getName()
-              << " patch " << patchPointer->getID()
-              << " matl " << matlIndx
-              << " level " << levelIndx
-              << " offset (" << offset.x() << ", " << offset.y() << ", " << offset.z() << ")"
-              << " size (" << sizeVector.x() << ", " << sizeVector.y() << ", " << sizeVector.z() << ")"
-              << std::endl;
-        }
-        cerrLock.unlock();
-      }
       return;
     }
   }
@@ -453,33 +446,15 @@ DeviceGridVariables::addTaskGpuDWStagingVar( const Patch            * patchPoint
      di.totalVars[dep->mapDataWarehouse()] = 1;
      totalVars = 1;
      deviceInfoMap.insert(std::pair<unsigned int, DeviceInfo>(whichGPU, di));
-
    } else {
      DeviceInfo & di = deviceInfoMap[whichGPU];
      di.totalVars[dep->mapDataWarehouse()] += 1;
      totalVars = di.totalVars[dep->mapDataWarehouse()];
    }
 
-  size_t varMemSize = sizeVector.x() * sizeVector.y() * sizeVector.z() * sizeOfDataType;
+  std::size_t varMemSize = sizeVector.x() * sizeVector.y() * sizeVector.z() * sizeOfDataType;
   DeviceGridVariableInfo tmp(nullptr, GpuUtilities::unknown, true, sizeVector, sizeOfDataType, varMemSize , offset, matlIndx, levelIndx, patchPointer, dep, Ghost::None, 0, whichGPU);
   vars.insert( TupleVariableMap::value_type( lpmld, tmp ) );
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-          << " DeviceGridVariables::addTaskGpuDWStagingVar() - "
-          << "Added into preparation queue for a task datawarehouse for a variable for label "
-          << dep->m_var->getName()
-          << " patch " << patchPointer->getID()
-          << " matl " << matlIndx
-          << " level " << levelIndx
-          << " staging true"
-          << " offset (" << offset.x() << ", " << offset.y() << ", " << offset.z() << ")"
-          << " size (" << sizeVector.x() << ", " << sizeVector.y() << ", " << sizeVector.z() << ")"
-          << " totalVars is: " << totalVars << std::endl;
-    }
-    cerrLock.unlock();
-  }
 }
 
 
@@ -500,6 +475,7 @@ DeviceGridVariables::addVarToBeGhostReady( const std::string      & taskName
   if (ret.first == ret.second) {
     DeviceGridVariableInfo tmp(nullptr, GpuUtilities::unknown, false, 0, 0, matlIndx, levelIndx, patchPointer, dep, whichGPU);
     vars.insert(TupleVariableMap::value_type(lpmld, tmp));
+    #ifndef HAVE_SYCL
     if (gpu_stats.active()) {
       cerrLock.lock();
       {
@@ -513,6 +489,7 @@ DeviceGridVariables::addVarToBeGhostReady( const std::string      & taskName
       }
       cerrLock.unlock();
     }
+    #endif
   }
 }
 
@@ -545,7 +522,7 @@ DeviceGridVariables::getStagingItem( const std::string & label
 
 //______________________________________________________________________
 //
-size_t
+std::size_t
 DeviceGridVariables::getTotalSize( const unsigned int whichGPU )
 {
   return deviceInfoMap[whichGPU].totalSize;
@@ -554,7 +531,7 @@ DeviceGridVariables::getTotalSize( const unsigned int whichGPU )
 
 //______________________________________________________________________
 //
-size_t DeviceGridVariables::getSizeForDataWarehouse( const unsigned int whichGPU, const int dwIndex )
+std::size_t DeviceGridVariables::getSizeForDataWarehouse( const unsigned int whichGPU, const int dwIndex )
 {
   return deviceInfoMap[whichGPU].totalSizeForDataWarehouse[dwIndex];
 }
@@ -607,7 +584,7 @@ DeviceGridVariables::getTotalLevels( const unsigned int whichGPU, const int DWIn
 //______________________________________________________________________
 //
 void
-GpuUtilities::assignPatchesToGpus(const GridP& grid){
+GpuUtilities::assignPatchesToGpus(const GridP& grid) {
 
   unsigned int currentAcceleratorCounter = 0;
   int numDevices = OnDemandDataWarehouse::getNumDevices();
@@ -628,6 +605,7 @@ GpuUtilities::assignPatchesToGpus(const GridP& grid){
       }
     }
   }
+  
 }
 
 

@@ -201,7 +201,7 @@ void meanTurbFluxes::problemSetup(const ProblemSpecP &,
   pv2->label  = d_velocityVar->shearTurbStrssLabel;
   pv2->fileDesc   = "u'v'__________________v'w'______________w'u'";
 
-  planarVars.push_back( move(pv2) );
+  planarVars.push_back( std::move(pv2) );
 
 
   //__________________________________
@@ -267,7 +267,7 @@ void meanTurbFluxes::problemSetup(const ProblemSpecP &,
     me->label         = label;
     me->primeLabel    = primeLabel;
     me->turbFluxLabel = turbFluxLabel;
-    d_Qvars.push_back( move(me) );
+    d_Qvars.push_back( std::move(me) );
 
     // planarAve specs
     auto pv        = make_unique< PA::planarVar_Vector >();
@@ -279,7 +279,7 @@ void meanTurbFluxes::problemSetup(const ProblemSpecP &,
     pv->weightType = PA::NCELLS;
     pv->fileDesc   = "u'Q'_________________v'Q'__________________w'Q'";
 
-    planarVars.push_back( move(pv) );
+    planarVars.push_back( std::move(pv) );
   }
 
   d_planeAve_2->setAllLevels_planarVars( 0, planarVars );

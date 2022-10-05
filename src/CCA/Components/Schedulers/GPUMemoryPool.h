@@ -22,108 +22,58 @@
  * IN THE SOFTWARE.
  */
 
+#pragma once
 
-#ifndef CCA_COMPONENTS_SCHEDULERS_GPUMEMORYPOOL_H
-#define CCA_COMPONENTS_SCHEDULERS_GPUMEMORYPOOL_H
+#include <CCA/Components/Schedulers/GPUStreamPool.h>
 
-#include <sci_defs/cuda_defs.h>
-#include <CCA/Components/Schedulers/DetailedTasks.h>
-#include <CCA/Components/Schedulers/UnifiedScheduler.h> //For myRankThread()
-#include <map>
-#include <queue>
+#include <CCA/Components/Schedulers/mr/device_memory_resource.hpp>
+#include <CCA/Components/Schedulers/mr/gpu_memory_resource.hpp>
+#include <CCA/Components/Schedulers/mr/per_device_resource.hpp>
+#include <CCA/Components/Schedulers/mr/pool_memory_resource.hpp>
 
 namespace Uintah {
 
-class GPUStreamPool;
+  class GPUMemoryPool {
+  protected:
+    using pool_mr = rmm::mr::pool_memory_resource<rmm::mr::device_memory_resource>;
+    std::vector<std::unique_ptr<pool_mr>> per_device_mr_;
 
-class GPUMemoryPool;
-
-class GPUMemoryPool {
-
-public:
-
-  struct gpuMemoryPoolDevicePtrValue {
-    unsigned int timestep;
-    size_t       size;
-  };
-  struct gpuMemoryPoolDevicePtrItem {
-
-    unsigned int  device_id;
-    void*         ptr;
-
-
-    gpuMemoryPoolDevicePtrItem(unsigned int device_id, void* ptr) {
-      this->device_id = device_id;
-      this->ptr = ptr;
-    }
-
-    //This so it can be used in an STL map
-    bool operator<(const gpuMemoryPoolDevicePtrItem& right) const {
-      if (this->device_id < right.device_id) {
-        return true;
-      } else if ((this->device_id == right.device_id) && (this->ptr < right.ptr)) {
-        return true;
-      } else {
-        return false;
+  private:
+    GPUMemoryPool() {
+      // GPU Stream Pool as singleton object
+      // It is important to set-device first before getting a stream handle from pool
+      auto& streamPool = GPUStreamPool<>::getInstance();
+      
+      int ngpus{};
+      gpuGetDeviceCount(&ngpus);
+      for (int devID=0; devID<ngpus; devID++) {
+	gpuSetDevice(devID);
+	auto dev_stream = streamPool.getDefaultGpuStreamFromPool(devID);
+	per_device_mr_.push_back( std::make_unique<pool_mr>(rmm::mr::get_per_device_resource(devID), dev_stream) );
       }
     }
-  };
 
-  struct gpuMemoryPoolDeviceSizeValue {
-    void * ptr;
-  };
-
-  struct gpuMemoryPoolDeviceSizeItem {
-
-    unsigned int  device_id;
-    size_t        deviceSize;
-
-    gpuMemoryPoolDeviceSizeItem(unsigned int device_id, size_t deviceSize) {
-     this->device_id = device_id;
-     this->deviceSize = deviceSize;
+  public:
+    void* allocateGpuSpaceFromPool(int device_id, std::size_t memSize) {
+      auto& streamPool = GPUStreamPool<>::getInstance();
+      void *addr = per_device_mr_[device_id].get()->allocate(memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
+      return addr;
     }
-    //This so it can be used in an STL map
-    bool operator<(const gpuMemoryPoolDeviceSizeItem& right) const {
-      if (this->device_id < right.device_id) {
-        return true;
-      } else if ((this->device_id == right.device_id) && (this->deviceSize < right.deviceSize)) {
-        return true;
-      } else {
-        return false;
-      }
+    void freeGpuSpaceToPool(int device_id, void* addr, std::size_t memSize) {
+      auto& streamPool = GPUStreamPool<>::getInstance();
+      per_device_mr_[device_id].get()->deallocate(addr, memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
     }
+    
+    /// Returns the instance of GPUMemoryPool singleton.
+    inline static GPUMemoryPool& getInstance() {
+      static GPUMemoryPool m_mempool_{};
+      return m_mempool_;
+    }
+
+    GPUMemoryPool(const GPUMemoryPool&)            = delete;
+    GPUMemoryPool& operator=(const GPUMemoryPool&) = delete;
+    GPUMemoryPool(GPUMemoryPool&&)                 = delete;
+    GPUMemoryPool& operator=(GPUMemoryPool&&)      = delete;
   };
 
-  static void* allocateCudaSpaceFromPool(unsigned int device_id, size_t memSize);
-
-  static bool freeCudaSpaceFromPool(unsigned int device_id, void* addr);
-
-  static void reclaimCudaStreamsIntoPool( DetailedTask * dtask );
-
-  static void freeCudaStreamsFromPool();
-
-  static cudaStream_t* getCudaStreamFromPool( int device );
-
-private:
-
-  //For a given device and address, holds the timestep
-  static std::multimap<gpuMemoryPoolDevicePtrItem, gpuMemoryPoolDevicePtrValue> *gpuMemoryPoolInUse;
-
-  static std::multimap<gpuMemoryPoolDeviceSizeItem, gpuMemoryPoolDeviceSizeValue> *gpuMemoryPoolUnused;
-
-  // thread shared data, needs lock protection when accessed
-
-  //Operations within the same stream are ordered (FIFO) and cannot overlap.
-  //Operations in different streams are unordered and can overlap
-  //For this reason we let each task own a stream, as we want one task to be able to run
-  //if it is ready to do work even if another task is not yet ready.  It also enables us
-  //to easily determine when a computed variable is "valid" because when that task's stream
-  //completes, then we can infer the variable is ready to go.  More about how a task claims a
-  //stream can be found in DetailedTasks.cc
-  static std::map <unsigned int, std::queue<cudaStream_t*> > * s_idle_streams;
-
-};
-
-} //end namespace
-
-#endif // CCA_COMPONENTS_SCHEDULERS_GPUMEMORYPOOL_H
+} // namespace Uintah

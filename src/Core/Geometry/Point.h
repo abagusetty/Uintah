@@ -90,9 +90,6 @@ public:
 
   std::string get_string() const;
 
-  //! support dynamic compilation
-  static const std::string& get_h_file_path();
-    
   friend class Vector;
   friend inline double Dot(const Point&, const Point&);
   friend inline double Dot(const Vector&, const Point&);

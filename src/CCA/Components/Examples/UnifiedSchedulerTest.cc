@@ -287,7 +287,7 @@ void UnifiedSchedulerTest::timeAdvance(       DetailedTask        * task
 
       launchUnifiedSchedulerTestKernel( dimGrid
                                       , dimBlock
-                                      , (cudaStream_t*)stream
+                                      , (gpuStream_t*)stream
                                       , patch->getID()
                                       , patchNodeLowIndex
                                       , patchNodeHighIndex

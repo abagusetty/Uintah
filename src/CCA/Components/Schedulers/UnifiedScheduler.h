@@ -22,18 +22,21 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef CCA_COMPONENTS_SCHEDULERS_UNIFIEDSCHEDULER_H
-#define CCA_COMPONENTS_SCHEDULERS_UNIFIEDSCHEDULER_H
+#pragma once
+// #ifndef CCA_COMPONENTS_SCHEDULERS_UNIFIEDSCHEDULER_H
+// #define CCA_COMPONENTS_SCHEDULERS_UNIFIEDSCHEDULER_H
 
 #include <CCA/Components/Schedulers/MPIScheduler.h>
 
-#ifdef HAVE_CUDA
+#if defined( HAVE_CUDA ) || defined( HAVE_SYCL )
+  #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
   #include <CCA/Components/Schedulers/GPUMemoryPool.h>
+  #include <CCA/Components/Schedulers/GPUStreamPool.h>
+  #include <sci_defs/cuda_defs.h>
+  #include <sci_defs/sycl_defs.h>
 #endif
-
-#include <sci_defs/cuda_defs.h>
 
 #include <map>
 #include <string>
@@ -49,7 +52,7 @@ class UnifiedSchedulerWorker;
 
 CLASS
    UnifiedScheduler
-   
+
 
 GENERAL INFORMATION
    UnifiedScheduler.h
@@ -58,7 +61,7 @@ GENERAL INFORMATION
    Scientific Computing and Imaging Institute
    University of Utah
 
-   
+
 KEYWORDS
    Task Scheduler, Multi-threaded MPI, CPU, GPU
 
@@ -72,15 +75,14 @@ DESCRIPTION
 
    Uintah task scheduler to support, schedule and execute solely CPU tasks
    or some combination of CPU and GPU tasks when enabled.
-  
+
 WARNING
    This scheduler is still EXPERIMENTAL and undergoing extensive
    development, not all tasks/components are GPU-enabled and/or thread-safe yet.
-   
-   Requires MPI_THREAD_MULTIPLE support.
-  
-****************************************/
 
+   Requires MPI_THREAD_MULTIPLE support.
+
+****************************************/
 
 class UnifiedScheduler : public MPIScheduler  {
 
@@ -90,25 +92,27 @@ class UnifiedScheduler : public MPIScheduler  {
                       UnifiedScheduler * parentScheduler = nullptr );
 
     virtual ~UnifiedScheduler();
-    
-    static int verifyAnyGpuActive();  // used only to check if this Uintah build can communicate with a GPU.  This function exits the program
-    
+
     virtual void problemSetup( const ProblemSpecP & prob_spec, const MaterialManagerP & materialManager );
-      
+
     virtual SchedulerP createSubScheduler();
-    
+
     virtual void execute( int tgnum = 0, int iteration = 0 );
-    
+
     virtual bool useInternalDeps() { return !m_is_copy_data_timestep; }
-    
+
     void runTask( DetailedTask * dtask , int iteration , int thread_id , Task::CallBackEvent event );
 
     void runTasks( int thread_id );
 
+  // TODO: Ideally, this number should be determined from the CUDA arch during the
+  // CMAKE/configure step so that future programmers don't have to manually remember to
+  // update this value if it ever changes.
+#ifdef HAVE_CUDA
     static const int bufferPadding = 128;  // 32 threads can write floats out in one coalesced access.  (32 * 4 bytes = 128 bytes).
-                                           // TODO: Ideally, this number should be determined from the CUDA arch during the
-                                           // CMAKE/configure step so that future programmers don't have to manually remember to
-                                           // update this value if it ever changes.
+#elif HAVE_SYCL
+    static const int bufferPadding = 128;  // 32 threads can write floats out in one coalesced access.  (32 * 4 bytes = 128 bytes).
+#endif
 
     // timing statistics for Uintah infrastructure overhead
     enum ThreadStatsEnum {
@@ -118,7 +122,7 @@ class UnifiedScheduler : public MPIScheduler  {
       , NumTasks
       , NumPatches
     };
-    
+
     VectorInfoMapper< ThreadStatsEnum, double > m_thread_info;
 
     static std::string myRankThread();
@@ -153,7 +157,17 @@ class UnifiedScheduler : public MPIScheduler  {
     bool     m_abort{false};
     int      m_abort_point{0};
 
-#ifdef HAVE_CUDA
+#ifdef HAVE_SYCL
+  // TODO: ABB 05/20/22, this variable is not being used, the original purpose could
+  // be to use a combination of stream-events to track async-work with cudaEventQuery().
+  // But the current infrastructure uses, cudaStreamQuery() which makes explicit
+  // cudaEventQuery obsolete.
+  // [SYCL] For SYCL, since there is no sycl::queue query status available, we've to use
+  //        std::vector<sycl::events> to track the progress for each sycl::queue.
+    std::vector<std::queue<gpuEvent_t*> >               m_idle_events;
+#endif
+  
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
     using DeviceVarDest = GpuUtilities::DeviceVarDestination;
 
@@ -188,14 +202,14 @@ class UnifiedScheduler : public MPIScheduler  {
 
     void initiateH2DCopies( DetailedTask * dtask );
 
-    void turnIntoASuperPatch(GPUDataWarehouse* const       gpudw, 
-                             const Level* const            level, 
+    void turnIntoASuperPatch(GPUDataWarehouse* const       gpudw,
+                             const Level* const            level,
                              const IntVector&              low,
                              const IntVector&              high,
-                             const VarLabel* const         label, 
-                             const Patch * const           patch, 
-                             const int                     matlIndx, 
-                             const int                     levelID ); 
+                             const VarLabel* const         label,
+                             const Patch * const           patch,
+                             const int                     matlIndx,
+                             const int                     levelID );
 
     void prepareDeviceVars( DetailedTask * dtask );
 
@@ -220,18 +234,6 @@ class UnifiedScheduler : public MPIScheduler  {
     bool allHostVarsProcessingReady( DetailedTask * dtask );
 
     bool allGPUVarsProcessingReady( DetailedTask * dtask );
-
-    void reclaimCudaStreamsIntoPool( DetailedTask * dtask );
-
-    void freeCudaStreamsFromPool();
-
-    cudaStream_t* getCudaStreamFromPool( int device );
-
-    cudaError_t freeDeviceRequiresMem();
-
-    cudaError_t freeComputesMem();
-
-    void assignDevice( DetailedTask * task );
 
     struct GPUGridVariableInfo {
 
@@ -263,10 +265,8 @@ class UnifiedScheduler : public MPIScheduler  {
 
     std::map<VarLabelMatl<Patch>, GPUGridVariableInfo>  m_host_requires_ptrs;
     std::map<VarLabelMatl<Patch>, GPUGridVariableInfo>  m_host_computes_ptrs;
-    std::vector<std::queue<cudaEvent_t*> >              m_idle_events;
 
     int  m_num_devices;
-    int  m_current_device;
 
     std::vector< std::string > m_material_names;
 
@@ -309,14 +309,14 @@ class UnifiedScheduler : public MPIScheduler  {
         Task::DepType m_depType;
     };
 
-#endif
+#endif // HAVE_CUDA, HAVE_SYCL
 };
 
 
 class UnifiedSchedulerWorker {
 
 public:
-  
+
   UnifiedSchedulerWorker( UnifiedScheduler * scheduler, int tid, int affinity );
 
   void run();
@@ -328,7 +328,7 @@ public:
   void   startWaitTime();
   void   stopWaitTime();
   void   resetWaitTime();
-  
+
   friend class UnifiedScheduler;
 
 private:
@@ -343,5 +343,5 @@ private:
 };
 
 } // namespace Uintah
-   
-#endif // CCA_COMPONENTS_SCHEDULERS_UNIFIEDSCHEDULER_H
+
+// #endif // CCA_COMPONENTS_SCHEDULERS_UNIFIEDSCHEDULER_H

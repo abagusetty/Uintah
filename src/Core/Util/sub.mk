@@ -54,6 +54,10 @@ endif
 
 PSELIBS := Core/Containers Core/Exceptions Core/Malloc
 
-LIBS := $(DL_LIBRARY) $(Z_LIBRARY) $(CUDA_LIBRARY)
+ifeq ($(HAVE_CUDA),yes)
+  LIBS := $(DL_LIBRARY) $(Z_LIBRARY) $(CUDA_LIBRARY)
+else
+  LIBS := $(DL_LIBRARY) $(Z_LIBRARY)
+endif
 
 include $(SCIRUN_SCRIPTS)/smallso_epilogue.mk

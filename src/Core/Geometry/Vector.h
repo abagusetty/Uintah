@@ -140,9 +140,6 @@ public:
     
   std::string get_string() const;
 
-  //! support dynamic compilation
-  static const std::string& get_h_file_path();
-
   friend class Point;
     
   friend inline Vector Interpolate(const Vector&, const Vector&, double);

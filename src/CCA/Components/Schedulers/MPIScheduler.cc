@@ -204,8 +204,8 @@ MPIScheduler::verifyChecksum()
   //  - make the checksum more sophisticated
   int checksum = 0;
   int numSpatialTasks = 0;
-  size_t num_graphs = m_task_graphs.size();
-  for (size_t i = 0; i < num_graphs; ++i) {
+  std::size_t num_graphs = m_task_graphs.size();
+  for (std::size_t i = 0; i < num_graphs; ++i) {
     checksum += m_task_graphs[i]->getTasks().size();
 
     // This begins addressing the issue of making the global checksum more sophisticated:
@@ -290,8 +290,8 @@ MPIScheduler::runTask( DetailedTask * dtask
     printTrackedVars(dtask, SchedulerCommon::PRINT_BEFORE_EXEC);
   }
   std::vector<DataWarehouseP> plain_old_dws(m_dws.size());
-  size_t num_dws = m_dws.size();
-  for (size_t i = 0; i < num_dws; i++) {
+  std::size_t num_dws = m_dws.size();
+  for (std::size_t i = 0; i < num_dws; i++) {
     plain_old_dws[i] = m_dws[i].get_rep();
   }
 
@@ -346,8 +346,8 @@ MPIScheduler::runTask( DetailedTask * dtask
 
   // Add subscheduler timings to the parent scheduler and reset subscheduler timings
   if (m_parent_scheduler) {
-    size_t num_elems = m_mpi_info.size();
-    for (size_t i = 0; i < num_elems; ++i) {
+    std::size_t num_elems = m_mpi_info.size();
+    for (std::size_t i = 0; i < num_elems; ++i) {
       m_parent_scheduler->m_mpi_info[i] += m_mpi_info[i];
     }
     m_mpi_info.reset(0);
@@ -1148,10 +1148,10 @@ MPIScheduler::outputTimingStats( const char* label )
       data.push_back(&d_maxtimes);
     }
 
-    for (size_t file = 0; file < files.size(); ++file) {
+    for (std::size_t file = 0; file < files.size(); ++file) {
       std::ofstream& out = *files[file];
       out << "TimeStep " << m_application->getTimeStep() << std::endl;
-      for (size_t i = 0; i < (*data[file]).size(); i++) {
+      for (std::size_t i = 0; i < (*data[file]).size(); i++) {
         out << label << ": " << m_labels[i] << ": ";
         int len = static_cast<int>(strlen(m_labels[i]) + strlen("MPIScheduler: ") + strlen(": "));
         for (int j = len; j < 55; j++)

@@ -43,7 +43,7 @@ UnionBCData::~UnionBCData()
   for (std::vector<BCGeomBase*>::const_iterator bc = child.begin();
        bc != child.end(); ++bc)
     delete (*bc);
-  
+
   child.clear();
 }
 
@@ -68,18 +68,18 @@ UnionBCData& UnionBCData::operator=(const UnionBCData& rhs)
     delete *itr;
 
   child.clear();
-  
+
   // copy the rhs to the lhs
   for (itr=rhs.child.begin(); itr != rhs.child.end();++itr)
     child.push_back((*itr)->clone());
-  
+
   return *this;
 }
 
 
 bool UnionBCData::operator==(const BCGeomBase& rhs) const
 {
-  const UnionBCData* p_rhs = 
+  const UnionBCData* p_rhs =
     dynamic_cast<const UnionBCData*>(&rhs);
 
   if (p_rhs == nullptr)
@@ -121,7 +121,7 @@ void UnionBCData::getBCData(BCData& bc) const
   child[0]->getBCData(bc);
 }
 
-bool UnionBCData::inside(const Point &p) const 
+bool UnionBCData::inside(const Point &p) const
 {
   for (std::vector<BCGeomBase*>::const_iterator i = child.begin(); i != child.end();
        ++i){
@@ -141,14 +141,14 @@ void UnionBCData::print()
 }
 
 
-void UnionBCData::determineIteratorLimits(Patch::FaceType face, 
-                                          const Patch* patch, 
-                                          std::vector<Point>& test_pts)
+void UnionBCData::determineIteratorLimits(const Patch::FaceType face,
+                                          const Patch* patch,
+                                          const std::vector<Point>& test_pts)
 {
 #if 0
   cout << "UnionBC determineIteratorLimits()" << endl;
 #endif
-std::cout << " \n\n You weren't suppose to get in UnionBCData::determineIteratorLimits! \n This function was determined to never be used, it was altered w/o being tested. To use, you may need to  pad iterators 'cells' and 'nodes' appropriately in source code\n";  
+std::cout << " \n\n You weren't suppose to get in UnionBCData::determineIteratorLimits! \n This function was determined to never be used, it was altered w/o being tested. To use, you may need to  pad iterators 'cells' and 'nodes' appropriately in source code\n";
 
   for (std::vector<BCGeomBase*>::const_iterator bc = child.begin();
        bc != child.end(); ++bc) {
@@ -167,8 +167,8 @@ std::cout << " \n\n You weren't suppose to get in UnionBCData::determineIterator
     nodes = UnionIterator(base_ni,node_itr);
   }
 
-  d_cells = UnionIterator(cells);   
-  d_nodes = UnionIterator(nodes); 
+  d_cells = UnionIterator(cells);
+  d_nodes = UnionIterator(nodes);
 
 
 
@@ -179,7 +179,7 @@ std::cout << " \n\n You weren't suppose to get in UnionBCData::determineIterator
   std::vector<IntVector> b,nb;
   std::vector<Point>::iterator pts;
   pts = test_pts.begin();
-  for (CellIterator bound(l,h); !bound.done(); bound++,pts++) 
+  for (CellIterator bound(l,h); !bound.done(); bound++,pts++)
     if (inside(*pts))
       b.push_back(*bound);
 
@@ -188,11 +188,11 @@ std::cout << " \n\n You weren't suppose to get in UnionBCData::determineIterator
   cout << "Size of boundary = " << boundary.size() << endl;
 #endif
   // Need to determine the boundary iterators for each separate bc.
-  for (std::vector<BCGeomBase*>::const_iterator bc = child.begin();  
+  for (std::vector<BCGeomBase*>::const_iterator bc = child.begin();
        bc != child.end(); ++bc) {
     pts = test_pts.begin();
     std::vector<IntVector> boundary_itr;
-    for (CellIterator bound(l,h); !bound.done(); bound++, pts++) 
+    for (CellIterator bound(l,h); !bound.done(); bound++, pts++)
       if ( (*bc)->inside(*pts))
         boundary_itr.push_back(*bound);
 #if 0
@@ -200,18 +200,17 @@ std::cout << " \n\n You weren't suppose to get in UnionBCData::determineIterator
 #endif
     (*bc)->setBoundaryIterator(boundary_itr);
   }
-    
+
   IntVector ln,hn;
   patch->getFaceNodes(face,0,ln,hn);
   for (NodeIterator bound(ln,hn);!bound.done();bound++) {
     Point p = patch->getLevel()->getNodePosition(*bound);
-    if (inside(p)) 
+    if (inside(p))
       nb.push_back(*bound);
   }
-  
+
   setNBoundaryIterator(nb);
 
 #endif
 
 }
-

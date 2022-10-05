@@ -2,17 +2,17 @@
 #  The MIT License
 #
 #  Copyright (c) 1997-2021 The University of Utah
-# 
+#
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
 #  deal in the Software without restriction, including without limitation the
 #  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 #  sell copies of the Software, and to permit persons to whom the Software is
 #  furnished to do so, subject to the following conditions:
-# 
+#
 #  The above copyright notice and this permission notice shall be included in
 #  all copies or substantial portions of the Software.
-# 
+#
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,9 +23,9 @@
 
 
 
-# configVars.mk.in holds all of the variables needed by the make 
+# configVars.mk.in holds all of the variables needed by the make
 # system to create makefiles. Various Makefiles can include this central
-# copy of the vars. This file has all of the variables and rules common to 
+# copy of the vars. This file has all of the variables and rules common to
 # all generated makefiles.
 
 # 'a' if archives, 'so' if shared libs.
@@ -53,7 +53,7 @@ endif
 
 # squash any output from noisy environments, we just want the pwd output
 LIBDIR_ABS    := $(shell mkdir -p $(LIBDIR) > /dev/null; cd $(LIBDIR)\
-	           > /dev/null; pwd) 
+	           > /dev/null; pwd)
 
 SCIRUN_LIBDIR := $(LIBDIR)
 
@@ -157,8 +157,8 @@ LAPACK_LIBRARY := @LAPACK_LIB_DIR_FLAG@ @LAPACK_LIB_FLAG@
 LAPACKMP_LIBRARY := @LAPACKMP_LIB_DIR_FLAG@ @LAPACKMP_LIB_FLAG@
 
 ifeq ($(IS_BGQ),yes)
-  CFLAGS   := $(CFLAGS) -DPETSC_RESTRICT=__restrict__ -DPETSC_DEPRECATED\(why\)= 
-  CXXFLAGS := $(CXXFLAGS) -DPETSC_RESTRICT=__restrict__ -DPETSC_DEPRECATED\(why\)= 
+  CFLAGS   := $(CFLAGS) -DPETSC_RESTRICT=__restrict__ -DPETSC_DEPRECATED\(why\)=
+  CXXFLAGS := $(CXXFLAGS) -DPETSC_RESTRICT=__restrict__ -DPETSC_DEPRECATED\(why\)=
 endif
 
 GPERFTOOLS_INCLUDE     := @INC_GPERFTOOLS_H@
@@ -177,6 +177,9 @@ HAVE_MPI := @HAVE_MPI@
 HAVE_CUDA        := @HAVE_CUDA@
 CUDA_INCLUDE     := @INC_CUDA_H@
 CUDA_LIBRARY     := @CUDA_LIB_DIR_FLAG@ @CUDA_LIB_FLAG@
+
+HAVE_HIP         := @HAVE_HIP@
+HAVE_SYCL        := @HAVE_SYCL@
 
 HAVE_TIFF := @HAVE_TIFF@
 TIFF_LIBRARY := @TIFF_LIB_FLAG@ @TIFF_LIB_DIR_FLAG@
@@ -199,7 +202,7 @@ endif
 # Convenience variables - compounded from above definitions
 
 DL_LIBRARY := @DL_LIB_DIR_FLAG@ @DL_LIB_FLAG@
-Z_LIBRARY := @Z_LIB_DIR_FLAG@ @Z_LIB_FLAG@ 
+Z_LIBRARY := @Z_LIB_DIR_FLAG@ @Z_LIB_FLAG@
 
 XML2_LIBRARY := $(Z_LIBRARY) @XML2_LIB_DIR_FLAG@ @XML2_LIB_FLAG@
 XML2_INCLUDE := @INC_XML2_H@
@@ -273,7 +276,7 @@ OBJEXT := @OBJEXT@
 CORE_STATIC_PSELIBS := \
     Core_DataArchive Core_Grid Core_ProblemSpec Core_GeometryPiece CCA_Components_ProblemSpecification CCA_Ports \
     Core_Parallel Core_Math Core_Disclosure Core_Util Core_Exceptions Core_Containers \
-    Core_Malloc Core_IO Core_OS                             
+    Core_Malloc Core_IO Core_OS
 CORE_STATIC_LIBS := \
     $(XML2_LIBRARY) $(Z_LIBRARY) $(PETSC_LIBRARY) $(HYPRE_LIBRARY) $(LAPACK_LIBRARY) \
     $(BLAS_LIBRARY) $(F_LIBRARY) $(MPI_LIBRARY) $(X_LIBRARY) $(M_LIBRARY) \
@@ -296,7 +299,7 @@ NEED_SONAME  := @NEED_SONAME@
 ECHO_NNL     := echo @ECHO_N@
 
 ifeq ($(REPOSITORY_FLAGS),)
-  repository = 
+  repository =
 else
   repository = $(REPOSITORY_FLAGS) $(patsubst %:$(1),%,$(filter %:$(1),$(ALL_LIB_ASSOCIATIONS)))
 endif
@@ -304,7 +307,7 @@ endif
 ifeq ($(NEED_SONAME),yes)
   SONAMEFLAG = -Wl,-soname,$(notdir $@)
 else
-  SONAMEFLAG = 
+  SONAMEFLAG =
 endif
 
 .SUFFIXES: .cc .cu .c .$(OBJEXT) .s .F .f .cpp .cxx
@@ -413,7 +416,7 @@ else
 	$(NVCC) $(NVCC_CXXFLAGS) $(INCLUDES) -Xcompiler $(CC_DEPEND_REGEN) $(call repository,$@) -c -dc $< -o $@
         # On Titan, remove temporary .d files from the top level bin directory.
         #   FIXME: perhaps should verify that we are on Titan? Though it should not hurt anything...
-	rm -f *.d 
+	rm -f *.d
 	$(NVCC) $(NVCC_CXXFLAGS) $(INCLUDES) -M $< | sed 's,^$(notdir $@),$@,g' > $(basename $@).$(CC_DEPEND_EXT)
 endif
 
@@ -425,7 +428,7 @@ else
 endif
 ifeq ($(F77_DEPEND_MODE),normal)
   ifeq ($(SCI_MAKE_BE_QUIET),true)
-	@echo "Fortran:   $<" 
+	@echo "Fortran:   $<"
 	@$(F77) $(FFLAGS) $(FINCLUDES) $(F77_DEPEND_REGEN) -c $< -o $@
   else
 	$(F77) $(FFLAGS) $(FINCLUDES) $(F77_DEPEND_REGEN) -c $< -o $@

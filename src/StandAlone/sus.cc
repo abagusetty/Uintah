@@ -59,8 +59,10 @@
 #include <CCA/Components/Solvers/SolverFactory.h>
 #include <CCA/Ports/SolverInterface.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
 #  include <CCA/Components/Schedulers/UnifiedScheduler.h>
+#elif defined(HAVE_SYCL)
+#  include <CCA/Components/Schedulers/SYCLScheduler.h>
 #endif
 
 #include <Core/Exceptions/Exception.h>
@@ -74,6 +76,8 @@
 #include <Core/Util/StringUtil.h>
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/hip_defs.h>
+#include <sci_defs/sycl_defs.h>
 #include <sci_defs/hypre_defs.h>
 #include <sci_defs/malloc_defs.h>
 #include <sci_defs/uintah_defs.h>
@@ -165,7 +169,7 @@ static void usage( const std::string& message,
     std::cerr << "-emit_taskgraphs     : Output taskgraph information\n";
     std::cerr << "-gitDiff             : runs git diff <src/...../Packages/Uintah \n";
     std::cerr << "-gitStatus           : runs git status & git log -1 <src/...../Packages/Uintah \n";
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     std::cerr << "-gpu                 : use available GPU devices, requires multi-threaded Unified scheduler \n";
 #endif
     std::cerr << "-gpucheck            : returns 1 if sus was compiled with CUDA and there is a GPU available. \n";
@@ -438,22 +442,7 @@ int main( int argc, char *argv[], char *env[] )
       restartFromScratch = false;
       restartRemoveOldDir = true;
     }
-    else if (arg == "-gpucheck") {
-#ifdef HAVE_CUDA
-      int retVal = UnifiedScheduler::verifyAnyGpuActive();
-      if (retVal == 1) {
-        std::cout << "At least one GPU detected!" << std::endl;
-      }
-      else {
-        std::cout << "No GPU detected!" << std::endl;
-      }
-      Parallel::exitAll(retVal);
-#endif
-      std::cout << "No GPU detected!" << std::endl;
-      Parallel::exitAll(2); // If the above didn't exit with a 1, then we didn't have a GPU, so exit with a 2.
-      std::cout << "This doesn't run" << std::endl;
-    }
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
     else if(arg == "-gpu") {
       Uintah::Parallel::setUsingDevice( true );
     }

@@ -66,6 +66,11 @@
   #include <Core/Util/DebugStream.h>
 #endif
 
+#ifdef HAVE_SYCL
+  #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
+  #include <Core/Grid/Variables/GPUStencil7.h>
+#endif
+
 #include <climits>
 #include <cstdio>
 #include <cstring>
@@ -88,7 +93,6 @@ namespace Uintah {
 #endif
 
 }
-
 
 namespace {
 
@@ -142,12 +146,18 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
 {
   doReserve();
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
 
   if (Uintah::Parallel::usingDevice()) {
     int numDevices;
+
+#ifdef (HAVE_CUDA)
     cudaError_t retVal;
     CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
+#elif defined(HAVE_HIP)
+    hipError_t retVal;
+    HIP_RT_SAFE_CALL(retVal = hipGetDeviceCount(&numDevices));
+#endif
 
     for (int i = 0; i < numDevices; i++) {
       //those gpuDWs should only live host side.
@@ -160,6 +170,26 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
 
       gpuDW->init(i, out.str());
       gpuDW->setDebug(gpudbg.active());
+      d_gpuDWs.push_back(gpuDW);
+    }
+  }
+
+#elif defined(HAVE_SYCL)
+
+  if (Uintah::Parallel::usingDevice()) {
+    int numDevices;
+    syclGetDeviceCount(&numDevices);
+
+    for (int i = 0; i < numDevices; i++) {
+      //those gpuDWs should only live host side.
+      //Ideally these don't need to be created at all as a separate datawarehouse,
+      //but could be contained within this datawarehouse
+
+      GPUDataWarehouse* gpuDW = (GPUDataWarehouse*)malloc(sizeof(GPUDataWarehouse) - sizeof(GPUDataWarehouse::dataItem) * MAX_VARDB_ITEMS);
+      std::ostringstream out;
+      out << "Host-side GPU DW";
+
+      gpuDW->init(i, out.str());
       d_gpuDWs.push_back(gpuDW);
     }
   }
@@ -196,8 +226,7 @@ OnDemandDataWarehouse::clear()
     }
 
     for (psetAddDBType::const_iterator iter = m_addset_DB.begin(); iter != m_addset_DB.end(); ++iter) {
-      std::map<const VarLabel*, ParticleVariableBase*>::const_iterator pvar_itr;
-      for (pvar_itr = iter->second->begin(); pvar_itr != iter->second->end(); pvar_itr++) {
+      for (auto pvar_itr = iter->second->cbegin(); pvar_itr != iter->second->cend(); pvar_itr++) {
         delete pvar_itr->second;
       }
       delete iter->second;
@@ -209,18 +238,16 @@ OnDemandDataWarehouse::clear()
   m_running_tasks.clear();
 
 
-#ifdef HAVE_CUDA
-
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
   if (Uintah::Parallel::usingDevice()) {
     //clear out the host side GPU Datawarehouses.  This does NOT touch the task DWs.
-    for (size_t i = 0; i < d_gpuDWs.size(); i++) {
+    for (std::size_t i = 0; i < d_gpuDWs.size(); i++) {
       d_gpuDWs[i]->clear();
       d_gpuDWs[i]->cleanup();
       free(d_gpuDWs[i]);
       d_gpuDWs[i] = nullptr;
     }
   }
-
 #endif
 }
 
@@ -422,29 +449,35 @@ OnDemandDataWarehouse::getReductionVariable( const VarLabel * label
   }
 }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
 void
-OnDemandDataWarehouse::uintahSetCudaDevice(int deviceNum) {
-  //  CUDA_RT_SAFE_CALL( cudaSetDevice(deviceNum) );
+OnDemandDataWarehouse::uintahSetGpuDevice(int deviceID) {
+#ifdef HAVE_CUDA
+  CUDA_RT_SAFE_CALL( cudaSetDevice(deviceID) );
+#elif defined(HAVE_HIP)
+  HIP_RT_SAFE_CALL( hipSetDevice(deviceID) );
+#elif HAVE_SYCL
+  syclSetDevice(deviceID);
+#endif
 }
 
 int
 OnDemandDataWarehouse::getNumDevices() {
   int numDevices = 0;
-  cudaError_t retVal;
 
-  if (Uintah::Parallel::usingDevice()) {
-    numDevices = 1;
-  }
-
-  //if multiple devices are desired, use this:
-  CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
+#ifdef HAVE_CUDA
+  CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
+#elif defined(HAVE_HIP)
+  HIP_RT_SAFE_CALL(hipGetDeviceCount(&numDevices));
+#elif defined(HAVE_SYCL)
+  syclGetDeviceCount(&numDevices);
+#endif
 
   return numDevices;
 }
 
-size_t
+std::size_t
 OnDemandDataWarehouse::getTypeDescriptionSize(const TypeDescription::Type& type) {
   switch(type){
     case TypeDescription::double_type : {
@@ -468,7 +501,6 @@ OnDemandDataWarehouse::getTypeDescriptionSize(const TypeDescription::Type& type)
     }
   }
 }
-
 
 GPUGridVariableBase*
 OnDemandDataWarehouse::createGPUGridVariable(const TypeDescription::Type& type)
@@ -560,7 +592,7 @@ OnDemandDataWarehouse::createGPUReductionVariable(const TypeDescription::Type& t
   return device_var;
 }
 
-#endif
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
 
 //______________________________________________________________________
@@ -992,7 +1024,7 @@ OnDemandDataWarehouse::reduceMPI( const VarLabel       * label
 
     // debugging info
     int levelIndx = level ? level->getIndex() : -1;
-    DOUTR(g_mpi_dbg, " DW:reduceMPI label: " << label->getName() << " matlIndex " << matlIndex << " level: " 
+    DOUTR(g_mpi_dbg, " DW:reduceMPI label: " << label->getName() << " matlIndex " << matlIndex << " level: "
           << levelIndx << " exists: " <<  m_level_DB.exists( label, matlIndex, level ) );
 
 
@@ -1184,7 +1216,7 @@ OnDemandDataWarehouse::createParticleSubset(       particleIndex   numParticles
   return psubset;
 }
 //______________________________________________________________________
-//  Delete the particle subset from the 
+//  Delete the particle subset from the
 void
 OnDemandDataWarehouse::deleteParticleSubset( ParticleSubset*  pset )
 {
@@ -1310,7 +1342,7 @@ OnDemandDataWarehouse::deletePSetRecord(       psetDBType     & subsetDB
     psetDB_monitor psetDB_lock{ Uintah::CrowdMonitor<psetDB_tag>::WRITER };
 
     psetDBType::key_type key(patch->getRealPatch(), matlIndex, getID());
-    
+
     subsetDB.erase(key);
 
     if(psubset && psubset->removeReference()) {
@@ -1525,7 +1557,7 @@ OnDemandDataWarehouse::getParticleSubset(       int        matlIndex
   std::vector<ParticleSubset*> subsets;
   std::vector<const Patch*> vneighbors;
 
-  for( size_t i = 0; i < neighbors.size(); i++ ) {
+  for( std::size_t i = 0; i < neighbors.size(); i++ ) {
     const Patch* neighbor = neighbors[i];
     const Patch* realNeighbor = neighbor->getRealPatch();
     if( neighbor ) {
@@ -1692,7 +1724,7 @@ OnDemandDataWarehouse::get(       constParticleVariableBase & constVar
 
     std::vector<ParticleVariableBase*> neighborvars( neighborPatches.size() );
 
-    for (size_t i = 0u; i < neighborPatches.size(); i++) {
+    for (std::size_t i = 0u; i < neighborPatches.size(); i++) {
       const Patch* neighborPatch = neighborPatches[i];
 
     if (!m_var_DB.exists(label, matlIndex, neighborPatches[i])) {
@@ -1713,7 +1745,7 @@ OnDemandDataWarehouse::get(       constParticleVariableBase & constVar
 
     constVar = *var;
 
-    for (size_t i = 0u; i < neighborPatches.size(); i++) {
+    for (std::size_t i = 0u; i < neighborPatches.size(); i++) {
       delete neighborvars[i];
     }
     delete var;
@@ -1834,10 +1866,10 @@ OnDemandDataWarehouse::put(       ParticleVariableBase & var
   const Patch* patch = pset->getPatch();
 
   if (pset->getLow() != patch->getExtraCellLowIndex() || pset->getHigh() != patch->getExtraCellHighIndex()) {
-      SCI_THROW(InternalError(" put(Particle Variable (" + label->getName() +
-                              ") ).  The particleSubset low/high index does not match the patch low/high indices",
-                              __FILE__, __LINE__) );
-    }
+    SCI_THROW(InternalError(" put(Particle Variable (" + label->getName() +
+			    ") ).  The particleSubset low/high index does not match the patch low/high indices",
+			    __FILE__, __LINE__) );
+  }
 
   int matlIndex = pset->getMatlIndex();
 
@@ -2052,7 +2084,7 @@ OnDemandDataWarehouse::allocateAndPut(       GridVariableBase & var
         std::deque<Box> b1, b2, difference;
         b1.push_back( Box(Point(superLowIndex(0), superLowIndex(1), superLowIndex(2)),
                           Point(superHighIndex(0), superHighIndex(1), superHighIndex(2))));
-        for (size_t i = 0u; i < (*superPatchGroup).size(); i++) {
+        for (std::size_t i = 0u; i < (*superPatchGroup).size(); i++) {
           const Patch* p = (*superPatchGroup)[i];
           IntVector low = p->getExtraLowIndex(basis, label->getBoundaryLayer());
           IntVector high = p->getExtraHighIndex(basis, label->getBoundaryLayer());
@@ -2063,18 +2095,18 @@ OnDemandDataWarehouse::allocateAndPut(       GridVariableBase & var
 #if 0
         if (difference.size() > 0) {
           std::cout << "Box difference: " << superLowIndex << " " << superHighIndex << " with patches " << std::endl;
-          for (size_t i = 0u; i < (*superPatchGroup).size(); i++) {
+          for (std::size_t i = 0u; i < (*superPatchGroup).size(); i++) {
             const Patch* p = (*superPatchGroup)[i];
             std::cout << p->getExtraLowIndex(basis, label->getBoundaryLayer()) << " " << p->getExtraHighIndex(basis, label->getBoundaryLayer()) << std::endl;
           }
 
-          for (size_t i = 0; i < difference.size(); i++) {
+          for (std::size_t i = 0; i < difference.size(); i++) {
             std::cout << difference[i].lower() << " " << difference[i].upper() << std::endl;
           }
         }
 #endif
         // get more efficient way of doing this...
-        for (size_t i = 0; i < difference.size(); i++) {
+        for (std::size_t i = 0; i < difference.size(); i++) {
           Box b = difference[i];
           IntVector low((int)b.lower()(0), (int)b.lower()(1), (int)b.lower()(2));
           IntVector high((int)b.upper()(0), (int)b.upper()(1), (int)b.upper()(2));
@@ -2105,7 +2137,7 @@ OnDemandDataWarehouse::allocateAndPut(       GridVariableBase & var
       // Make a set of the non ghost patches that
       // has quicker lookup than the vector.
       std::set<const Patch*> nonGhostPatches;
-      for (size_t i = 0u; i < superPatchGroup->size(); ++i) {
+      for (std::size_t i = 0u; i < superPatchGroup->size(); ++i) {
         nonGhostPatches.insert((*superPatchGroup)[i]);
       }
 
@@ -2323,7 +2355,7 @@ OnDemandDataWarehouse::getLevel(       constGridVariableBase & constGridVar
 
   int nCellsCopied = 0;
 
-  for (size_t i = 0u; i < patches.size(); ++i) {
+  for (std::size_t i = 0u; i < patches.size(); ++i) {
     const Patch* patch = patches[i];
 
     std::vector<Variable*> varlist;
@@ -2389,7 +2421,7 @@ OnDemandDataWarehouse::getLevel(       constGridVariableBase & constGridVar
     std::cout << d_myworld->myRank() << "  Unknown Variable " << *label << ", matl " << matlIndex << ", L-" << level->getIndex()
               << ", Patches on which the variable wasn't found: ";
 
-    for (size_t i = 0u; i < missing_patches.size(); ++i) {
+    for (std::size_t i = 0u; i < missing_patches.size(); ++i) {
       std::cout << *missing_patches[i] << " ";
     }
     std::cout << " copied cells: " << nCellsCopied << " requested cells: " << totalLevelCells << std::endl;
@@ -2612,7 +2644,7 @@ OnDemandDataWarehouse::getRegionModifiable(       GridVariableBase & var
     if (missing_patches.size() > 0) {
       DOUT(true, "  Patches on which the variable wasn't found:");
 
-      for (size_t i = 0u; i < missing_patches.size(); i++) {
+      for (std::size_t i = 0u; i < missing_patches.size(); i++) {
 
         const Patch* patch =  missing_patches[i];
         IntVector patchLo =  patch->getExtraCellLowIndex();
@@ -2639,7 +2671,7 @@ OnDemandDataWarehouse::getRegionModifiable(       GridVariableBase & var
 
 //______________________________________________________________________
 //
-size_t
+std::size_t
 OnDemandDataWarehouse::emit(       OutputContext & oc
                            , const VarLabel      * label
                            ,       int             matlIndex
@@ -2705,7 +2737,7 @@ OnDemandDataWarehouse::emit(       OutputContext & oc
   if (var == nullptr) {
     SCI_THROW(UnknownVariable(label->getName(), getID(), patch, matlIndex, "on emit", __FILE__, __LINE__));
   }
-  size_t bytes;
+  std::size_t bytes;
   bytes = var->emit( oc, l, h, label->getCompressionMode() );
   return bytes;
 }
@@ -2717,7 +2749,7 @@ OnDemandDataWarehouse::emitPIDX(       PIDXOutputContext & pc
                                ,       int                 matlIndex
                                , const Patch             * patch
                                ,       unsigned char     * buffer
-                               , const size_t              bufferSize
+                               , const std::size_t              bufferSize
                                )
 {
   checkGetAccess( label, matlIndex, patch );
@@ -2806,14 +2838,14 @@ OnDemandDataWarehouse::print(       std::ostream & intout
     checkGetAccess( label, matlIndex, nullptr );
     ReductionVariableBase* var = dynamic_cast<ReductionVariableBase*>( m_level_DB.get( label, matlIndex, level ) );
     var->print( intout );
-    
-    // Debugging output   
+
+    // Debugging output
     if( g_DA_dbg.active() ){
       std::ostringstream me;
       var->print( me );
 
       int levelIndx = level ? level->getIndex() : -1;
-      DOUTR(true, " OnDemandDataWarehouse::print " << label->getName() << " matl: "<< matlIndex << " "  << me.str() << " level: " << levelIndx ); 
+      DOUTR(true, " OnDemandDataWarehouse::print " << label->getName() << " matl: "<< matlIndex << " "  << me.str() << " level: " << levelIndx );
     }
   }
   catch( UnknownVariable& ) {
@@ -3029,7 +3061,7 @@ void OnDemandDataWarehouse::getNeighborPatches( const VarLabel                  
     neighbors.push_back(patch);
   }
 
-  for ( size_t i = 0u; i < neighbors.size(); ++i ) {
+  for ( std::size_t i = 0u; i < neighbors.size(); ++i ) {
     const Patch* neighbor = neighbors[i];
     if (neighbor && (neighbor != patch)) {
       IntVector low  = Max( neighbor->getExtraLowIndex(  basis, label->getBoundaryLayer() ), lowIndex );
@@ -3076,7 +3108,7 @@ void OnDemandDataWarehouse::getValidNeighbors( const VarLabel                   
     neighbors.push_back(patch);
   }
 
-  for( size_t i = 0u; i < neighbors.size(); ++i ) {
+  for( std::size_t i = 0u; i < neighbors.size(); ++i ) {
     const Patch* neighbor = neighbors[i];
     if( neighbor && (neighbor != patch) ) {
       IntVector low  = Max( neighbor->getExtraLowIndex( basis, label->getBoundaryLayer() ), lowIndex );
@@ -3184,7 +3216,6 @@ OnDemandDataWarehouse::getGridVar(       GridVariableBase & var
     IntVector lowIndex, highIndex;
     patch->computeVariableExtents(basis, label->getBoundaryLayer(), gtype, numGhostCells, lowIndex, highIndex);
 
-
     //---------------------------------------------------------------------------------------------
     // NOTE: Though this works well now, not sure if we care about it.... ditch this? APH, 11/28/18
     //---------------------------------------------------------------------------------------------
@@ -3214,7 +3245,6 @@ OnDemandDataWarehouse::getGridVar(       GridVariableBase & var
     std::vector<ValidNeighbors> validNeighbors;
     getValidNeighbors(label, matlIndex, patch, gtype, numGhostCells, validNeighbors);
     for(auto iter = validNeighbors.begin(); iter != validNeighbors.end(); ++iter) {
-
       GridVariableBase* srcvar = var.cloneType();
       GridVariableBase* tmp = iter->validNeighbor;
       srcvar->copyPointer(*tmp);
@@ -3317,8 +3347,7 @@ OnDemandDataWarehouse::transferFrom(       DataWarehouse  * from
             m_var_DB.put( label, matl, copyPatch, v, d_scheduler->copyTimestep(), replace );
           }
 
-
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
 
           if (Uintah::Parallel::usingDevice()) {
             //See if it's in the GPU.  Both the source and destination must be in the GPU data warehouse,
@@ -3329,17 +3358,16 @@ OnDemandDataWarehouse::transferFrom(       DataWarehouse  * from
             const int levelID = level->getID();
             const int patchID = patch->getID();
             GPUGridVariableBase* device_var_source = OnDemandDataWarehouse::createGPUGridVariable(label->typeDescription()->getSubType()->getType());
-            GPUGridVariableBase* device_var_dest = OnDemandDataWarehouse::createGPUGridVariable(label->typeDescription()->getSubType()->getType());
             if(!dtask) {
-              std::cout << "ERROR! transferFrom() does not have access to the task and its associated CUDA stream."
+              std::cout << "ERROR! transferFrom() does not have access to the task and its associated CUDA/HIP stream."
                         << " You need to update the task's callback function to include more parameters which supplies this information."
                         << " Then you need to pass that detailed task pointer into the transferFrom method."
                         << " As an example, please see the parameters for UnifiedSchedulerTest::timeAdvanceUnified."   << std::endl;
-              throw InternalError("transferFrom() needs access to the task's pointer and its associated CUDA stream.\n", __FILE__, __LINE__);
+              throw InternalError("transferFrom() needs access to the task's pointer and its associated CUDA/HIP stream.\n", __FILE__, __LINE__);
             }
             //The GPU assigns streams per task.  For transferFrom to work, it *must* know which correct stream to use
-            bool foundGPU = getGPUDW(0)->transferFrom(((DetailedTask*)dtask)->getCudaStreamForThisTask(0),
-                                                      *device_var_source, *device_var_dest,
+            bool foundGPU = getGPUDW(0)->transferFrom(((DetailedTask*)dtask)->getGpuStreamForThisTask(0),
+                                                      *device_var_source,
                                                       from->getGPUDW(0),
                                                       label->getName().c_str(), patchID, matl, levelID);
 
@@ -3348,8 +3376,35 @@ OnDemandDataWarehouse::transferFrom(       DataWarehouse  * from
             }
           }
 
-#endif
+#elif defined(HAVE_SYCL)
 
+          if (Uintah::Parallel::usingDevice()) {
+            //See if it's in the GPU.  Both the source and destination must be in the GPU data warehouse,
+            //both must be listed as "allocated", and both must have the same variable sizes.
+            //If those conditions match, then it will do a device to device memcopy call.
+            //hard coding it for the 0th GPU
+            const Level * level = patch->getLevel();
+            const int levelID = level->getID();
+            const int patchID = patch->getID();
+
+            if(!dtask) {
+              std::cout << "ERROR! transferFrom() does not have access to the task and its associated SYCL stream."
+                        << " You need to update the task's callback function to include more parameters which supplies this information."
+                        << " Then you need to pass that detailed task pointer into the transferFrom method."
+                        << " As an example, please see the parameters for UnifiedSchedulerTest::timeAdvanceUnified."   << std::endl;
+              throw InternalError("transferFrom() needs access to the task's pointer and its associated SYCL stream.\n", __FILE__, __LINE__);
+            }
+            //The GPU assigns streams per task.  For transferFrom to work, it *must* know which correct stream to use
+            bool foundGPU = getGPUDW(0)->transferFrom(((DetailedTask*)dtask)->getGpuStreamForThisTask(0),
+                                                      from->getGPUDW(0),
+                                                      label->getName().c_str(), patchID, matl, levelID);
+
+            if (!found && foundGPU) {
+              found = true;
+            }
+          }
+
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
           if (!found) {
             SCI_THROW(UnknownVariable(label->getName(), fromDW->getID(), patch, matl, "in transferFrom", __FILE__, __LINE__) );
@@ -3724,7 +3779,7 @@ OnDemandDataWarehouse::popRunningTask()
 
   auto iter = m_running_tasks.find(std::this_thread::get_id());
   if (iter != m_running_tasks.end()) {
-    size_t num_erased = m_running_tasks.erase(std::this_thread::get_id());
+    std::size_t num_erased = m_running_tasks.erase(std::this_thread::get_id());
     DOUT(g_check_accesses, "Rank-" << Parallel::getMPIRank() << " TID-" << std::this_thread::get_id()
                                    << "  Task: " << iter->second.m_task->getName() << " removed ("
                                    << num_erased << " total element(s))");

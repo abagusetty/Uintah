@@ -192,8 +192,8 @@ public:
                         ,       DeviceVarDest       dest
                         ,       bool                staging
                         ,       IntVector           sizeVector
-                        ,       size_t              sizeOfDataType
-                        ,       size_t              varMemSize
+                        ,       std::size_t              sizeOfDataType
+                        ,       std::size_t              varMemSize
                         ,       IntVector           offset
                         ,       int                 matlIndx
                         ,       int                 levelIndx
@@ -208,8 +208,8 @@ public:
   DeviceGridVariableInfo(       Variable         * var
                         ,       DeviceVarDest      dest
                         ,       bool               staging
-                        ,       size_t             sizeOfDataType
-                        ,       size_t             varMemSize
+                        ,       std::size_t             sizeOfDataType
+                        ,       std::size_t             varMemSize
                         ,       int                matlIndx
                         ,       int                levelIndx
                         , const Patch            * patchPointer
@@ -239,8 +239,8 @@ public:
   DeviceVarDest            m_dest;
   bool                     m_staging;
   IntVector                m_sizeVector;
-  size_t                   m_sizeOfDataType;
-  size_t                   m_varMemSize;
+  std::size_t                   m_sizeOfDataType;
+  std::size_t                   m_varMemSize;
   IntVector                m_offset;
   int                      m_matlIndx;
   int                      m_levelIndx;
@@ -272,8 +272,8 @@ public:
     }
   }
 
-  size_t totalSize;
-  size_t totalSizeForDataWarehouse[Task::TotalDWs];
+  std::size_t totalSize;
+  std::size_t totalSizeForDataWarehouse[Task::TotalDWs];
   unsigned int totalVars[Task::TotalDWs];
   unsigned int totalMaterials[Task::TotalDWs];
   unsigned int totalLevels[Task::TotalDWs];
@@ -296,8 +296,8 @@ public:
           ,       int                levelIndx
           ,       bool               staging
           ,       IntVector          sizeVector
-          ,       size_t             sizeOfDataType
-          ,       size_t             varMemSize
+          ,       std::size_t             sizeOfDataType
+          ,       std::size_t             varMemSize
           ,       IntVector          offset
           , const Task::Dependency * dep
           ,       Ghost::GhostType   gtype
@@ -311,8 +311,8 @@ public:
   void add( const Patch             * patchPointer
           ,       int                 matlIndx
           ,       int                 levelIndx
-          ,       size_t              varMemSize
-          ,       size_t              sizeOfDataType
+          ,       std::size_t              varMemSize
+          ,       std::size_t              sizeOfDataType
           , const Task::Dependency  * dep
           ,       unsigned int        whichGPU
           ,       Variable          * var
@@ -339,7 +339,7 @@ public:
   void addTaskGpuDWVar( const Patch            * patchPointer
                       ,       int                matlIndx
                       ,       int                levelIndx
-                      ,       size_t             varMemSize
+                      ,       std::size_t             varMemSize
                       , const Task::Dependency * dep
                       ,       unsigned int       whichGPU
                       );
@@ -359,7 +359,7 @@ public:
                              ,       int                levelIndx
                              ,       IntVector          offset
                              ,       IntVector          sizeVector
-                             ,       size_t             sizeOfDataType
+                             ,       std::size_t             sizeOfDataType
                              , const Task::Dependency * dep
                              ,       unsigned int       whichGPU
                              );
@@ -373,9 +373,9 @@ public:
                                        , const int dataWarehouseIndex
                                        ) const;
 
-  size_t getTotalSize( const unsigned int whichGPU ) ;
+  std::size_t getTotalSize( const unsigned int whichGPU ) ;
 
-  size_t getSizeForDataWarehouse( const unsigned int whichGPU, const int dwIndex );
+  std::size_t getSizeForDataWarehouse( const unsigned int whichGPU, const int dwIndex );
 
   unsigned int getTotalVars( const unsigned int whichGPU, const int DWIndex ) const;
 

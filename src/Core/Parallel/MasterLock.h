@@ -25,7 +25,9 @@
 #ifndef CORE_PARALLEL_MASTERLOCK_H
 #define CORE_PARALLEL_MASTERLOCK_H
 
+#if defined(UINTAH_ENABLE_KOKKOS)
 #include <sci_defs/kokkos_defs.h>
+#endif
 
 #include <mutex>
 

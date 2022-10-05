@@ -805,13 +805,13 @@ using Uintah::VarLabelMatl;
 
 template<class DomainType>
 struct hash<VarLabelMatl<DomainType> > {
-  size_t operator()( const VarLabelMatl<DomainType>& v ) const {
-    size_t h = 0u;
+  std::size_t operator()( const VarLabelMatl<DomainType>& v ) const {
+    std::size_t h = 0u;
     char* str = const_cast<char*>(v.m_label->getName().data());
     while (int c = *str++) {
       h = h * 7 + c;
     }
-    return ((((size_t)v.m_label) << (sizeof(size_t) / 2) ^ ((size_t)v.m_label) >> (sizeof(size_t) / 2)) ^ (size_t)v.m_domain ^ (size_t)v.m_matl_index);
+    return ((((std::size_t)v.m_label) << (sizeof(std::size_t) / 2) ^ ((std::size_t)v.m_label) >> (sizeof(std::size_t) / 2)) ^ (std::size_t)v.m_domain ^ (std::size_t)v.m_matl_index);
   }
 };
 

@@ -37,11 +37,16 @@
 #include <Core/Grid/Variables/CCVariable.h>
 
 #include <sci_defs/uintah_defs.h>
-#include <sci_defs/cuda_defs.h>
 
 #ifdef HAVE_CUDA
+  #include <sci_defs/cuda_defs.h>
   #include <curand.h>
   #include <curand_kernel.h>
+#endif
+
+#ifdef HAVE_SYCL
+  #include <sci_defs/sycl_defs.h>
+  #include <oneapi/mkl/rng/device.hpp>
 #endif
 
 #include <iostream>

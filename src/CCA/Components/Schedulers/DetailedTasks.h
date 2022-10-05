@@ -41,12 +41,13 @@
 #include <Core/Lockfree/Lockfree_Pool.hpp>
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
 #endif
 
 #include <sci_defs/cuda_defs.h>
+#include <sci_defs/sycl_defs.h>
 
 #include <map>
 #include <queue>
@@ -87,7 +88,6 @@ enum QueueAlg {
   , PatchOrderRandom
 };
 
-
 //_____________________________________________________________________________
 //
 class DetailedTaskPriorityComparison {
@@ -113,7 +113,7 @@ public:
 
   ~DetailedTasks();
 
-  void add( DetailedTask * dtask );
+  void add( DetailedTask* dtask );
 
   void makeDWKeyDatabase();
 
@@ -122,9 +122,8 @@ public:
     dws->copyKeyDB(m_var_keyDB, m_level_keyDB);
   }
 
-  int numTasks() const
-  {
-    return (int)m_tasks.size();
+  int numTasks() const {
+    return static_cast<int>(m_tasks.size());
   }
 
   DetailedTask* getTask( int i )
@@ -234,7 +233,7 @@ public:
     return m_task_priority_alg;
   }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   void addDeviceValidateRequiresCopies( DetailedTask * dtask );
 
@@ -296,7 +295,7 @@ public:
                                               ,       IntVector        & totalHigh
                                               ,       DetailedDep      * &parent_dep
                                               );
-#endif
+#endif // HAVE_CUDA, HAVE_SYCL
 
 protected:
 
@@ -388,7 +387,7 @@ private:
   // A mapper to keep track of point to point MPI calls.
   std::map< std::pair< std::string, std::string >,
             MapInfoMapper< unsigned int, CommunicationStatsEnum, unsigned int > > m_comm_info;
-  
+
   // eliminate copy, assignment and move
   DetailedTasks(const DetailedTasks &)            = delete;
   DetailedTasks& operator=(const DetailedTasks &) = delete;
@@ -396,7 +395,7 @@ private:
   DetailedTasks& operator=(DetailedTasks &&)      = delete;
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
 
   using TaskPool = Lockfree::Pool< DetailedTask *
                                  , uint64_t

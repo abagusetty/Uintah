@@ -25,10 +25,24 @@
 #ifndef UINTAH_GPUSTENCIL7_H
 #define UINTAH_GPUSTENCIL7_H
 
+#ifdef HAVE_SYCL
+#include <sci_defs/sycl_defs.h>
+#elif defined(HAVE_CUDA)
 #include <sci_defs/cuda_defs.h>
-
+#else
+#include <array>
+#endif
 
 namespace Uintah {
+
+#ifdef HAVE_SYCL
+
+  // ABB: The last index should never be used, since we only need
+  //      7-point stencil in SYCL
+  typedef sycl::vec<double, 8> GPUStencil7;
+  // Mapping: [w, e, s, n, b, t, p] --> [0, 1, 2, 3, 4, 5, 6, X]
+
+#elif defined(HAVE_CUDA)
 
   struct GPUStencil7 {
 
@@ -52,13 +66,19 @@ namespace Uintah {
       w = a;
       e = a;
       s = a;
-      n = a; 
-      b = a; 
+      n = a;
+      b = a;
       t = a;
       p = a;
     }
   };
 
+#else
+
+  typedef std::array<double, 7> GPUStencil7;
+
+#endif // HAVE_SYCL
+
 }
 
-#endif
+#endif // UINTAH_GPUSTENCIL7_H

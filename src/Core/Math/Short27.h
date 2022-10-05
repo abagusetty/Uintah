@@ -52,7 +52,6 @@ class Short27 {
   // access operator
   inline short operator[] (int i) const;
   inline short & operator[] (int i);
-  static const std::string& get_h_file_path();
 };
 
 inline Short27::Short27()

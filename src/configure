@@ -726,6 +726,10 @@ CUDA_LIB_DIR_FLAG
 INC_CUDA_H
 DEF_CUDA
 HAVE_CUDA
+DEF_HIP
+HAVE_HIP
+DEF_SYCL
+HAVE_SYCL
 KOKKOS_LIB_FLAG
 KOKKOS_LIB_DIR_FLAG
 INC_KOKKOS_H
@@ -961,6 +965,8 @@ with_mpi_lib
 with_mpi_include
 with_mpi_extra_libs
 with_cuda
+with_hip
+with_sycl
 with_hypre
 with_hypre_lib
 with_hypre_include
@@ -4182,6 +4188,28 @@ $as_echo "$as_me: WARNING: the files are $the_files " >&2;}
   fi
 
 
+
+# Check whether --with-hip was given.
+if test "${with_hip+set}" = set; then :
+  withval=$with_hip; with_hip="$withval"
+   sci_required_hip=yes
+else
+  with_hip=NOT_SET
+   sci_required_hip=no
+fi
+  sci_arg_with_list="$sci_arg_with_list --with-hip --without-hip"
+
+
+
+# Check whether --with-sycl was given.
+if test "${with_sycl+set}" = set; then :
+  withval=$with_sycl; with_sycl="$withval"
+   sci_required_sycl=yes
+else
+  with_sycl=NOT_SET
+   sci_required_sycl=no
+fi
+  sci_arg_with_list="$sci_arg_with_list --with-sycl --without-sycl"
 
 
 # Check whether --with-hypre was given.
@@ -36516,6 +36544,23 @@ fi
 
 sci_defs_files="$sci_defs_files include/sci_defs/cuda_testdefs.h"
 
+##  --  search for hip stuff  ------------------------------------------
+if test "$with_hip" != NOT_SET; then
+   eval HAVE_HIP="yes"
+   DEF_HIP="#define HAVE_HIP 1"
+fi
+sci_defs_files="$sci_defs_files include/sci_defs/hip_testdefs.h"
+
+##  --  search for sycl stuff  ------------------------------------------
+if test "$with_sycl" != NOT_SET; then
+   eval HAVE_SYCL="yes"
+   DEF_SYCL="#define HAVE_SYCL 1"
+fi
+sci_defs_files="$sci_defs_files include/sci_defs/sycl_testdefs.h"
+
+##  --  Convienece headers for CUDA, HIP, SYCL --
+sci_defs_files="$sci_defs_files include/sci_defs/gpu_testdefs.h"
+##  --  Convienece headers for CUDA, HIP, SYCL --
 
 ##  --  search for visus  -------------------------------------------------
 ac_ext=cpp

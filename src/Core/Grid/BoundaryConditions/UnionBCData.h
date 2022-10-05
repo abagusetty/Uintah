@@ -89,9 +89,9 @@ namespace Uintah {
      virtual void print();
      
      /// Determine the cell and node boundary iterators.
-     virtual void determineIteratorLimits(Patch::FaceType face,
+     virtual void determineIteratorLimits(const Patch::FaceType face,
                                           const Patch* patch, 
-                                          std::vector<Point>& test_pts);
+                                          const std::vector<Point>& test_pts);
    private:
      std::vector<BCGeomBase*> child;
      friend class BoundCondReader;

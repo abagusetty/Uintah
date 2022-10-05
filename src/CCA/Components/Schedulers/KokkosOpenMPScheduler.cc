@@ -248,7 +248,7 @@ KokkosOpenMPScheduler::execute( int tgnum       /* = 0 */
     std::ostringstream message;
     message << "\n" << "Rank-" << my_rank << " Executing " << m_detailed_tasks->numTasks() << " tasks (" << m_num_tasks
             << " local)\n" << "Total task phases: " << m_num_phases << "\n";
-    for (size_t phase = 0; phase < m_phase_tasks.size(); ++phase) {
+    for (std::size_t phase = 0; phase < m_phase_tasks.size(); ++phase) {
       message << "Phase: " << phase << " has " << m_phase_tasks[phase] << " total tasks\n";
     }
     DOUT(true, message.str());

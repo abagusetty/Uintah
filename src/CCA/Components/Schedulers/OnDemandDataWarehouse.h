@@ -22,6 +22,7 @@
  * IN THE SOFTWARE.
  */
 
+
 #ifndef UINTAH_COMPONENTS_SCHEDULERS_ONDEMANDDATAWAREHOUSE_H
 #define UINTAH_COMPONENTS_SCHEDULERS_ONDEMANDDATAWAREHOUSE_H
 
@@ -41,10 +42,8 @@
 #include <map>
 #include <vector>
 
-
 using Uintah::Max;
 using Uintah::FastHashTable;
-
 
 namespace Uintah {
 
@@ -202,7 +201,7 @@ public:
                                               ,       IntVector       low  = IntVector(0, 0, 0)
                                               ,       IntVector       high = IntVector(0, 0, 0)
                                               );
-                                              
+
   virtual void deleteParticleSubset(  ParticleSubset*   pset );
 
   virtual void saveParticleSubset(       ParticleSubset * psubset
@@ -474,23 +473,23 @@ public:
   virtual void finalize();
 
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   static int getNumDevices();
-  static void uintahSetCudaDevice(int deviceNum);
-  static size_t getTypeDescriptionSize(const TypeDescription::Type& type);
+  static void uintahSetGpuDevice(int deviceNum);
+  static std::size_t getTypeDescriptionSize(const TypeDescription::Type& type);
+  // TODO: 08/25/22: do we still need the following 3 functions for SYCL backend ? Since we are just using the standard void* instead ?
   static GPUGridVariableBase* createGPUGridVariable(const TypeDescription::Type& type);
   static GPUPerPatchBase* createGPUPerPatch(const TypeDescription::Type& type);
   static GPUReductionVariableBase* createGPUReductionVariable(const TypeDescription::Type& type);
 
-#endif
-
+#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
   virtual void unfinalize();
 
   virtual void refinalize();
 
-  virtual size_t emit(       OutputContext & oc
+  virtual std::size_t emit(       OutputContext & oc
                      , const VarLabel      * label
                      ,       int             matlIndex
                      , const Patch         * patch
@@ -503,7 +502,7 @@ public:
                   ,       int                 matlIndex
                   , const Patch             * patch
                   ,       unsigned char     * pidx_buffer
-                  ,       size_t              pidx_bufferSize
+                  ,       std::size_t              pidx_bufferSize
                   );
 #endif
 
@@ -747,19 +746,12 @@ private:
                             , const Patch    * patch
                             ,       int        line
                             );
-                                
+
   void printDebuggingPutInfo( const VarLabel * label
                             ,       int        matlIndex
                             , const Level    * level
                             ,       int        line
                             );
-
-
-#ifdef HAVE_CUDA
-
-  std::map<Patch*, bool> assignedPatches; // indicates where a given patch should be stored in an accelerator
-
-#endif
 
 
   using psetDBType           = std::multimap<PSPatchMatlGhost, ParticleSubset*>;
@@ -782,7 +774,7 @@ private:
                        ,       int              matlIndex
                        ,       ParticleSubset * psubset
                        );
-                       
+
   void deletePSetRecord(       psetDBType     & subsetDB
                        , const Patch          * patch
                        ,       IntVector        low
@@ -828,4 +820,4 @@ private:
 
 }  // end namespace Uintah
 
-#endif // end #ifndef UINTAH_COMPONENTS_SCHEDULERS_ONDEMANDDATAWAREHOUSE_H
+#endif // UINTAH_COMPONENTS_SCHEDULERS_ONDEMANDDATAWAREHOUSE_H

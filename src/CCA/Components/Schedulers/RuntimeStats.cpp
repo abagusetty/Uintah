@@ -78,12 +78,12 @@ namespace {
   // [Dout][value_name] = ReportValue
   std::map< Dout, std::map< std::string, ReportValue> > g_report_values;
 
-  size_t g_num_tasks;
+  std::size_t g_num_tasks;
   std::vector< std::string > g_task_names;
   std::unique_ptr< std::atomic<int64_t>[] > g_task_exec_times{nullptr};
   std::unique_ptr< std::atomic<int64_t>[] > g_task_wait_times{nullptr};
 
-  size_t impl_get_global_id( DetailedTask const* t)
+  std::size_t impl_get_global_id( DetailedTask const* t)
   {
     auto const itr = std::lower_bound( g_task_names.begin(), g_task_names.end(), t->getTask()->getName() );
     return itr - g_task_names.begin();
@@ -113,7 +113,7 @@ void RuntimeStats::register_report( Dout const& dout
 std::atomic<int64_t> * RuntimeStats::get_atomic_exec_ptr( DetailedTask const* t)
 {
   if (exec_times) {
-    const size_t id = impl_get_global_id(t);
+    const std::size_t id = impl_get_global_id(t);
     return id < g_num_tasks ? & g_task_exec_times[ id ] : nullptr ;
   }
   return nullptr;
@@ -123,7 +123,7 @@ std::atomic<int64_t> * RuntimeStats::get_atomic_exec_ptr( DetailedTask const* t)
 std::atomic<int64_t> * RuntimeStats::get_atomic_wait_ptr( DetailedTask const* t)
 {
   if (wait_times) {
-    const size_t id = impl_get_global_id(t);
+    const std::size_t id = impl_get_global_id(t);
     return id < g_num_tasks ? & g_task_wait_times[ id ] : nullptr ;
   }
   return nullptr;
@@ -167,7 +167,7 @@ void RuntimeStats::initialize_timestep( const int num_schedulers,
       auto & exec_time_report = g_report_values[exec_times];
       exec_time_report.clear();
 
-      for (size_t i=0; i<g_num_tasks; ++i) {
+      for (std::size_t i=0; i<g_num_tasks; ++i) {
         exec_time_report[g_task_names[i]] = ReportValue{ RuntimeStats::Time
                                                        , [i]() { return g_task_exec_times[i].load( std::memory_order_relaxed ); }
                                                        };
@@ -181,7 +181,7 @@ void RuntimeStats::initialize_timestep( const int num_schedulers,
       auto & wait_time_report = g_report_values[wait_times];
       wait_time_report.clear();
 
-      for (size_t i=0; i<g_num_tasks; ++i) {
+      for (std::size_t i=0; i<g_num_tasks; ++i) {
         wait_time_report[g_task_names[i]] = ReportValue{ RuntimeStats::Time
                                                        , [i]() { return g_task_wait_times[i].load( std::memory_order_relaxed ); }
                                                        };
