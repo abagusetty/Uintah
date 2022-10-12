@@ -481,7 +481,7 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
                 << " available GPU(s)" << std::endl;
 
       for (int device_id = 0; device_id < availableDevices; device_id++) {
-        hipDeviceProp device_prop;
+        hipDeviceProp_t device_prop;
         HIP_RT_SAFE_CALL(retVal =
                              hipGetDeviceProperties(&device_prop, device_id));
         printf("   GPU Device %d: \"%s\" with compute capability %d.%d\n",
@@ -565,7 +565,7 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
             << "/" << availableDevices << " available GPU(s)\n";
 
     for (int device_id = 0; device_id < availableDevices; device_id++) {
-      hipDeviceProp device_prop;
+      hipDeviceProp_t device_prop;
       HIP_RT_SAFE_CALL(retVal =
                            hipGetDeviceProperties(&device_prop, device_id));
       message << "   Rank-" << d_myworld->myRank() << " using GPU Device "

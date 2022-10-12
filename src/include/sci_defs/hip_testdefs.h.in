@@ -30,9 +30,9 @@
 
 #ifdef HAVE_HIP
 
-#include <hip.h>
-#include <hip_runtime.h>
-#include <hip_runtime_api.h>
+/* #include <hip.h> */
+#include <hip/hip_runtime.h>
+#include <hip/hip_runtime_api.h>
 
 #ifdef __HIPCC__
 #define HOST_DEVICE __host__ __device__

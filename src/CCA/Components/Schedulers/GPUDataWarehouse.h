@@ -43,7 +43,9 @@
 #include <string>
 #include <vector>
 
+#ifdef HAVE_SYCL
 #define IntVector sycl::int3
+#endif
 
 #define MAX_VARDB_ITEMS                                                        \
   10000000 // Due to how it's allocated, it will never use up this much space.
