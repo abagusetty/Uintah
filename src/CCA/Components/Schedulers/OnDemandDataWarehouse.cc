@@ -60,7 +60,7 @@
 #include <Core/Util/FancyAssert.h>
 #include <Core/Util/ProgressiveWarning.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
   #include <Core/Grid/Variables/GPUStencil7.h>
   #include <Core/Util/DebugStream.h>
@@ -88,7 +88,7 @@ namespace Uintah {
 
   extern Dout g_mpi_dbg;
   extern Dout g_DA_dbg;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
   extern DebugStream gpudbg;
 #endif
 
@@ -151,7 +151,7 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
   if (Uintah::Parallel::usingDevice()) {
     int numDevices;
 
-#ifdef (HAVE_CUDA)
+#if defined(HAVE_CUDA)
     cudaError_t retVal;
     CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
 #elif defined(HAVE_HIP)

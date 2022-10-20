@@ -111,6 +111,10 @@ public:
   static const int bufferPadding =
       128; // 32 threads can write floats out in one coalesced access.  (32 * 4
            // bytes = 128 bytes).
+#elif HAVE_HIP
+  static const int bufferPadding =
+      128; // 32 threads can write floats out in one coalesced access.  (32 * 4
+           // bytes = 128 bytes).
 #elif HAVE_SYCL
   static const int bufferPadding =
       128; // 32 threads can write floats out in one coalesced access.  (32 * 4
