@@ -41,18 +41,18 @@
 #ifdef HAVE_CUDA
 #include <curand.h>
 #include <curand_kernel.h>
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 #endif
 
 #ifdef HAVE_HIP
 #include <curand.h>
 #include <curand_kernel.h>
-#include <sci_defs/hip_defs.h>
+#include <sci_defs/gpu_defs.h>
 #endif
 
 #ifdef HAVE_SYCL
 #include <oneapi/mkl/rng/device.hpp>
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
 #endif
 
 #include <cmath>

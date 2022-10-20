@@ -616,6 +616,7 @@ public:
 
   friend class SchedulerCommon;
   friend class UnifiedScheduler;
+  friend class SYCLScheduler;
 
 private:
 

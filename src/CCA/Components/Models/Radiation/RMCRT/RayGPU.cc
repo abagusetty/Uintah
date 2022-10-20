@@ -29,10 +29,8 @@
 
 #ifdef HAVE_CUDA
 #include <CCA/Components/Models/Radiation/RMCRT/RayGPU.cuh>
-#include <sci_defs/cuda_defs.h>
 #elif defined(HAVE_SYCL)
 #include <CCA/Components/Models/Radiation/RMCRT/RayGPU.hpp>
-#include <sci_defs/sycl_defs.h>
 #endif
 
 #include <iostream>

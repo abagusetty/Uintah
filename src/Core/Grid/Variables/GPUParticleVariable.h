@@ -28,14 +28,15 @@
 #define UINTAH_GPUPARTICLEVARIABLE_H
 
 #include <Core/Grid/Variables/GPUParticleVariableBase.h>
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 namespace Uintah {
 
 template<class T>
 class GPUParticleVariable : public GPUParticleVariableBase {
 
-  friend class UnifiedScheduler; // allow Scheduler access
+  friend class SYCLScheduler;
+  friend class UnifiedScheduler; // allow scheduler access
 
   public:
 

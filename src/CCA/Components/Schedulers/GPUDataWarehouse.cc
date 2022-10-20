@@ -27,30 +27,11 @@
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
 #include <CCA/Components/Schedulers/GPUMemoryPool.h>
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
+#include <CCA/Components/Schedulers/UnifiedScheduler.h>
 #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
 
 #include <Core/Parallel/Parallel.h>
 #include <Core/Parallel/ProcessorGroup.h>
-#include <Core/Util/GPU.h>
-
-extern Uintah::MasterLock cerrLock;
-
-void GPUDataWarehouse::get(const GPUGridVariableBase &var, char const *label,
-                           const int patchID, const int8_t matlIndx,
-                           const int8_t levelIndx) {
-  // host code
-  varLock->lock();
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    allVarPointersInfo vp = varPointers->at(lpml);
-    var.setArray3(vp.var->device_offset, vp.var->device_size,
-                  vp.var->device_ptr);
-  } else {
-    printGetError("GPUDataWarehouse::get(GPUGridVariableBase& var, ...)", label,
-                  levelIndx, patchID, matlIndx);
-  }
-  varLock->unlock();
-}
 
 //______________________________________________________________________
 //
@@ -86,9 +67,7 @@ void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
   varLock->lock();
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
-      varPointers->find(lpml);
-
+  auto it = varPointers->find(lpml);
   if (it != varPointers->end()) {
     stagingVar sv;
     sv.device_offset = offset;
@@ -97,7 +76,6 @@ void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
         it->second.var->stagingVars.find(sv);
     if (staging_it != it->second.var->stagingVars.end()) {
       var.setArray3(offset, size, staging_it->second.device_ptr);
-
     } else {
       printf("GPUDataWarehouse::getStagingVar() - Didn't find a staging "
              "variable from the device for label %s patch %d matl %d level %d "
@@ -123,18 +101,56 @@ void GPUDataWarehouse::getLevel(const GPUGridVariableBase &var,
 //______________________________________________________________________
 //
 
+// template<typename T, typename std::enable_if_t<
+//                        std::is_same_v<T, GPUGridVariableBase> ||
+//                        std::is_same_v<T, GPUReductionVariableBase> ||
+//                        std::is_same_v<T, GPUPerPatchBase>> >
+// void GPUDataWarehouse::get(const T &var, char const *label,
+//                            const int patchID, const int8_t matlIndx,
+//                            const int8_t levelIndx) {
+//   // host code
+//   varLock->lock();
+//   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
+//   auto it = varPointers->find(lpml);  
+//   if (it != varPointers->end()) {
+//     allVarPointersInfo vp = it->second;
+//     if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
+//       var.setArray3(vp.var->device_offset, vp.var->device_size,
+//                     vp.var->device_ptr);
+//     }
+//     else {
+//       var.setData(vp.var->device_ptr);
+//     }
+//   }
+//   varLock->unlock();
+// }
+
+
+void GPUDataWarehouse::get(const GPUGridVariableBase &var, char const *label,
+                           const int patchID, const int8_t matlIndx,
+                           const int8_t levelIndx) {
+  // host code
+  varLock->lock();
+  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
+  auto it = varPointers->find(lpml);  
+  if (it != varPointers->end()) {
+    allVarPointersInfo vp = it->second;
+    var.setArray3(vp.var->device_offset, vp.var->device_size,
+                  vp.var->device_ptr);
+  }
+  varLock->unlock();
+}
+
 void GPUDataWarehouse::get(const GPUReductionVariableBase &var,
                            char const *label, const int patchID,
                            const int8_t matlIndx, const int8_t levelIndx) {
   // host code
   varLock->lock();
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    allVarPointersInfo vp = varPointers->at(lpml);
+  auto it = varPointers->find(lpml);
+  if (it != varPointers->end()) {
+    allVarPointersInfo vp = it->second;
     var.setData(vp.var->device_ptr);
-  } else {
-    printGetError("GPUDataWarehouse::get(GPUReductionVariableBase& var, ...)",
-                  label, levelIndx, patchID, matlIndx);
   }
   varLock->unlock();
 }
@@ -145,12 +161,10 @@ void GPUDataWarehouse::get(const GPUPerPatchBase &var, char const *label,
   // host code
   varLock->lock();
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    allVarPointersInfo vp = varPointers->at(lpml);
+  auto it = varPointers->find(lpml);
+  if (it != varPointers->end()) {
+    allVarPointersInfo vp = it->second;
     var.setData(vp.var->device_ptr);
-  } else {
-    printGetError("GPUDataWarehouse::get(GPUPerPatchBase& var, ...)", label,
-                  levelIndx, patchID, matlIndx);
   }
   varLock->unlock();
 }
@@ -165,14 +179,10 @@ void GPUDataWarehouse::getModifiable(GPUGridVariableBase &var,
   // host code
   varLock->lock();
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
-      varPointers->find(lpml);
+  auto it = varPointers->find(lpml);
   if (it != varPointers->end()) {
     var.setArray3(it->second.var->device_offset, it->second.var->device_size,
                   it->second.var->device_ptr);
-  } else {
-    printGetError("GPUDataWarehouse::get(GPUGridVariableBase& var, ...)", label,
-                  levelIndx, patchID, matlIndx);
   }
   varLock->unlock();
 }
@@ -187,12 +197,10 @@ void GPUDataWarehouse::getModifiable(GPUReductionVariableBase &var,
   // host code
   varLock->lock();
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    allVarPointersInfo vp = varPointers->at(lpml);
+  auto it = varPointers->find(lpml);
+  if (it != varPointers->end()) {
+    allVarPointersInfo vp = it->second;
     var.setData(vp.var->device_ptr);
-  } else {
-    printGetError("GPUDataWarehouse::get(GPUReductionVariableBase& var, ...)",
-                  label, levelIndx, patchID, matlIndx);
   }
   varLock->unlock();
 }
@@ -203,12 +211,10 @@ void GPUDataWarehouse::getModifiable(GPUPerPatchBase &var, char const *label,
   // host code
   varLock->lock();
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    allVarPointersInfo vp = varPointers->at(lpml);
+  auto it = varPointers->find(lpml);
+  if (it != varPointers->end()) {
+    allVarPointersInfo vp = it->second;
     var.setData(vp.var->device_ptr);
-  } else {
-    printGetError("GPUDataWarehouse::get(GPUPerPatchBase& var, ...)", label,
-                  levelIndx, patchID, matlIndx);
   }
   varLock->unlock();
 }
@@ -289,13 +295,12 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
 
   // See if it already exists.  Also see if we need to update this into d_varDB.
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator iter =
-      varPointers->find(lpml);
+  auto iter = varPointers->find(lpml);
   std::map<stagingVar, stagingVarInfo>::iterator staging_it;
 
   // sanity checks
   if (iter == varPointers->end()) {
-    printf("ERROR:\nGPUDataWarehouse::put( )  Can't use put() for a host-side "
+    printf("ERROR:\nGPUDataWarehouse::put()  Can't use put() for a host-side "
            "GPU DW without it first existing in the internal database.\n");
     exit(-1);
   } else if (staging) {
@@ -304,7 +309,7 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
     sv.device_size = var_size;
     staging_it = iter->second.var->stagingVars.find(sv);
     if (staging_it == iter->second.var->stagingVars.end()) {
-      printf("ERROR:\nGPUDataWarehouse::put( )  Can't use put() for a "
+      printf("ERROR:\nGPUDataWarehouse::put()  Can't use put() for a "
              "host-side GPU DW without this staging var first existing in the "
              "internal database.\n");
       exit(-1);
@@ -1735,7 +1740,7 @@ void GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t* stream) {
     sycl::range<3> dimBlock(1, 16, 32);
     sycl::range<3> dimGrid(1, 1, 1);
     // Give each ghost copying kernel 32 * 16 = 512 threads to copy
-    //(32x32 was too much for a smaller laptop GPU and the Uintah build server
+    // (32x32 was too much for a smaller laptop GPU and the Uintah build server
     // in debug mode)
 
     stream->parallel_for(
@@ -1884,7 +1889,7 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
 
 //______________________________________________________________________
 //
-void GPUDataWarehouse::getSizes(sycl::int3 &low, sycl::int3 &high, sycl::int3 &siz,
+void GPUDataWarehouse::getSizes(int3 &low, int3 &high, int3 &siz,
                                 GhostType &gtype, int &numGhostCells,
                                 char const *label, int patchID, int matlIndx,
                                 int levelIndx) {
@@ -2055,11 +2060,11 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t* stream,
   // cudaMemcpyDeviceToDevice
   // This is sort of device-to-device copy in SYCL on the same device.
   stream->memcpy(dest_it->second.var->device_ptr,
-		 source_it->second.var->device_ptr,
-		 source_it->second.var->device_size.x() *
-		 source_it->second.var->device_size.y() *
-		 source_it->second.var->device_size.z() *
-		 source_it->second.var->sizeOfDataType);
+                 source_it->second.var->device_ptr,
+                 source_it->second.var->device_size.x() *
+                 source_it->second.var->device_size.y() *
+                 source_it->second.var->device_size.z() *
+                 source_it->second.var->sizeOfDataType);
 
   from->varLock->unlock();
   this->varLock->unlock();
@@ -3106,8 +3111,7 @@ void GPUDataWarehouse::setSuperPatchLowAndSize(
   varLock->lock();
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
-      varPointers->find(lpml);
+  auto it = varPointers->find(lpml);
   if (it == varPointers->end()) {
     printf("ERROR: GPUDataWarehouse::setSuperPatchLowAndSize - Didn't find a "
            "variable for label %s patch %d matl %d level %d\n",
@@ -3123,10 +3127,5 @@ void GPUDataWarehouse::setSuperPatchLowAndSize(
 //______________________________________________________________________
 //
 
-void GPUDataWarehouse::print() {}
-
-void GPUDataWarehouse::printGetError(const char *msg, char const *label,
-                                     int8_t levelIndx, const int patchID,
-                                     int8_t matlIndx) {}
-
-void *GPUDataWarehouse::getPlacementNewBuffer() { return placementNewBuffer; }
+// void GPUDataWarehouse::print() {}
+// void *GPUDataWarehouse::getPlacementNewBuffer() { return placementNewBuffer; }

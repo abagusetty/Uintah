@@ -35,9 +35,9 @@
 #include <Core/Parallel/ProcessorGroup.h>
 #include <Core/ProblemSpec/ProblemSpec.h>
 
-#include <sci_defs/cuda_defs.h>
-#include <sci_defs/hip_defs.h>
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
+#include <sci_defs/gpu_defs.h>
+#include <sci_defs/gpu_defs.h>
 #include <sci_defs/kokkos_defs.h>
 
 #include <iostream>
@@ -62,7 +62,7 @@ SchedulerFactory::create( const ProblemSpecP   & ps
   /////////////////////////////////////////////////////////////////////
   // Default settings - nothing specified in the input file
   if (scheduler == "") {
-#if defined( UINTAH_ENABLE_KOKKOS ) && !defined( HAVE_CUDA ) && !defined( HAVE_HIP ) && !defined( HAVE_SYCL ) 
+#if defined( UINTAH_ENABLE_KOKKOS ) && !defined( HAVE_CUDA ) && !defined( HAVE_HIP ) && !defined( HAVE_SYCL )
     scheduler = "KokkosOpenMP";
 #elif defined(HAVE_SYCL)
     if (Uintah::Parallel::getNumThreads() > 0) {
@@ -70,7 +70,7 @@ SchedulerFactory::create( const ProblemSpecP   & ps
     }
     else {
       scheduler = "MPI";
-    }    
+    }
 #else
     if (Uintah::Parallel::getNumThreads() > 0) {
       scheduler = "Unified";
@@ -99,7 +99,7 @@ SchedulerFactory::create( const ProblemSpecP   & ps
   else if (scheduler == "SYCL") {
     sch = scinew SYCLScheduler(world, nullptr);
   }
-  
+
   else if (scheduler == "KokkosOpenMP") {
     sch = scinew KokkosOpenMPScheduler(world, nullptr);
   }
@@ -133,7 +133,7 @@ SchedulerFactory::create( const ProblemSpecP   & ps
 
   //__________________________________
   //
-  
+
   // Output which scheduler will be used
   proc0cout << "Scheduler: \t\t" << scheduler << std::endl;
 

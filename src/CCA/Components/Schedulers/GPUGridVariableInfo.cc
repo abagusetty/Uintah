@@ -23,6 +23,7 @@
  */
 
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
+#include <CCA/Components/Schedulers/SYCLScheduler.hpp>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
 
 #include <Core/Parallel/MasterLock.h>
@@ -431,8 +432,8 @@ DeviceGridVariables::addTaskGpuDWStagingVar( const Patch            * patchPoint
   //as that likely went into the regular host-side gpudw as a computes in the last timestep.
   //Just make sure we haven't already added this exact staging variable.
   LabelPatchMatlLevelDW lpmld(dep->m_var->getName().c_str(), patchPointer->getID(), matlIndx, levelIndx, dep->mapDataWarehouse());
-  TupleVariableMap::iterator it = vars.find(lpmld);
-  std::pair <TupleVariableMultiMap::iterator, TupleVariableMultiMap::iterator> ret = vars.equal_range(lpmld);
+  TupleVariableMap::iterator it = this->vars.find(lpmld);
+  std::pair <TupleVariableMultiMap::iterator, TupleVariableMultiMap::iterator> ret = this->vars.equal_range(lpmld);
   for (auto it = ret.first; it != ret.second; ++it) {
     if (it->second.m_staging == true && it->second.m_sizeVector == sizeVector && it->second.m_offset == offset) {
       //Don't add the same device var twice.
@@ -616,7 +617,10 @@ GpuUtilities::getGpuIndexForPatch(const Patch* patch)
 {
   auto it = patchAcceleratorLocation.find(patch);
   if (it != patchAcceleratorLocation.end()) {
-    return it->second;
+    if (it->second >= 0) {
+      return it->second;
+    } else {
+      std::exit(-1);
+    }
   }
-  return -1;
 }

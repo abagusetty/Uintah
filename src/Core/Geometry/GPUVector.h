@@ -25,7 +25,7 @@
 #ifndef CORE_GEOMETRY_GPUVECTOR_H
 #define CORE_GEOMETRY_GPUVECTOR_H
 
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 namespace Uintah {
 
@@ -39,34 +39,6 @@ class gpuIntVector : public int3 {
     HOST_DEVICE const int& operator[](      int& i) const { return (&x)[i]; }
     
     HOST_DEVICE gpuIntVector(const int3& copy):int3(copy) {}
-};
-
-//______________________________________________________________________
-//
-class uInt3 : public uint3 {
-
-  public:
-    HOST_DEVICE uInt3() {}
-    HOST_DEVICE unsigned int& operator[](const int& i) { return (&x)[i]; }
-    HOST_DEVICE unsigned int& operator[](      int& i) { return (&x)[i]; }
-    
-    HOST_DEVICE const unsigned int& operator[](const int& i) const { return (&x)[i]; }
-    HOST_DEVICE const unsigned int& operator[](      int& i) const { return (&x)[i]; }
-    HOST_DEVICE uInt3(const uint3& copy):uint3(copy) {}
-};
-
-//______________________________________________________________________
-//
-class Float3 : public float3 {
-
-  public:
-    HOST_DEVICE Float3() {}
-    HOST_DEVICE float& operator[](const int& i) { return (&x)[i]; }
-    HOST_DEVICE float& operator[](      int& i) { return (&x)[i]; }
-    
-    HOST_DEVICE const float& operator[](const int& i) const { return (&x)[i]; }
-    HOST_DEVICE const float& operator[](      int& i) const { return (&x)[i]; }
-    HOST_DEVICE Float3(const float3& copy):float3(copy) {}
 };
 
 //______________________________________________________________________

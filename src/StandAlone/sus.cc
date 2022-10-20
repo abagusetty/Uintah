@@ -75,9 +75,7 @@
 #include <Core/Util/FileUtils.h>
 #include <Core/Util/StringUtil.h>
 
-#include <sci_defs/cuda_defs.h>
-#include <sci_defs/hip_defs.h>
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
 #include <sci_defs/hypre_defs.h>
 #include <sci_defs/malloc_defs.h>
 #include <sci_defs/uintah_defs.h>
@@ -442,7 +440,7 @@ int main( int argc, char *argv[], char *env[] )
       restartFromScratch = false;
       restartRemoveOldDir = true;
     }
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     else if(arg == "-gpu") {
       Uintah::Parallel::setUsingDevice( true );
     }

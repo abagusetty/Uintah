@@ -36542,21 +36542,17 @@ fi
 
 
 
-sci_defs_files="$sci_defs_files include/sci_defs/cuda_testdefs.h"
-
 ##  --  search for hip stuff  ------------------------------------------
 if test "$with_hip" != NOT_SET; then
    eval HAVE_HIP="yes"
    DEF_HIP="#define HAVE_HIP 1"
 fi
-sci_defs_files="$sci_defs_files include/sci_defs/hip_testdefs.h"
 
 ##  --  search for sycl stuff  ------------------------------------------
 if test "$with_sycl" != NOT_SET; then
    eval HAVE_SYCL="yes"
    DEF_SYCL="#define HAVE_SYCL 1"
 fi
-sci_defs_files="$sci_defs_files include/sci_defs/sycl_testdefs.h"
 
 ##  --  Convienece headers for CUDA, HIP, SYCL --
 sci_defs_files="$sci_defs_files include/sci_defs/gpu_testdefs.h"

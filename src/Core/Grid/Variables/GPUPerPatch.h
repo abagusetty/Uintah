@@ -28,7 +28,7 @@
 #define UINTAH_CORE_GRID_VARIABLES_GPUPERPATCH_H
 
 #include <Core/Grid/Variables/GPUPerPatchBase.h>
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #include <string>
 
@@ -37,7 +37,8 @@ namespace Uintah {
 template<class T>
 class GPUPerPatch : public GPUPerPatchBase {
 
-  friend class UnifiedScheduler; // allow UnifiedScheduler access
+  friend class SYCLScheduler;
+  friend class UnifiedScheduler; // allow scheduler access
 
   public:
 

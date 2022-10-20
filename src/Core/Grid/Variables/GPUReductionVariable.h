@@ -28,8 +28,8 @@
 #define UINTAH_CORE_GRID_VARIABLES_GPUREDUCTIONVARIABLE_H
 
 #include <Core/Grid/Variables/GPUReductionVariableBase.h>
-#include <sci_defs/cuda_defs.h>
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #include <string>
 
@@ -38,7 +38,8 @@ namespace Uintah {
 template<class T>
 class GPUReductionVariable : public GPUReductionVariableBase {
 
-  friend class UnifiedScheduler; // allow Scheduler access
+  friend class SYCLScheduler;
+  friend class UnifiedScheduler; // allow scheduler access
 
   public:
 

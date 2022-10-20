@@ -45,16 +45,25 @@ SRCS += \
         $(SRCDIR)/SchedulerFactory.cc         \
         $(SRCDIR)/SendState.cc                \
         $(SRCDIR)/TaskGraph.cc                \
-        $(SRCDIR)/UnifiedScheduler.cc
+	$(SRCDIR)/UnifiedScheduler.cc
+
 
 ifeq ($(HAVE_SYCL),yes)
   SRCS += $(SRCDIR)/GPUDataWarehouse.cc       \
-          $(SRCDIR)/GPUGridVariableInfo.cc    \
+          $(SRCDIR)/GPUGridVariableInfo.cpp   \
           $(SRCDIR)/GPUGridVariableGhosts.cc  \
           $(SRCDIR)/SYCLScheduler.cc
 endif
 
 ifeq ($(HAVE_CUDA),yes)
+  SRCS += $(SRCDIR)/GPUDataWarehouse.cu       \
+          $(SRCDIR)/GPUGridVariableInfo.cc    \
+          $(SRCDIR)/GPUGridVariableGhosts.cc
+
+  DLINK_FILES += CCA/Components/Schedulers/GPUDataWarehouse.o
+endif
+
+ifeq ($(HAVE_HIP),yes)
   SRCS += $(SRCDIR)/GPUDataWarehouse.cu       \
           $(SRCDIR)/GPUGridVariableInfo.cc    \
           $(SRCDIR)/GPUGridVariableGhosts.cc

@@ -1251,8 +1251,6 @@ bool DetailedTaskPriorityComparison::operator()(DetailedTask *&ltask,
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
-//_____________________________________________________________________________
-//
 bool DetailedTasks::getDeviceValidateRequiresCopiesTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1270,17 +1268,12 @@ bool DetailedTasks::getDeviceValidateRequiresCopiesTask(DetailedTask *&dtask) {
     dtask = *device_validateRequiresCopies_pool_iter;
     device_validateRequiresCopies_pool.erase(
         device_validateRequiresCopies_pool_iter);
-    // printf("device_validateRequiresCopies_pool - Erased %s size of pool
-    // %lu\n", dtask->getName().c_str(),
-    // device_validateRequiresCopies_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//_____________________________________________________________________________
-//
 bool DetailedTasks::getDevicePerformGhostCopiesTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1297,16 +1290,12 @@ bool DetailedTasks::getDevicePerformGhostCopiesTask(DetailedTask *&dtask) {
   if (device_performGhostCopies_pool_iter) {
     dtask = *device_performGhostCopies_pool_iter;
     device_performGhostCopies_pool.erase(device_performGhostCopies_pool_iter);
-    // printf("device_performGhostCopies_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), device_performGhostCopies_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//_____________________________________________________________________________
-//
 bool DetailedTasks::getDeviceValidateGhostCopiesTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1323,16 +1312,12 @@ bool DetailedTasks::getDeviceValidateGhostCopiesTask(DetailedTask *&dtask) {
   if (device_validateGhostCopies_pool_iter) {
     dtask = *device_validateGhostCopies_pool_iter;
     device_validateGhostCopies_pool.erase(device_validateGhostCopies_pool_iter);
-    // printf("device_validateGhostCopies_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), device_validateGhostCopies_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//______________________________________________________________________
-//
 bool DetailedTasks::getDeviceCheckIfExecutableTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1348,16 +1333,12 @@ bool DetailedTasks::getDeviceCheckIfExecutableTask(DetailedTask *&dtask) {
   if (device_checkIfExecutable_pool_iter) {
     dtask = *device_checkIfExecutable_pool_iter;
     device_checkIfExecutable_pool.erase(device_checkIfExecutable_pool_iter);
-    // printf("device_checkIfExecutable_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), device_checkIfExecutable_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//______________________________________________________________________
-//
 bool DetailedTasks::getDeviceReadyToExecuteTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1373,16 +1354,12 @@ bool DetailedTasks::getDeviceReadyToExecuteTask(DetailedTask *&dtask) {
   if (device_readyToExecute_pool_iter) {
     dtask = *device_readyToExecute_pool_iter;
     device_readyToExecute_pool.erase(device_readyToExecute_pool_iter);
-    // printf("device_readyToExecute_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), device_readyToExecute_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//______________________________________________________________________
-//
 bool DetailedTasks::getDeviceExecutionPendingTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1398,16 +1375,12 @@ bool DetailedTasks::getDeviceExecutionPendingTask(DetailedTask *&dtask) {
   if (device_executionPending_pool_iter) {
     dtask = *device_executionPending_pool_iter;
     device_executionPending_pool.erase(device_executionPending_pool_iter);
-    // printf("device_executionPending_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), device_executionPending_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//_____________________________________________________________________________
-//
 bool DetailedTasks::getHostValidateRequiresCopiesTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1425,16 +1398,12 @@ bool DetailedTasks::getHostValidateRequiresCopiesTask(DetailedTask *&dtask) {
     dtask = *host_validateRequiresCopies_pool_iter;
     host_validateRequiresCopies_pool.erase(
         host_validateRequiresCopies_pool_iter);
-    // printf("host_validateRequiresCopies_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), host_validateRequiresCopies_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//_____________________________________________________________________________
-//
 bool DetailedTasks::getHostCheckIfExecutableTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1450,16 +1419,12 @@ bool DetailedTasks::getHostCheckIfExecutableTask(DetailedTask *&dtask) {
   if (host_checkIfExecutable_pool_iter) {
     dtask = *host_checkIfExecutable_pool_iter;
     host_checkIfExecutable_pool.erase(host_checkIfExecutable_pool_iter);
-    // printf("host_checkIfExecutable_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), host_checkIfExecutable_pool.size());
     retVal = true;
   }
 
   return retVal;
 }
 
-//______________________________________________________________________
-//
 bool DetailedTasks::getHostReadyToExecuteTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
   // This is all done as one atomic unit as we're seeing if we should get an
@@ -1475,8 +1440,6 @@ bool DetailedTasks::getHostReadyToExecuteTask(DetailedTask *&dtask) {
   if (host_readyToExecute_pool_iter) {
     dtask = *host_readyToExecute_pool_iter;
     host_readyToExecute_pool.erase(host_readyToExecute_pool_iter);
-    // printf("host_readyToExecute_pool - Erased %s size of pool %lu\n",
-    // dtask->getName().c_str(), host_readyToExecute_pool.size());
     retVal = true;
   }
 

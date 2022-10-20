@@ -41,7 +41,7 @@
 #  include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
 #endif
 
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #define BLOCKSIZE 16
 

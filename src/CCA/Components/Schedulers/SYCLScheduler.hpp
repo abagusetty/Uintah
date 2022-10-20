@@ -31,7 +31,7 @@
 #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 #include <CCA/Components/Schedulers/GPUMemoryPool.h>
 #include <CCA/Components/Schedulers/GPUStreamPool.h>
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #include <map>
 #include <string>
@@ -141,7 +141,6 @@ DESCRIPTION
     bool     m_abort{false};
     int      m_abort_point{0};
 
-#ifdef HAVE_SYCL
     // TODO: ABB 05/20/22, this variable is not being used, the original purpose could
     // be to use a combination of stream-events to track async-work with cudaEventQuery().
     // But the current infrastructure uses, cudaStreamQuery() which makes explicit
@@ -149,12 +148,8 @@ DESCRIPTION
     // [SYCL] For SYCL, since there is no sycl::queue query status available, we've to use
     //        std::vector<sycl::events> to track the progress for each sycl::queue.
     std::vector<std::queue<gpuEvent_t*> >               m_idle_events;
-#endif
   
-#if defined(HAVE_SYCL)
     using DeviceVarDest = GpuUtilities::DeviceVarDestination;
-
-    void assignStatusFlagsToPrepareACpuTask( DetailedTask * dtask );
 
     void assignDevicesAndStreams( DetailedTask* dtask );
 
@@ -221,7 +216,7 @@ DESCRIPTION
     struct GPUGridVariableInfo {
       GPUGridVariableInfo( DetailedTask * dtask
 			   , double       * ptr
-			   , IntVector      size
+			   , sycl::int3      size
 			   , int            device
 	)
         : m_dtask{dtask}
@@ -232,7 +227,7 @@ DESCRIPTION
 
       DetailedTask * m_dtask;
       double       * m_ptr;
-      IntVector      m_size;
+      sycl::int3      m_size;
       int            m_device;
     };
 
@@ -291,37 +286,19 @@ DESCRIPTION
       Task::DepType m_depType;
     };
 
-#endif // HAVE_SYCL
   };
 
 
   class SYCLSchedulerWorker {
-
   public:
-
     SYCLSchedulerWorker( SYCLScheduler * scheduler, int tid, int affinity );
-
     void run();
-
-    const double getWaitTime() const;
-    const int    getLocalTID() const;
-    const int    getAffinity() const;
-
-    void   startWaitTime();
-    void   stopWaitTime();
-    void   resetWaitTime();
 
     friend class SYCLScheduler;
 
   private:
-
     SYCLScheduler * m_scheduler{nullptr};
-    int                m_rank{-1};
-    int                m_tid{-1};
-    int                m_affinity{-1};
-
-    Timers::Simple     m_wait_timer{};
-    double             m_wait_time{0.0};
+    int             m_rank{-1};
   };
   
 } // namespace Uintah

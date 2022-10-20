@@ -36,7 +36,9 @@ namespace Uintah {
 class GPUGridVariableBase : public GPUVariable {
 
   friend class GPUDataWarehouse; // allow DataWarehouse set/get data members
+  friend class SYCLScheduler;
   friend class UnifiedScheduler; // allow scheduler access
+
 public:
   HOST_DEVICE virtual ~GPUGridVariableBase() {}
   HOST_DEVICE virtual size_t getMemSize() = 0;

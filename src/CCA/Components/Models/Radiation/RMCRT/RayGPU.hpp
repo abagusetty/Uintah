@@ -31,7 +31,7 @@
 #include <Core/Grid/Task.h>
 
 #include <oneapi/mkl/rng/device.hpp>
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 // #include <oneapi/dpl/random>
 // hypre_HandleComputeStream(hypre_handle())->parallel_for(

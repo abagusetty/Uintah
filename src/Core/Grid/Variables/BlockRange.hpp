@@ -22,8 +22,7 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UINTAH_HOMEBREW_BLOCK_RANGE_HPP
-#define UINTAH_HOMEBREW_BLOCK_RANGE_HPP
+#pragma once
 
 #ifdef UINTAH_ENABLE_KOKKOS
 #include <sci_defs/kokkos_defs.h>
@@ -215,6 +214,22 @@ void parallel_reduce_sum( BlockRange const & r, const Functor & f, ReductionType
 };
 
 template <typename Functor, typename ReductionType>
+void parallel_reduce_sum_sycl( BlockRange const & r, const Functor & f, ReductionType & red  )
+{
+  const int ib = r.begin(0); const int ie = r.end(0);
+  const int jb = r.begin(1); const int je = r.end(1);
+  const int kb = r.begin(2); const int ke = r.end(2);
+
+  ReductionType tmp = red;
+  for (int k=kb; k<ke; ++k) {
+  for (int j=jb; j<je; ++j) {
+  for (int i=ib; i<ie; ++i) {
+    f(i,j,k,tmp);
+  }}}
+  red = tmp;
+};
+  
+template <typename Functor, typename ReductionType>
 void parallel_reduce_min( BlockRange const & r, const Functor & f, ReductionType & red  )
 {
   const int ib = r.begin(0); const int ie = r.end(0);
@@ -232,7 +247,4 @@ void parallel_reduce_min( BlockRange const & r, const Functor & f, ReductionType
 
 #endif
 
-
 } // namespace Uintah
-
-#endif // UINTAH_HOMEBREW_BLOCK_RANGE_HPP

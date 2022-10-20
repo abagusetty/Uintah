@@ -44,7 +44,7 @@ namespace Uintah {
 
 CLASS
    ApplicationInterface
-   
+
    Short description...
 
 GENERAL INFORMATION
@@ -56,35 +56,35 @@ GENERAL INFORMATION
    University of Utah
 
    Center for the Simulation of Accidental Fires and Explosions (C-SAFE)
-  
-   
+
+
 KEYWORDS
    Simulation_Interface
 
 DESCRIPTION
    Long description...
-  
+
 WARNING
-  
+
 ****************************************/
 
   class UintahParallelComponent;
-  
+
   class DataWarehouse;
   class Regridder;
   class Output;
-  
+
   class VarLabel;
 
   class DebugStream;
   class Dout;
-  
+
   typedef unsigned char ValidateFlag;
 
 #ifdef HAVE_VISIT
   struct visit_simulation_data;
 #endif
-  
+
   class ApplicationInterface : public UintahParallelPort {
 
     // NOTE: ONLY CS infrastructure should be a friend class - the actual
@@ -98,6 +98,7 @@ WARNING
     friend class DynamicMPIScheduler;
     friend class MPIScheduler;
     friend class UnifiedScheduler;
+    friend class SYCLScheduler;
     friend class DetailedTasks;
 
     friend class LoadBalancersCommon;
@@ -109,21 +110,21 @@ WARNING
     friend class Switcher;
 
 #ifdef HAVE_VISIT
-    friend void visit_UpdateSimData( visit_simulation_data *sim, 
+    friend void visit_UpdateSimData( visit_simulation_data *sim,
                                      GridP currentGrid,
                                      bool first, bool last );
-    
+
     friend void visit_SetTimeValues( visit_simulation_data *sim );
     friend void visit_SetDeltaTValues( visit_simulation_data *sim );
     friend void visit_SetApplicationStats( visit_simulation_data *sim );
     friend void visit_SimTimeMaxCallback(char *val, void *cbdata);
     friend void visit_DeltaTVariableCallback(char *val, void *cbdata);
 #endif
-    
+
   public:
     ApplicationInterface();
     virtual ~ApplicationInterface();
-    
+
     // Methods for managing the components attached via the ports.
     virtual void setComponents( UintahParallelComponent *comp ) = 0;
     virtual void getComponents() = 0;
@@ -132,18 +133,18 @@ WARNING
     virtual Scheduler *getScheduler() = 0;
     virtual Regridder *getRegridder() = 0;
     virtual Output    *getOutput()    = 0;
-    
+
     // Top level problem set up called by sus.
     virtual void problemSetup( const ProblemSpecP &prob_spec ) = 0;
     virtual void problemSetupDeltaT( const ProblemSpecP &prob_spec ) = 0;
-    
+
     // Top level problem set up called by simulation controller.
     virtual void problemSetup( const ProblemSpecP     & params,
                                const ProblemSpecP     & restart_prob_spec,
                                      GridP            & grid ) = 0;
 
     // Called to add missing grid based UPS specs.
-    virtual void preGridProblemSetup( const ProblemSpecP & params, 
+    virtual void preGridProblemSetup( const ProblemSpecP & params,
                                             GridP        & grid ) = 0;
 
     // Used to write parts of the problem spec.
@@ -152,14 +153,14 @@ WARNING
     // Schedule the initial setup of the problem.
     virtual void scheduleInitialize( const LevelP     & level,
                                            SchedulerP & scheduler ) = 0;
-                                 
+
     // On a restart schedule an initialization task.
     virtual void scheduleRestartInitialize( const LevelP     & level,
                                                   SchedulerP & scheduler ) = 0;
 
     // Used by the switcher
     virtual void setupForSwitching() = 0;
-    
+
     // restartInitialize() is called once and only once if and when a
     // simulation is restarted.  This allows the simulation component
     // to handle initializations that are necessary when a simulation
@@ -174,7 +175,7 @@ WARNING
     // Schedule the initial switching.
     virtual void scheduleSwitchInitialization( const LevelP     & level,
                                                      SchedulerP & sched ) = 0;
-      
+
     virtual void scheduleSwitchTest( const LevelP &     level,
                                            SchedulerP & scheduler ) = 0;
 
@@ -193,7 +194,7 @@ WARNING
     // Optionally schedule a task that determines the next delt T value.
     virtual void scheduleComputeStableTimeStep( const LevelP & level,
                                                 SchedulerP   & scheduler ) = 0;
-      
+
     // Reduce the system wide values such as the next delta T.
     virtual void scheduleReduceSystemVars(const GridP      & grid,
                                           const PatchSet   * perProcPatchSet,
@@ -203,22 +204,22 @@ WARNING
     virtual void scheduleInitializeSystemVars(const GridP      & grid,
                                               const PatchSet   * perProcPatchSet,
                                                     SchedulerP & scheduler) = 0;
-    
+
     // Schedule the updating of system values such at the time step.
     virtual void scheduleUpdateSystemVars(const GridP      & grid,
                                           const PatchSet   * perProcPatchSet,
                                                 SchedulerP & scheduler) = 0;
-    
+
     // Methods used for scheduling AMR regridding.
     virtual void scheduleRefine( const PatchSet   * patches,
                                        SchedulerP & scheduler ) = 0;
-    
-    virtual void scheduleRefineInterface( const LevelP     & fineLevel, 
+
+    virtual void scheduleRefineInterface( const LevelP     & fineLevel,
                                                 SchedulerP & scheduler,
                                                 bool         needCoarseOld,
                                                 bool         needCoarseNew ) = 0;
 
-    virtual void scheduleCoarsen( const LevelP     & coarseLevel, 
+    virtual void scheduleCoarsen( const LevelP     & coarseLevel,
                                         SchedulerP & scheduler ) = 0;
 
     // Schedule to mark flags for AMR regridding
@@ -252,17 +253,17 @@ WARNING
     //////////
     virtual void setAMR(bool val) = 0;
     virtual bool isAMR() const = 0;
-  
+
     virtual void setLockstepAMR(bool val) = 0;
     virtual bool isLockstepAMR() const = 0;
 
     virtual void setDynamicRegridding(bool val) = 0;
     virtual bool isDynamicRegridding() const = 0;
-  
+
     // Boolean for vars changed by the in-situ.
     virtual void haveModifiedVars( bool val ) = 0;
     virtual bool haveModifiedVars() const = 0;
-     
+
     // For restarting.
     virtual bool isRestartTimeStep() const = 0;
     virtual void setRestartTimeStep( bool val ) = 0;
@@ -272,7 +273,7 @@ WARNING
     virtual void setRegridTimeStep( bool val ) = 0;
     virtual int  getLastRegridTimeStep() = 0;
     virtual bool wasRegridLastTimeStep() const = 0;
-    
+
     // Some applications can set reduction variables
     virtual void addReductionVariable( std::string name,
                                        const TypeDescription *varType,
@@ -285,14 +286,14 @@ WARNING
     virtual void setReductionVariable(DataWarehouse* new_dw, std::string name, double val) = 0;
     virtual void overrideReductionVariable(DataWarehouse* new_dw, std::string name,   bool val) = 0;
     virtual void overrideReductionVariable(DataWarehouse* new_dw, std::string name, double val) = 0;
-    
+
     // Get application specific reduction values all cast to doubles.
     virtual double getReductionVariable( std::string name ) const = 0;
     virtual double getReductionVariable( unsigned int index ) const = 0;
     virtual std::string getReductionVariableName( unsigned int index ) const = 0;
     virtual unsigned int getReductionVariableCount( unsigned int index ) const = 0;
     virtual bool       overriddenReductionVariable( unsigned int index ) const = 0;
-    
+
     // Access methods for member classes.
     virtual MaterialManagerP getMaterialManagerP() const = 0;
 
@@ -306,7 +307,7 @@ WARNING
     virtual ReductionInfoMapper< ApplicationStatsEnum, double > & getApplicationStats() = 0;
 
     virtual void resetApplicationStats( double val ) = 0;
-      
+
     virtual void reduceApplicationStats( bool allReduce, const ProcessorGroup* myWorld ) = 0;
 
     virtual void   setDelTOverrideRestart( double val ) = 0;
@@ -323,7 +324,7 @@ WARNING
 
     virtual void   setDelTMaxIncrease( double val ) = 0;
     virtual double getDelTMaxIncrease() const = 0;
-    
+
     virtual void   setDelTMin( double val ) = 0;
     virtual double getDelTMin() const = 0;
 
@@ -338,7 +339,7 @@ WARNING
 
     virtual void   setSimTimeClampToOutput( bool val ) = 0;
     virtual bool   getSimTimeClampToOutput() const = 0;
-    
+
     virtual void   setTimeStepsMax( int val ) = 0;
     virtual int    getTimeStepsMax() const = 0;
 
@@ -365,10 +366,10 @@ WARNING
 
     virtual   void setNextDelT( double delT, bool restart = false ) = 0;
     virtual double getNextDelT() const = 0;
-    
+
     virtual   void setSimTime( double simTime ) = 0;
     virtual double getSimTime() const = 0;
-    
+
     // Returns the integer time step index of the simulation.  All
     // simulations start with a time step number of 0.  This value is
     // incremented by one for each simulation time step processed.
@@ -387,7 +388,7 @@ WARNING
 
     ApplicationInterface(const ApplicationInterface&);
     ApplicationInterface& operator=(const ApplicationInterface&);
-  
+
 #ifdef HAVE_VISIT
   public:
     // Reduction analysis variables for on the fly analysis
@@ -398,7 +399,7 @@ WARNING
       int level;
       std::vector< const VarLabel* > labels;
     };
-  
+
     virtual std::vector< analysisVar > & getAnalysisVars() = 0;
 
     // Interactive variables from the UPS problem spec or other state
@@ -414,13 +415,13 @@ WARNING
       // recompile the task graph.
       double range[2];   // If modifiable min/max range of acceptable values.
     };
-  
+
     // Interactive variables from the UPS problem spec.
     virtual std::vector< interactiveVar > & getUPSVars() = 0;
 
     // Interactive state variables from components.
     virtual std::vector< interactiveVar > & getStateVars() = 0;
-     
+
     virtual void setVisIt( unsigned int val ) = 0;
     virtual unsigned int  getVisIt() = 0;
 #endif

@@ -25,7 +25,6 @@
 #pragma once
 
 #include <sci_defs/gpu_defs.h>
-
 #include <map>
 #include <vector>
 
@@ -78,72 +77,72 @@ class GPUStreamPool {
 protected:
   // thread shared data, needs lock protection when accessed
 
-  //[CUDA] Operations within the same stream are ordered (FIFO) and cannot
-  //overlap. [SYCL] Operations within the same queue are out-of-order and can be
-  //overlapped. Operations in different streams are unordered and can overlap
+  // [CUDA] Operations within the same stream are ordered (FIFO) and cannot
+  // overlap. [SYCL] Operations within the same queue are out-of-order and can be
+  // overlapped. Operations in different streams are unordered and can overlap
   // For this reason we let each task own a stream, as we want one task to be
   // able to run if it is ready to do work even if another task is not yet
   // ready. It also enables us to easily determine when a computed variable is
   // "valid" because when that task's stream completes, then we can infer the
   // variable is ready to go.  More about how a task claims a stream can be
   // found in DetailedTasks.cc
-  std::map<int, std::vector<gpuStream_t *>> s_idle_streams;
+  std::vector<gpuStream_t*> s_idle_streams;
 
   // thread-safe, GPU-specific counter for getting a round-robin stream/queue
   // from pool
   unsigned int *s_count{nullptr};
+  // total number of GPUs on node
+  int s_ngpus{0};
 
 private:
   GPUStreamPool() {
-    int numGPUs_{};
-    gpuGetDeviceCount(&numGPUs_);
-    s_count = new unsigned int[numGPUs_];
+    gpuGetDeviceCount(&s_ngpus);
+    s_count = new unsigned int[s_ngpus];
 
-    for (int devID = 0; devID < numGPUs_; devID++) { // # of GPUs per node
+    for (int devID = 0; devID < s_ngpus; devID++) { // # of GPUs per node
       gpuSetDevice(devID);
       s_count[devID] = 0;
 
-      std::vector<gpuStream_t *> streamVec;
       for (int j = 0; j < N; j++) { // # of streams per GPU
-        gpuStream_t *stream = nullptr;
 #if defined(HAVE_CUDA)
-        stream = new cudaStream_t;
-        cudaStreamCreate(stream);
+        gpuStream_t* stream = nullptr;
+        cudaStreamCreateWithFlags(stream, cudaStreamNonBlocking);
+        s_idle_streams.push_back(stream);
 #elif defined(HAVE_HIP)
-        stream = new hipStream_t;
-        hipStreamCreate(stream);
+        gpuStream_t* stream = nullptr;
+        hipStreamCreateWithFlags(stream, hipStreamNonBlocking);
+        s_idle_streams.push_back(stream);
 #elif defined(HAVE_SYCL)
-        stream = new sycl::queue(*sycl_get_context(devID),
-                                 *sycl_get_device(devID), sycl_asynchandler);
+        s_idle_streams.push_back( new sycl::queue(*sycl_get_context(devID),
+                                                  *sycl_get_device(devID),
+                                                  sycl_asynchandler) );
 #endif
-        streamVec.push_back(stream);
-      } // j
-      s_idle_streams[devID] = std::move(streamVec);
-    }
+      } // streamID
+    } // devID
   }
 
   ~GPUStreamPool() {}
 
-public:
-  /// Returns a default/first GPU stream in a round-robin fashion
-  gpuStream_t *getDefaultGpuStreamFromPool(int deviceID) {
-    auto stream_iter = s_idle_streams.find(deviceID);
-    if (stream_iter != s_idle_streams.end()) {
-      return (stream_iter->second).front();
-    } else {
+  void check_device(int deviceID) {
+    if(deviceID > s_ngpus) {
+      std::cout << "Caught INVALID deviceID passed to getStreams(): " << std::endl
+                << deviceID << std::endl;
       std::exit(-1);
     }
   }
 
+public:
+  /// Returns a default/first GPU stream
+  gpuStream_t* getDefaultGpuStreamFromPool(int deviceID) {
+    check_device(deviceID);
+    return s_idle_streams[deviceID*N + 0];
+  }
+
   /// Returns a GPU stream in a round-robin fashion
-  gpuStream_t *getGpuStreamFromPool(int deviceID) {
-    unsigned int streamCounter = (s_count[deviceID])++ % N;
-    auto stream_iter = s_idle_streams.find(deviceID);
-    if (stream_iter != s_idle_streams.end()) {
-      return (stream_iter->second)[streamCounter];
-    } else {
-      std::exit(-1);
-    }
+  gpuStream_t* getGpuStreamFromPool(int deviceID) {
+    check_device(deviceID);
+    unsigned short int counter = (s_count[deviceID])++ % N;
+    return s_idle_streams[deviceID*N + counter];
   }
 
   /// Returns the instance of device manager singleton.

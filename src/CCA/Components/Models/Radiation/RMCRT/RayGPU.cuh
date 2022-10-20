@@ -31,7 +31,7 @@
 
 #include <curand.h>
 #include <curand_kernel.h>
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #define __CUDA_INTERNAL_COMPILATION__
 #include "math_functions.h" // needed for max()

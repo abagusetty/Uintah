@@ -187,10 +187,10 @@ public:
 
   std::map<int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setGpuStreamForThisTask(int deviceNum, gpuStream_t *s);
+  void setGpuStreamForThisTask(int deviceNum, gpuStream_t* s);
   void clearGpuStreamsForThisTask();
   bool checkGpuStreamDoneForThisTask(int device_id,
-                                     gpuStream_t *taskGpuStream) const;
+                                     gpuStream_t* taskGpuStream) const;
   bool checkAllGpuStreamsDoneForThisTask() const;
 
   void setTaskGpuDataWarehouse(int deviceNum, Task::WhichDW DW,
@@ -292,7 +292,7 @@ private:
   // map of GPU-ID to the stream assigned on that particular GPU-ID. A task can
   // have more than 1 device and corresponding stream assigned to it. (i.e.,
   // data-archiver's output variables)
-  std::map<int, gpuStream_t *> d_gpuStreams;
+  std::map<int, gpuStream_t*> d_gpuStreams;
 
   // Store information about each set of grid variables.
   // This will help later when we figure out the best way to store data into the

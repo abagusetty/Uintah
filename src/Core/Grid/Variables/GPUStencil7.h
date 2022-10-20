@@ -26,9 +26,9 @@
 #define UINTAH_GPUSTENCIL7_H
 
 #ifdef HAVE_SYCL
-#include <sci_defs/sycl_defs.h>
+#include <sci_defs/gpu_defs.h>
 #elif defined(HAVE_CUDA)
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 #else
 #include <array>
 #endif

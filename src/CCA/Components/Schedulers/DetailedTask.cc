@@ -147,8 +147,8 @@ void DetailedTask::doit(const ProcessorGroup *pg,
     // each task runs on only once device, instead of a one to many
     // relationship.
 
-    for (std::set<int>::const_iterator deviceNums_it = deviceNums_.begin();
-         deviceNums_it != deviceNums_.end(); ++deviceNums_it) {
+    for (auto deviceNums_it = deviceNums_.cbegin();
+         deviceNums_it != deviceNums_.cend(); ++deviceNums_it) {
       const auto currentDevice = *deviceNums_it;
       OnDemandDataWarehouse::uintahSetGpuDevice(currentDevice);
       GPUDataWarehouse *host_oldtaskdw =
@@ -739,9 +739,8 @@ std::ostream &operator<<(std::ostream &out, const DetailedTask &dtask) {
 // output tasks)
 std::set<int> DetailedTask::getDeviceNums() const { return deviceNums_; }
 
-gpuStream_t *DetailedTask::getGpuStreamForThisTask(int device_id) const {
-  std::map<int, gpuStream_t *>::const_iterator it;
-  it = d_gpuStreams.find(device_id);
+gpuStream_t* DetailedTask::getGpuStreamForThisTask(int device_id) const {
+  auto it = std::as_const(d_gpuStreams).find(device_id);
   if (it != d_gpuStreams.end()) {
     return it->second;
   } else {
@@ -758,7 +757,7 @@ gpuStream_t *DetailedTask::getGpuStreamForThisTask(int device_id) const {
 void DetailedTask::setGpuStreamForThisTask(int device_id, gpuStream_t *stream) {
   if (d_gpuStreams.find(device_id) == d_gpuStreams.end()) {
     deviceNums_.insert(device_id);
-    d_gpuStreams.insert(std::make_pair(device_id, stream));
+    d_gpuStreams.try_emplace(device_id, stream);
   } else {
     printf("ERROR! - DetailedTask::setGpuStreamForThisTask() - This task %s "
            "already had a stream assigned for device %d\n",
@@ -773,7 +772,7 @@ void DetailedTask::setGpuStreamForThisTask(int device_id, gpuStream_t *stream) {
 void DetailedTask::clearGpuStreamsForThisTask() { d_gpuStreams.clear(); }
 
 bool DetailedTask::checkGpuStreamDoneForThisTask(
-    int device_id, gpuStream_t *taskGpuStream) const {
+    int device_id, gpuStream_t* taskGpuStream) const {
   OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
 
 #ifdef HAVE_CUDA
@@ -890,8 +889,7 @@ void DetailedTask::setTaskGpuDataWarehouse(const int whichDevice,
     temp.TaskGpuDW[0] = nullptr;
     temp.TaskGpuDW[1] = nullptr;
     temp.TaskGpuDW[DW] = TaskDW;
-    TaskGpuDWs.insert(
-        std::pair<unsigned int, TaskGpuDataWarehouses>(whichDevice, temp));
+    TaskGpuDWs.try_emplace(whichDevice, temp);
   }
 }
 

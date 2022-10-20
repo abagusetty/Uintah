@@ -32,14 +32,7 @@
 #include <Core/Grid/Variables/Stencil7.h>
 #include <Core/Util/GPU.h>
 
-#include <curand.h>
-#include <curand_kernel.h>
-#include <sci_defs/cuda_defs.h>
 #include <sci_defs/uintah_defs.h>
-
-#define __CUDA_INTERNAL_COMPILATION__
-#include "math_functions.h" // needed for max()
-#undef __CUDA_INTERNAL_COMPILATION__
 
 #define DEBUG -9 // 1: divQ, 2: boundFlux, 3: scattering
 // #define FIXED_RANDOM_NUM        // also edit in

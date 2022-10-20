@@ -32,7 +32,7 @@
 #include <Core/Grid/Variables/ComputeSet.h>
 #include <Core/Grid/Variables/VarLabel.h>
 
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 
 namespace Uintah {

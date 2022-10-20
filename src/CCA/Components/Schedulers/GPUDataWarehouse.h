@@ -43,8 +43,6 @@
 #include <string>
 #include <vector>
 
-#define IntVector sycl::int3
-
 #define MAX_VARDB_ITEMS                                                        \
   10000000 // Due to how it's allocated, it will never use up this much space.
            // Only a very small fraction of it.
@@ -508,6 +506,31 @@ public:
   }
 
   // host-side calls
+  // template<typename T, typename std::enable_if_t<
+  //                        std::is_same_v<T, GPUGridVariableBase> ||
+  //                        std::is_same_v<T, GPUReductionVariableBase> ||
+  //                        std::is_same_v<T, GPUPerPatchBase>>>
+  /* template<typename T> */
+  /* void get(const T &var, char const *label, const int patchID, */
+  /*          const int8_t matlIndx, const int8_t levelIndx = 0) { */
+  /*   // host code */
+  /*   varLock->lock(); */
+  /*   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx); */
+  /*   auto it = varPointers->find(lpml); */
+  /*   if (it != varPointers->end()) { */
+  /*     allVarPointersInfo vp = it->second; */
+  /*     if constexpr (std::is_same_v<T, GPUGridVariableBase>) { */
+  /*         var.setArray3(vp.var->device_offset, vp.var->device_size, */
+  /*                       vp.var->device_ptr); */
+  /*       } */
+  /*     else { */
+  /*       //static_cast<GPUPerPatch<double>&>(var).setData(vp.var->device_ptr); */
+  /*       var.setData(vp.var->device_ptr); */
+  /*     } */
+  /*   } */
+  /*   varLock->unlock(); */
+  /* } */
+
   void get(const GPUGridVariableBase &var, char const *label, const int patchID,
            const int8_t matlIndx, const int8_t levelIndx);
   void get(const GPUGridVariableBase &var, char const *label, const int patchID,

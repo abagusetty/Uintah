@@ -2272,7 +2272,7 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
           make_int3(low.x(), low.y(), low.z()),
           make_int3(host_size.x(), host_size.y(), host_size.z()));
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
       if (gpu_stats.active()) {
         cerrLock.lock();
         {
@@ -3022,7 +3022,7 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
       OnDemandDataWarehouseP dw = m_dws[dwIndex];
       GPUDataWarehouse *gpudw = dw->getGPUDW(whichGPU);
       if (!gpudw) {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
         if (gpu_stats.active()) {
           cerrLock.lock();
           {
@@ -3142,7 +3142,7 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
             break;
           }
           default: {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
             cerrLock.lock();
             {
               std::cerr << "This variable's type is not supported."
@@ -3366,7 +3366,7 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
                   break;
                 }
                 default: {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
                   cerrLock.lock();
                   {
                     std::cerr
@@ -3380,7 +3380,7 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
                 }
 
                 if (host_ptr != nullptr && device_ptr != nullptr) {
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
                   if (gpu_stats.active()) {
                     cerrLock.lock();
                     {
@@ -4340,7 +4340,7 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
 
                   // if offset and size is equal to CPU DW, directly copy back
                   // to CPU var memory;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
                   if (device_offset.x == host_low.x() &&
                       device_offset.y == host_low.y() &&
                       device_offset.z == host_low.z() &&
@@ -4365,10 +4365,10 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                       cerrLock.unlock();
                     }
 
-                    cudaError_t retVal;
-                    CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(
+                    gpuError_t retVal;
+                    GPU_RT_SAFE_CALL(retVal = gpuMemcpyAsync(
                                           host_ptr, device_ptr, host_bytes,
-                                          cudaMemcpyDeviceToHost, stream));
+                                          gpuMemcpyDeviceToHost, stream));
                     IntVector temp(0, 0, 0);
 
                     dtask->getVarsBeingCopiedByTask().add(
@@ -4380,13 +4380,13 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                         comp, gtype, numGhostCells, deviceNum, gridVar,
                         GpuUtilities::sameDeviceSameMpiRank);
 
-                    if (retVal == cudaErrorLaunchFailure) {
+                    if (retVal == gpuErrorLaunchFailure) {
                       SCI_THROW(InternalError(
-                          "Detected CUDA kernel execution failure on Task: " +
+                          "Detected GPU kernel execution failure on Task: " +
                               dtask->getName(),
                           __FILE__, __LINE__));
                     } else {
-                      CUDA_RT_SAFE_CALL(retVal);
+                      GPU_RT_SAFE_CALL(retVal);
                     }
 
 #elif defined(HAVE_SYCL)

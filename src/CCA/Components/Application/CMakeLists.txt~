@@ -1,0 +1,25 @@
+include $(SCIRUN_SCRIPTS)/smallso_prologue.mk
+
+SRCDIR     := CCA/Components/Application
+COMPONENTS := CCA/Components
+
+SRCS := $(SRCDIR)/ApplicationCommon.cc
+
+PSELIBS := \
+        CCA/Ports                          \
+        Core/Containers                    \
+        Core/Disclosure                    \
+        Core/Exceptions                    \
+        Core/Grid                          \
+        Core/Geometry                      \
+        Core/GeometryPiece                 \
+        Core/Math                          \
+        Core/Parallel                      \
+        Core/ProblemSpec                   \
+        Core/Util                          
+
+LIBS := $(XML2_LIBRARY) $(MPI_LIBRARY) $(BOOST_LIBRARY)
+
+INCLUDES := $(INCLUDES) $(BOOST_INCLUDE)
+
+include $(SCIRUN_SCRIPTS)/smallso_epilogue.mk

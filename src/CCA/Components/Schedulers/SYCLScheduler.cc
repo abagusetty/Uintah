@@ -35,7 +35,6 @@
 #include <Core/Grid/Variables/SFCZVariable.h>
 #include <Core/Parallel/CommunicationList.hpp>
 #include <Core/Parallel/MasterLock.h>
-#include <Core/Util/Timers/Timers.hpp>
 
 #include <Core/Grid/Variables/GPUGridVariable.h>
 #include <Core/Grid/Variables/GPUStencil7.h>
@@ -411,41 +410,23 @@ SchedulerP SYCLScheduler::createSubScheduler() {
 //______________________________________________________________________
 //
 void SYCLScheduler::runTask(DetailedTask *dtask, int iteration,
-                            int thread_id /* = 0 */
-                            ,
-                            Task::CallBackEvent event) {
+                            int thread_id, Task::CallBackEvent event) {
   std::cout << "US::runTask() " << dtask->getName() << ", " << iteration << ", "
             << thread_id << ", " << event << std::endl;
 
-  // end of per-thread wait time - how long has a thread waited before executing
-  // another task
-  if (thread_id > 0) {
-    Impl::g_runners[thread_id]->stopWaitTime();
-  }
-
   // Only execute CPU or GPU tasks.  Don't execute postGPU tasks a second time.
   if (event == Task::CPU || event == Task::GPU) {
-
-    if (m_tracking_vars_print_location & SchedulerCommon::PRINT_BEFORE_EXEC) {
-      printTrackedVars(dtask, SchedulerCommon::PRINT_BEFORE_EXEC);
-    }
-
     std::vector<DataWarehouseP> plain_old_dws(m_dws.size());
     for (int i = 0; i < static_cast<int>(m_dws.size()); i++) {
       plain_old_dws[i] = m_dws[i].get_rep();
     }
 
     dtask->doit(d_myworld, m_dws, plain_old_dws, event);
-
-    if (m_tracking_vars_print_location & SchedulerCommon::PRINT_AFTER_EXEC) {
-      printTrackedVars(dtask, SchedulerCommon::PRINT_AFTER_EXEC);
-    }
   }
 
   // For CPU and postGPU task runs, post MPI sends and call task->done;
   if (event == Task::CPU || event == Task::postGPU) {
 
-#if defined(HAVE_SYCL)
     if (Uintah::Parallel::usingDevice()) {
 
       // TODO: Don't make every task run through this
@@ -490,7 +471,6 @@ void SYCLScheduler::runTask(DetailedTask *dtask, int iteration,
       // need to remove this foreign variable now so it can be used again.
       // clearForeignGpuVars(deviceVars);
     }
-#endif
 
     MPIScheduler::postMPISends(dtask, iteration);
 
@@ -546,12 +526,6 @@ void SYCLScheduler::runTask(DetailedTask *dtask, int iteration,
       m_thread_info.reset(0);
     }
   }
-
-  // beginning of per-thread wait time... until executing another task
-  if (thread_id > 0) {
-    Impl::g_runners[thread_id]->startWaitTime();
-  }
-
 } // end runTask()
 
 //______________________________________________________________________
@@ -705,7 +679,6 @@ void SYCLScheduler::runTasks(int thread_id) {
 
     bool havework = false;
 
-#if defined(HAVE_SYCL)
     bool usingDevice = Uintah::Parallel::usingDevice();
     bool gpuInitReady = false;
     bool gpuValidateRequiresCopies = false;
@@ -718,7 +691,6 @@ void SYCLScheduler::runTasks(int thread_id) {
     bool cpuValidateRequiresCopies = false;
     bool cpuCheckIfExecutable = false;
     bool cpuRunReady = false;
-#endif
 
     // ----------------------------------------------------------------------------------
     // Part 1:
@@ -765,7 +737,6 @@ void SYCLScheduler::runTasks(int thread_id) {
        */
       else if ((readyTask = m_detailed_tasks->getNextExternalReadyTask())) {
         havework = true;
-#if defined(HAVE_SYCL)
         /*
          * (1.2.1)
          *
@@ -797,12 +768,11 @@ void SYCLScheduler::runTasks(int thread_id) {
                            readyTask);
           cpuRunReady = true;
         }
-#else
+
         // if NOT compiled with device support, then this is a CPU task and we
         // can mark the task consumed
         markTaskConsumed(m_num_tasks_done, m_curr_phase, m_num_phases,
                          readyTask);
-#endif
         break;
       }
 
@@ -833,7 +803,6 @@ void SYCLScheduler::runTasks(int thread_id) {
         }
       }
 
-#if defined(HAVE_SYCL)
       else if (usingDevice) {
         /*
          * (1.4)
@@ -846,8 +815,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * gpuVerifyDataTransferCompletion = true
          */
-        if (usingDevice &&
-            m_detailed_tasks->getDeviceValidateRequiresCopiesTask(readyTask)) {
+        if (m_detailed_tasks->getDeviceValidateRequiresCopiesTask(readyTask)) {
           gpuValidateRequiresCopies = true;
           havework = true;
           break;
@@ -860,8 +828,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          * put it back in this pool and try again later. gpuPerformGhostCopies =
          * true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getDevicePerformGhostCopiesTask(readyTask)) {
+        else if (m_detailed_tasks->getDevicePerformGhostCopiesTask(readyTask)) {
           gpuPerformGhostCopies = true;
           havework = true;
           break;
@@ -873,9 +840,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          * tasks is done, and if so mark the vars it was processing as valid
          * with ghost cells. gpuValidateGhostCopies = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getDeviceValidateGhostCopiesTask(
-                     readyTask)) {
+        else if (m_detailed_tasks->getDeviceValidateGhostCopiesTask(readyTask)) {
           gpuValidateGhostCopies = true;
           havework = true;
           break;
@@ -893,8 +858,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * gpuCheckIfExecutable = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getDeviceCheckIfExecutableTask(readyTask)) {
+        else if (m_detailed_tasks->getDeviceCheckIfExecutableTask(readyTask)) {
           gpuCheckIfExecutable = true;
           havework = true;
           break;
@@ -909,8 +873,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * gpuRunReady = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getDeviceReadyToExecuteTask(readyTask)) {
+        else if (m_detailed_tasks->getDeviceReadyToExecuteTask(readyTask)) {
           gpuRunReady = true;
           havework = true;
           break;
@@ -924,9 +887,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * cpuValidateRequiresCopies = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getHostValidateRequiresCopiesTask(
-                     readyTask)) {
+        else if (m_detailed_tasks->getHostValidateRequiresCopiesTask(readyTask)) {
           cpuValidateRequiresCopies = true;
           havework = true;
           break;
@@ -941,8 +902,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * cpuCheckIfExecutable = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getHostCheckIfExecutableTask(readyTask)) {
+        else if (m_detailed_tasks->getHostCheckIfExecutableTask(readyTask)) {
           cpuCheckIfExecutable = true;
           havework = true;
           break;
@@ -956,8 +916,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * cpuRunReady = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getHostReadyToExecuteTask(readyTask)) {
+        else if (m_detailed_tasks->getHostReadyToExecuteTask(readyTask)) {
           markTaskConsumed(m_num_tasks_done, m_curr_phase, m_num_phases,
                            readyTask);
           cpuRunReady = true;
@@ -975,8 +934,7 @@ void SYCLScheduler::runTasks(int thread_id) {
          *
          * gpuPending = true
          */
-        else if (usingDevice &&
-                 m_detailed_tasks->getDeviceExecutionPendingTask(readyTask)) {
+        else if (m_detailed_tasks->getDeviceExecutionPendingTask(readyTask)) {
           havework = true;
           gpuPending = true;
           markTaskConsumed(m_num_tasks_done, m_curr_phase, m_num_phases,
@@ -984,7 +942,6 @@ void SYCLScheduler::runTasks(int thread_id) {
           break;
         }
       }
-#endif // HAVE_SYCL
       /*
        * (1.6)
        *
@@ -1008,6 +965,7 @@ void SYCLScheduler::runTasks(int thread_id) {
     //      Each thread does its own thing here... modify this code with caution
     // ----------------------------------------------------------------------------------
 
+    // ABB: this if(initTask), elseif(readyTask) is same as KokkosOMPScheduler
     if (initTask != nullptr) {
       MPIScheduler::initiateTask(initTask, m_abort, m_abort_point,
                                  m_curr_iteration);
@@ -1019,7 +977,6 @@ void SYCLScheduler::runTasks(int thread_id) {
       if (readyTask->getTask()->getType() == Task::Reduction) {
         MPIScheduler::initiateReduction(readyTask);
       }
-#if defined(HAVE_SYCL)
       else if (gpuInitReady) {
         // prepare to run a GPU task.
 
@@ -1062,7 +1019,7 @@ void SYCLScheduler::runTasks(int thread_id) {
           m_detailed_tasks->addDeviceReadyToExecute(readyTask);
         } else {
           // Not all ghost cells are ready. Another task must still be working
-          // on it.  Put it back in the pool.
+          // on it. Put it back in the pool.
           m_detailed_tasks->addDeviceCheckIfExecutable(readyTask);
         }
       } else if (gpuRunReady) {
@@ -1095,10 +1052,8 @@ void SYCLScheduler::runTasks(int thread_id) {
         // marking the task as done.
         runTask(readyTask, m_curr_iteration, thread_id, Task::postGPU);
       }
-#endif // HAVE_SYCL
       else {
         // prepare to run a CPU task.
-#if defined(HAVE_SYCL)
         if (cpuInitReady) {
 
           // Some CPU tasks still interact with the GPU.  For example,
@@ -1177,17 +1132,14 @@ void SYCLScheduler::runTasks(int thread_id) {
             m_detailed_tasks->addHostCheckIfExecutable(readyTask);
           }
         } else if (cpuRunReady) {
-#endif // HAVE_SYCL
 
           // run CPU task.
           runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
 
-#if defined(HAVE_SYCL)
           // See note above near cpuInitReady.  Some CPU tasks may internally
           // interact with GPUs without modifying the structure of the data
           // warehouse. GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
         }
-#endif // HAVE_SYCL
       }
     } else {
       if (m_recvs.size() != 0u) {
@@ -1197,8 +1149,6 @@ void SYCLScheduler::runTasks(int thread_id) {
   } // end while (numTasksDone < ntasks)
   ASSERT(m_num_tasks_done == m_num_tasks);
 }
-
-#if defined(HAVE_SYCL)
 
 //______________________________________________________________________
 //
@@ -1289,14 +1239,10 @@ void SYCLScheduler::prepareGpuDependencies(
 
         // See if we're already planning on making this exact copy.  If so,
         // don't do it again.
-        IntVector host_low, host_high, host_offset, host_size;
+        IntVector host_low, host_offset, host_size;
         host_low = dep->m_low;
-        host_high = dep->m_high;
         host_offset = dep->m_low;
         host_size = dep->m_high - dep->m_low;
-        // IntVector host_low(dep->m_low[0], dep->m_low[1], dep->m_low[2]);
-        // IntVector host_offset(dep->m_low[0], dep->m_low[1], dep->m_low[2]);
-        // IntVector host_size(dep->m_high[0] - dep->m_low[0], dep->m_high[1] - dep->m_low[1], dep->m_high[2] - dep->m_low[2]);
         const std::size_t elementDataSize =
             OnDemandDataWarehouse::getTypeDescriptionSize(
                 dep->m_req->m_var->typeDescription()->getSubType()->getType());
@@ -1521,7 +1467,7 @@ void SYCLScheduler::turnIntoASuperPatch(
   // (such as it being a patch assigned to a different node).  So make an entry
   // if needed.
   gpudw->putUnallocatedIfNotExists(label_cstr, firstPatchInSuperPatch->getID(),
-                                   matlIndx, levelID, false, sycl::int3(0), sycl::int3(0));
+                                   matlIndx, levelID, false, make_int3(0,0,0), make_int3(0,0,0));
   thisThreadHandlesSuperPatchWork = gpudw->compareAndSwapFormASuperPatchGPU(
       label_cstr, firstPatchInSuperPatch->getID(), matlIndx, levelID);
 
@@ -1530,7 +1476,9 @@ void SYCLScheduler::turnIntoASuperPatch(
   if (thisThreadHandlesSuperPatchWork) {
 
     gpudw->setSuperPatchLowAndSize(
-      label_cstr, firstPatchInSuperPatch->getID(), matlIndx, levelID, low, (high-low));
+        label_cstr, firstPatchInSuperPatch->getID(), matlIndx, levelID,
+        make_int3(low.x(), low.y(), low.z()),
+        make_int3(high.x() - low.x(), high.y() - low.y(), high.z() - low.z()));
 
     // This thread turned the lowest ID'd patch in the region into a superpatch.
     // Go through *neighbor* patches in the superpatch region and flag them as
@@ -1545,7 +1493,7 @@ void SYCLScheduler::turnIntoASuperPatch(
         // So go ahead and make sure they show up in the database
         gpudw->putUnallocatedIfNotExists(
             label_cstr, neighbors[i]->getRealPatch()->getID(), matlIndx,
-            levelID, false, sycl::int3(0), sycl::int3(0));
+            levelID, false, make_int3(0, 0, 0), make_int3(0, 0, 0));
 
         // TODO: Ensure these variables weren't yet allocated, in use, being
         // copied in, etc. At the time of writing, this scenario didn't exist.
@@ -1659,8 +1607,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
         }
       }
       if (!patch) {
-        printf("ERROR:\nSYCLScheduler::initiateD2H() patch not found.\n");
-        SCI_THROW( InternalError("UnifiedScheduler::initiateD2H() patch not found.", __FILE__, __LINE__));
+        SCI_THROW( InternalError("SYCLScheduler::initiateD2H() patch not found.", __FILE__, __LINE__));
       }
       const int matlID = varIter->first.m_matlIndex;
       int levelID = level->getID();
@@ -1680,7 +1627,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
       bool uses_SHRT_MAX = (curDependency->m_num_ghost_cells == SHRT_MAX);
 
       // Get all size information about this dependency.
-      sycl::int3 low, high; // lowOffset, highOffset;
+      IntVector low, high;
       if (uses_SHRT_MAX) {
         level->computeVariableExtents(type, low, high);
       } else {
@@ -1690,7 +1637,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
             curDependency->m_gtype, curDependency->m_num_ghost_cells, low,
             high);
       }
-      const sycl::int3 host_size = high - low;
+      const IntVector host_size = high - low;
       const std::size_t elementDataSize =
           OnDemandDataWarehouse::getTypeDescriptionSize(
               curDependency->m_var->typeDescription()->getSubType()->getType());
@@ -1706,7 +1653,8 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
       // If so, create one.
       gpudw->putUnallocatedIfNotExists(
           curDependency->m_var->getName().c_str(), patchID, matlID, levelID,
-          false, low, host_size);
+          false, make_int3(low.x(), low.y(), low.z()),
+          make_int3(host_size.x(), host_size.y(), host_size.z()));
 
       bool correctSize = false;
       bool allocating = false;
@@ -1724,7 +1672,8 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
           gatheringGhostCells, validWithGhostCellsOnGPU, deallocating,
           formingSuperPatch, superPatch,
           curDependency->m_var->getName().c_str(), patchID, matlID, levelID,
-          low, host_size);
+          make_int3(low.x(), low.y(), low.z()),
+          make_int3(host_size.x(), host_size.y(), host_size.z()));
 
       if (curDependency->m_dep_type == Task::Requires) {
 
@@ -1808,7 +1757,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
               IntVector ghost_host_low(0, 0, 0), ghost_host_high(0, 0, 0),
                   ghost_host_size(0, 0, 0);
               IntVector ghost_host_offset(0, 0, 0), ghost_host_strides(0, 0, 0);
-              
+
               IntVector virtualOffset = iter->neighborPatch->getVirtualOffset();
 
               int sourceDeviceNum = GpuUtilities::getGpuIndexForPatch(sourcePatch);
@@ -1827,7 +1776,11 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
               // See if it's in the GPU as a staging/foreign var
               useGpuStaging = gpudw->stagingVarExists(
                   curDependency->m_var->getName().c_str(), patchID, matlID,
-                  levelID, iter->low, (iter->high - iter->low));
+                  levelID,
+                  make_int3(iter->low.x(), iter->low.y(), iter->low.z()),
+                  make_int3(iter->high.x() - iter->low.x(),
+                            iter->high.y() - iter->low.y(),
+                            iter->high.z() - iter->low.z()));
 
               // See if we have the entire neighbor patch in the GPU (not just a
               // staging)
@@ -1865,9 +1818,15 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
                                 curDependency->m_var->getName().c_str(),
                                 patchID, matlID, levelID);
 
-                ghost_host_low = ghost_host_low3;
-                ghost_host_high = ghost_host_high3;
-                ghost_host_size = ghost_host_size3;
+                ghost_host_low =
+                    IntVector(ghost_host_low3.x(), ghost_host_low3.y(),
+                              ghost_host_low3.z());
+                ghost_host_high =
+                    IntVector(ghost_host_high3.x(), ghost_host_high3.y(),
+                              ghost_host_high3.z());
+                ghost_host_size =
+                    IntVector(ghost_host_size3.x(), ghost_host_size3.y(),
+                              ghost_host_size3.z());
 
               } else if (useCpuForeign || useCpuGhostCells) {
                 iter->validNeighbor->getSizes(
@@ -2025,13 +1984,6 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
                     (Task::WhichDW)curDependency->mapDataWarehouse(),
                     GpuUtilities::sameDeviceSameMpiRank);
               } else {
-                printf("%s ERROR: Needed ghost cell data not found on the CPU "
-                       "or a GPU.  Looking for ghost cells to be sent to label "
-                       "%s patch %d matl %d.  Couldn't find the source from "
-                       "patch %d.\n",
-                       myRankThread().c_str(),
-                       curDependency->m_var->getName().c_str(), patchID, matlID,
-                       sourcePatch->getID());
                 SCI_THROW(InternalError(
                     "Needed ghost cell data not found on the CPU or a GPU\n",
                     __FILE__, __LINE__));
@@ -2109,7 +2061,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
           } else if (type == TypeDescription::PerPatch ||
                      type == TypeDescription::ReductionVariable) {
             if (type == TypeDescription::ReductionVariable) levelID = -1;
-            
+
             dtask->getDeviceVars().add(patch, matlID, levelID, elementDataSize,
                                        elementDataSize, curDependency,
                                        deviceIndex, nullptr,
@@ -2134,7 +2086,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
 
           // For ReductionVariable, it's not a mesh of variables, it's just a
           // single variable, so elementDataSize is the memSize.
-          
+
           dtask->getDeviceVars().add(
             patch, matlID, levelID, memSize, elementDataSize, curDependency,
             deviceIndex, nullptr, GpuUtilities::sameDeviceSameMpiRank);
@@ -2158,23 +2110,18 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
         dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
                                              elementDataSize, curDependency,
                                              deviceIndex);
-        
+
       }
     }
   }
 
   // We've now gathered up all possible things that need to go on the device.
   // Copy it over.
-
-  // dtask->getName() << std::endl;
   createTaskGpuDWs(dtask);
-
   prepareDeviceVars(dtask);
 
   // At this point all needed variables will have a pointer.
-
   prepareTaskVarsIntoTaskDW(dtask);
-
   prepareGhostCellsIntoTaskDW(dtask);
 }
 
@@ -2239,11 +2186,7 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
           // Allocate the vars if needed.  If they've already been allocated,
           // then this simply sets the var to reuse the existing pointer.
           switch (type) {
-          case TypeDescription::PerPatch: {
-            gpudw->allocateAndPut(subtype, device_ptr, label_cstr, patchID,
-                                  matlIndx, levelID, elementDataSize);
-            break;
-          }
+          case TypeDescription::PerPatch:
           case TypeDescription::ReductionVariable: {
             gpudw->allocateAndPut(subtype, device_ptr, label_cstr, patchID,
                                   matlIndx, levelID, elementDataSize);
@@ -2259,7 +2202,9 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
 
             gpudw->allocateAndPut(
                 subtype, device_ptr, device_size, device_offset, label_cstr,
-                patchID, matlIndx, levelID, staging, low, high, elementDataSize,
+                patchID, matlIndx, levelID, staging,
+                make_int3(low.x(), low.y(), low.z()),
+                make_int3(high.x(), high.y(), high.z()), elementDataSize,
                 (GPUDataWarehouse::GhostType)(it->second.m_gtype),
                 it->second.m_numGhostCells);
             break;
@@ -2293,7 +2238,9 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
                   label_cstr, patchID, matlIndx, levelID);
               } else {
                 performCopy = gpudw->compareAndSwapCopyingIntoGPUStaging(
-                  label_cstr, patchID, matlIndx, levelID, low, size);
+                    label_cstr, patchID, matlIndx, levelID,
+                    make_int3(low.x(), low.y(), low.z()),
+                    make_int3(size.x(), size.y(), size.z()));
               }
 
               if (performCopy) {
@@ -2445,15 +2392,10 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
 
                 if (host_ptr != nullptr && device_ptr != nullptr) {
                   // Perform the copy!
-                  gpuStream_t *stream =
+                  gpuStream_t* stream =
                       dtask->getGpuStreamForThisTask(whichGPU);
                   OnDemandDataWarehouse::uintahSetGpuDevice(whichGPU);
                   if (it->second.m_varMemSize == 0) {
-                    printf("ERROR: For variable %s patch %d material %d level "
-                           "%d staging %s attempting to copy zero bytes to the "
-                           "GPU.\n",
-                           label_cstr, patchID, matlIndx, levelID,
-                           staging ? "true" : "false");
                     SCI_THROW(InternalError("Attempting to copy zero bytes to "
                                             "the GPU.  That shouldn't happen.",
                                             __FILE__, __LINE__));
@@ -2535,13 +2477,11 @@ void SYCLScheduler::prepareTaskVarsIntoTaskDW(DetailedTask *dtask) {
           sycl::int3 offset{0,0,0};
           sycl::int3 size{0,0,0};
           if (it->second.m_staging) {
-            offset = it->second.m_offset;
-            size = it->second.m_sizeVector;
-            // offset = make_int3(it->second.m_offset.x(), it->second.m_offset.y(),
-            //                    it->second.m_offset.z());
-            // size = make_int3(it->second.m_sizeVector.x(),
-            //                  it->second.m_sizeVector.y(),
-            //                  it->second.m_sizeVector.z());
+            offset = make_int3(it->second.m_offset.x(), it->second.m_offset.y(),
+                               it->second.m_offset.z());
+            size = make_int3(it->second.m_sizeVector.x(),
+                             it->second.m_sizeVector.y(),
+                             it->second.m_sizeVector.z());
           }
 
           GPUDataWarehouse *taskgpudw = dtask->getTaskGpuDataWarehouse(
@@ -2551,9 +2491,6 @@ void SYCLScheduler::prepareTaskVarsIntoTaskDW(DetailedTask *dtask) {
                 gpudw, it->second.m_dep->m_var->getName().c_str(), patchID,
                 matlIndx, levelIndx, it->second.m_staging, offset, size);
           } else {
-            printf("ERROR - No task data warehouse found for device %d for "
-                   "task %s\n",
-                   it->second.m_whichGPU, dtask->getTask()->getName().c_str());
             SCI_THROW(InternalError("No task data warehouse found\n", __FILE__,
                                     __LINE__));
           }
@@ -2610,7 +2547,12 @@ void SYCLScheduler::prepareGhostCellsIntoTaskDW(DetailedTask *dtask) {
               it->second.m_destPatchPointer->getID(), it->first.m_matlIndx,
               it->first.m_levelIndx, it->second.m_sourceStaging,
               it->second.m_destStaging,
-              varOffset, varSize, ghost_low, ghost_high, virtualOffset);
+              make_int3(varOffset.x(), varOffset.y(), varOffset.z()),
+              make_int3(varSize.x(), varSize.y(), varSize.z()),
+              make_int3(ghost_low.x(), ghost_low.y(), ghost_low.z()),
+              make_int3(ghost_high.x(), ghost_high.y(), ghost_high.z()),
+              make_int3(virtualOffset.x(), virtualOffset.y(),
+                        virtualOffset.z()));
     }
   }
 }
@@ -2881,7 +2823,10 @@ void SYCLScheduler::markDeviceRequiresDataAsValid(DetailedTask *dtask) {
         gpudw->compareAndSwapSetValidOnGPUStaging(
             it->second.m_dep->m_var->getName().c_str(), it->first.m_patchID,
             it->first.m_matlIndx, it->first.m_levelIndx,
-            it->second.m_offset, it->second.m_sizeVector);
+            make_int3(it->second.m_offset.x(), it->second.m_offset.y(),
+                      it->second.m_offset.z()),
+            make_int3(it->second.m_sizeVector.x(), it->second.m_sizeVector.y(),
+                      it->second.m_sizeVector.z()));
       }
 
       if (it->second.m_tempVarToReclaim) {
@@ -3012,7 +2957,7 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
       void *device_ptr = nullptr; // device base pointer to raw data
       std::size_t host_bytes = 0; // raw byte count to copy to the device
 
-      IntVector host_low, host_high, host_offset, host_size, host_strides;
+      sycl::int3 host_low, host_high, host_offset, host_size, host_strides;
 
       int numPatches = patches->size();
       int numMatls = matls->size();
@@ -3034,8 +2979,6 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
             }
           }
           if (!patch) {
-            printf("ERROR:\nSYCLScheduler::initiateD2HForHugeGhostCells() "
-                   "patch not found.\n");
             SCI_THROW(
                 InternalError("SYCLScheduler::initiateD2HForHugeGhostCells()"
                               " patch not found.",
@@ -3116,8 +3059,8 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                   host_ptr = gridVar->getBasePointer();
                   host_bytes = gridVar->getDataSize();
 
-                  sycl::int3 device_offset;
-                  sycl::int3 device_size;
+                  sycl::int3 device_size{0, 0, 0};
+                  sycl::int3 device_offset{0, 0, 0};
                   GPUGridVariableBase *device_var =
                       OnDemandDataWarehouse::createGPUGridVariable(datatype);
                   gpudw->get(*device_var, compVarName.c_str(), patchID, matlID,
@@ -3134,13 +3077,15 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                       device_size.y() == host_size.y() &&
                       device_size.z() == host_size.z()) {
 
-                    stream->memcpy(host_ptr, device_ptr, host_bytes);
+                    stream->memcpy(host_ptr, device_ptr, host_bytes).wait();
 
                     dtask->getVarsBeingCopiedByTask().add(
                         patch, matlID, levelID, false,
-                        device_size,
+                        IntVector(device_size.x(), device_size.y(),
+                                  device_size.z()),
                         host_strides.x(), host_bytes,
-                        device_offset,
+                        IntVector(device_offset.x(), device_offset.y(),
+                                  device_offset.z()),
                         comp, gtype, numGhostCells, deviceNum, gridVar,
                         GpuUtilities::sameDeviceSameMpiRank);
                   }
@@ -3261,7 +3206,6 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
     }
 
     if (!patch) {
-      printf("ERROR:\nSYCLScheduler::initiateD2H() patch not found.\n");
       SCI_THROW(InternalError("SYCLScheduler::initiateD2H() patch not found.",
                               __FILE__, __LINE__));
     }
@@ -3341,10 +3285,10 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
 
             // The device will have our best knowledge of the exact
             // dimensions/ghost cells of the variable, so lets get those values.
-            IntVector device_low;
-            IntVector device_offset;
-            IntVector device_high;
-            IntVector device_size;
+            sycl::int3 device_low;
+            sycl::int3 device_offset;
+            sycl::int3 device_high;
+            sycl::int3 device_size;
             GPUDataWarehouse::GhostType tempgtype;
             Ghost::GhostType gtype;
             int numGhostCells;
@@ -3466,11 +3410,6 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
                   }
                   proceedWithCopy = true;
                 } else {
-                  // printf("ERROR:\nSYCLScheduler::initiateD2H() - Device
-                  // and host sizes didn't match.  Device size is (%d, %d, %d),
-                  // and host size is (%d, %d, %d)\n", device_size.x,
-                  // device_size.y, device_size.y,host_size.x(),
-                  // host_size.y(),host_size.z());
                   SCI_THROW(InternalError("SYCLScheduler::initiateD2H() - "
                                           "Device and host sizes didn't match.",
                                           __FILE__, __LINE__));
@@ -3485,29 +3424,13 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
               host_ptr = gridVar->getBasePointer();
               host_bytes = gridVar->getDataSize();
 
-              if (host_bytes == 0) {
-                printf("ERROR:\nSYCLScheduler::initiateD2H() - Transfer "
-                       "bytes is listed as zero.\n");
-                SCI_THROW(InternalError("SYCLScheduler::initiateD2H() - "
-                                        "Transfer bytes is listed as zero.",
-                                        __FILE__, __LINE__));
-              }
-              if (!host_ptr) {
-                printf("ERROR:\nSYCLScheduler::initiateD2H() - Invalid host "
-                       "pointer, it was nullptr.\n");
-                SCI_THROW(InternalError("SYCLScheduler::initiateD2H() - "
-                                        "Invalid host pointer, it was nullptr.",
-                                        __FILE__, __LINE__));
-              }
-
               stream->memcpy(host_ptr, device_ptr, host_bytes);
 
-              IntVector temp(0, 0, 0);
               dtask->getVarsBeingCopiedByTask().add(
                   patch, matlID, levelID, false,
-                  int3(device_size.x(), device_size.y(), device_size.z()),
+                  IntVector(device_size.x(), device_size.y(), device_size.z()),
                   elementDataSize, host_bytes,
-                  int3(device_offset.x(), device_offset.y(),
+                  IntVector(device_offset.x(), device_offset.y(),
                             device_offset.z()),
                   dependantVar, gtype, numGhostCells, deviceNum, gridVar,
                   GpuUtilities::sameDeviceSameMpiRank);
@@ -3542,21 +3465,16 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
             std::size_t device_bytes = gpuPerPatchVar->getMemSize();
             delete gpuPerPatchVar;
 
-            // TODO: Verify no memory leaks
             if (host_bytes == device_bytes) {
-              // async memory
               stream->memcpy(host_ptr, device_ptr, host_bytes);
-
               dtask->getVarsBeingCopiedByTask().add(
-                  patch, matlID, levelID, host_bytes, host_bytes, dependantVar,
-                  deviceNum, hostPerPatchVar,
-                  GpuUtilities::sameDeviceSameMpiRank);
+                patch, matlID, levelID, host_bytes, host_bytes, dependantVar,
+                deviceNum, hostPerPatchVar,
+                GpuUtilities::sameDeviceSameMpiRank);
             } else {
-              printf("ERROR: InitiateD2H - PerPatch variable memory sizes "
-                     "didn't match\n");
               SCI_THROW(InternalError(
-                  "InitiateD2H - PerPatch variable memory sizes didn't match",
-                  __FILE__, __LINE__));
+                          "InitiateD2H - PerPatch variable memory sizes didn't match",
+                          __FILE__, __LINE__));
             }
             // delete hostPerPatchVar;
           }
@@ -3591,19 +3509,15 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
             delete gpuReductionVar;
 
             if (host_bytes == device_bytes) {
-              // async
               stream->memcpy(host_ptr, device_ptr, host_bytes);
-
               dtask->getVarsBeingCopiedByTask().add(
-                  patch, matlID, levelID, host_bytes, host_bytes, dependantVar,
-                  deviceNum, hostReductionVar,
-                  GpuUtilities::sameDeviceSameMpiRank);
+                patch, matlID, levelID, host_bytes, host_bytes, dependantVar,
+                deviceNum, hostReductionVar,
+                GpuUtilities::sameDeviceSameMpiRank);
             } else {
-              printf("ERROR: InitiateD2H - Reduction variable memory sizes "
-                     "didn't match\n");
               SCI_THROW(InternalError(
-                  "InitiateD2H - Reduction variable memory sizes didn't match",
-                  __FILE__, __LINE__));
+                          "InitiateD2H - Reduction variable memory sizes didn't match",
+                          __FILE__, __LINE__));
             }
             // delete hostReductionVar;
           }
@@ -3617,8 +3531,6 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
   }
 }
 
-//______________________________________________________________________
-//
 void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
   // Create GPU datawarehouses for this specific task only. They will get
   // copied into the GPU. This is sizing these datawarehouses dynamically and
@@ -3626,29 +3538,24 @@ void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
   // GPUDataWarehouse.h for more information.
 
   std::set<int> deviceNums = dtask->getDeviceNums();
-  for (auto deviceNums_it = deviceNums.cbegin();
-       deviceNums_it != deviceNums.cend(); ++deviceNums_it) {
+  for (auto deviceNums_it = deviceNums.cbegin(); deviceNums_it != deviceNums.cend(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
+
     int numItemsInDW =
         dtask->getTaskVars().getTotalVars(currentDevice, Task::OldDW) +
         dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::OldDW);
-
     if (numItemsInDW > 0) {
       std::size_t objectSizeInBytes =
           sizeof(GPUDataWarehouse) -
           sizeof(GPUDataWarehouse::dataItem) * MAX_VARDB_ITEMS +
           sizeof(GPUDataWarehouse::dataItem) * numItemsInDW;
 
-      GPUDataWarehouse *old_taskGpuDW =
-          (GPUDataWarehouse *)malloc(objectSizeInBytes);
-      // cudaHostRegister(old_taskGpuDW, objectSizeInBytes,
-      // cudaHostRegisterDefault);
+      GPUDataWarehouse *old_taskGpuDW = (GPUDataWarehouse *)malloc(objectSizeInBytes);
       std::ostringstream out;
       out << "Old task GPU DW"
           << " MPIRank: " << Uintah::Parallel::getMPIRank()
           << " Task: " << dtask->getTask()->getName();
       old_taskGpuDW->init(currentDevice, out.str());
-
       old_taskGpuDW->init_device(objectSizeInBytes, numItemsInDW);
       dtask->setTaskGpuDataWarehouse(currentDevice, Task::OldDW, old_taskGpuDW);
     }
@@ -3657,107 +3564,45 @@ void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
         dtask->getTaskVars().getTotalVars(currentDevice, Task::NewDW) +
         dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::NewDW);
     if (numItemsInDW > 0) {
-
       std::size_t objectSizeInBytes =
           sizeof(GPUDataWarehouse) -
           sizeof(GPUDataWarehouse::dataItem) * MAX_VARDB_ITEMS +
           sizeof(GPUDataWarehouse::dataItem) * numItemsInDW;
-      GPUDataWarehouse *new_taskGpuDW =
-          (GPUDataWarehouse *)malloc(objectSizeInBytes);
-      // cudaHostRegister(new_taskGpuDW, objectSizeInBytes,
-      // cudaHostRegisterDefault);
+
+      GPUDataWarehouse *new_taskGpuDW = (GPUDataWarehouse *)malloc(objectSizeInBytes);
       std::ostringstream out;
       out << "New task GPU DW"
           << " MPIRank: " << Uintah::Parallel::getMPIRank()
           << " Thread:" << Impl::t_tid << " Task: " << dtask->getName();
       new_taskGpuDW->init(currentDevice, out.str());
       new_taskGpuDW->init_device(objectSizeInBytes, numItemsInDW);
-
       dtask->setTaskGpuDataWarehouse(currentDevice, Task::NewDW, new_taskGpuDW);
     }
   }
 }
 
-//______________________________________________________________________
-//
 void SYCLScheduler::assignDevicesAndStreams(DetailedTask *dtask) {
   // Figure out which device this patch was assigned to.
-  // If a task has multiple patches, then assign all.  Most tasks should
+  // If a task has multiple patches, then assign all. Most tasks should
   // only end up on one device.  Only tasks like data archiver's output
   // variables work on multiple patches which can be on multiple devices.
   for (int patchID = 0; patchID < dtask->getPatches()->size(); patchID++) {
     const Patch *patch = dtask->getPatches()->get(patchID);
-
     // Note: on a given device, there is just 1 GPU stream per device per task
     int gpuID = GpuUtilities::getGpuIndexForPatch(patch);
-    if (gpuID >= 0) {
-      if (dtask->getGpuStreamForThisTask(gpuID) == nullptr) {
-        dtask->setGpuStreamForThisTask(
-            gpuID, GPUStreamPool::getInstance().getGpuStreamFromPool(gpuID));
-      }
-    } else {
-      std::exit(-1);
-    }
+    dtask->setGpuStreamForThisTask(gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
   }
 }
-//______________________________________________________________________
-//
+
 void SYCLScheduler::assignDevicesAndStreamsFromGhostVars(DetailedTask *dtask) {
-  // std::cout << "1. SYCLScheduler::assignDevicesAndStreamsFromGhostVars()
-  // \n";
   //  Go through the ghostVars collection and look at the patch where all ghost
   //  cells are going.
-  std::set<unsigned int> &destinationDevices =
-      dtask->getGhostVars().getDestinationDevices();
-  for (std::set<unsigned int>::iterator iter = destinationDevices.begin();
-       iter != destinationDevices.end(); ++iter) {
-    // see if this task was already assigned a stream.
-    if (dtask->getGpuStreamForThisTask(*iter) == nullptr) {
-      dtask->setGpuStreamForThisTask(
-          *iter, GPUStreamPool::getInstance().getGpuStreamFromPool(*iter));
-    }
+  std::set<unsigned int> &destinationDevices = dtask->getGhostVars().getDestinationDevices();
+  for (std::set<unsigned int>::iterator iter = destinationDevices.begin(); iter != destinationDevices.end(); ++iter) {
+    dtask->setGpuStreamForThisTask(*iter, GPUStreamPool<>::getInstance().getGpuStreamFromPool(*iter));
   }
-  // std::cout << "2. SYCLScheduler::assignDevicesAndStreamsFromGhostVars()
-  // \n";
 }
 
-//______________________________________________________________________
-//
-void SYCLScheduler::assignStatusFlagsToPrepareACpuTask(DetailedTask *dtask) {
-  // Keep track of all variables created or modified by a CPU task.  It also
-  // keeps track of ghost cells for a task. This method seems more like fitting
-  // a square peg into a round hole.  It tries to temporarily bridge a gap
-  // between the OnDemand Data Warehouse and the GPU Data Warehouse.  The
-  // OnDemand DW allocates variables on the fly during task execution and also
-  // inflates vars to gather ghost cells on task execution.  The GPU DW prepares
-  // all variables and manages ghost cell copies prior to task execution. This
-  // method was designed to solve a use case where a CPU task created a var,
-  // then another CPU task modified it, then a GPU task required it, then a CPU
-  // output task needed it.  Because the CPU variable didn't get status flags
-  // attached to it due to it being in the OnDemand Data Warehouse, the SYCL
-  // Scheduler assumed the only copy of the variable existed in GPU memory so it
-  // copied it out of GPU memory into host memory right in the middle of when
-  // the CPU output task was executing, causing a concurrency race condition
-  // because that variable was already in host memory.  By trying to track the
-  // host memory statuses for variables, this should hopefully prevent those
-  // race conditions.
-
-  // This probably isn't perfect, but should get us through the next few months,
-  // and hopefully gets replaced when we can remove the "OnDemand" part of the
-  // OnDemand Data Warehouse with a SYCL DataWarehouse.
-
-  // Loop through all computes.  Create status flags of "allocating" for them.
-  // Do not track ghost cells, as ghost cells are created by copying a
-
-  // Loop through all modifies.  Create status flags of "allocated", undoing any
-  // "valid" flags.
-
-  // Loop through all requires.  If they have a ghost cell requirement, we can't
-  // do much about it.
-}
-
-//______________________________________________________________________
-//
 void SYCLScheduler::findIntAndExtGpuDependencies(DetailedTask *dtask, int iteration, int t_id) {
   dtask->clearPreparationCollections();
 
@@ -3876,15 +3721,14 @@ void SYCLScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
       dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)
           ->copyGpuGhostCellsToGpuVarsInvoker(
               dtask->getGpuStreamForThisTask(currentDevice));
-    } else {
     }
+
     if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW) != nullptr &&
         dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)
             ->ghostCellCopiesNeeded()) {
       dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)
           ->copyGpuGhostCellsToGpuVarsInvoker(
               dtask->getGpuStreamForThisTask(currentDevice));
-    } else {
     }
   }
 }
@@ -3894,7 +3738,7 @@ void SYCLScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
 void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
 
   // Iterate through the ghostVars, find all whose destination is another GPU
-  // same MPI rank Get the destination device, the size And do a straight GPU to
+  // same MPI-rank. Get the destination device, the size And do a straight GPU to
   // GPU copy.
   const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
       &ghostVarMap = dtask->getGhostVars().getMap();
@@ -3907,8 +3751,8 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
       IntVector ghostSize(ghostHigh.x() - ghostLow.x(),
                           ghostHigh.y() - ghostLow.y(),
                           ghostHigh.z() - ghostLow.z());
-      IntVector device_source_offset;
-      IntVector device_source_size;
+      sycl::int3 device_source_offset;
+      sycl::int3 device_source_size;
 
       // get the source variable from the source GPU DW
       void *device_source_ptr;
@@ -3922,21 +3766,25 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
       gpudw->getStagingVar(
           *device_source_var, it->first.m_label.c_str(),
           it->second.m_sourcePatchPointer->getID(), it->first.m_matlIndx,
-          it->first.m_levelIndx, ghostLow, ghostSize);
+          it->first.m_levelIndx,
+          make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
+          make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
       device_source_var->getArray3(device_source_offset, device_source_size,
                                    device_source_ptr);
 
       // Get the destination variable from the destination GPU DW
       gpudw = dw->getGPUDW(it->second.m_destDeviceNum);
-      IntVector device_dest_offset;
-      IntVector device_dest_size;
+      sycl::int3 device_dest_offset;
+      sycl::int3 device_dest_size;
       void *device_dest_ptr;
       GPUGridVariableBase *device_dest_var =
           OnDemandDataWarehouse::createGPUGridVariable(it->second.m_datatype);
       gpudw->getStagingVar(
           *device_dest_var, it->first.m_label.c_str(),
           it->second.m_destPatchPointer->getID(), it->first.m_matlIndx,
-          it->first.m_levelIndx, ghostLow, ghostSize);
+          it->first.m_levelIndx,
+          make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
+          make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
       device_dest_var->getArray3(device_dest_offset, device_dest_size,
                                  device_dest_ptr);
 
@@ -3949,12 +3797,10 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
       // completes, anything placed in the destination stream can then process.
       //   Note: If we move to UVA, then we could just do a straight memcpy
 
-      gpuStream_t *stream =
-          dtask->getGpuStreamForThisTask(it->second.m_destDeviceNum);
+      gpuStream_t* stream = dtask->getGpuStreamForThisTask(it->second.m_destDeviceNum);
       OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_destDeviceNum);
 
-      stream->memcpy(device_dest_ptr, device_source_ptr,
-                    memSize); // SYCL P2P memcpy
+      auto gpuP2Pcopy = stream->memcpy(device_dest_ptr, device_source_ptr, memSize); // SYCL P2P memcpy
     }
   }
 }
@@ -3983,8 +3829,8 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
       void *device_ptr = nullptr; // device base pointer to raw data
       std::size_t host_bytes = 0;
       IntVector host_low, host_high, host_offset, host_size, host_strides;
-      IntVector device_offset;
-      IntVector device_size;
+      sycl::int3 device_offset;
+      sycl::int3 device_size;
 
       // We created a temporary host variable for this earlier,
       // and the deviceVars collection knows about it.  It's set as a foreign
@@ -4007,8 +3853,6 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
       host_bytes = tempGhostVar->getDataSize();
 
       // copy the computes data back to the host
-      // d2hComputesLock_.writeLock();
-      //{
 
       GPUGridVariableBase *device_var =
           OnDemandDataWarehouse::createGPUGridVariable(it->second.m_datatype);
@@ -4017,7 +3861,9 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
       gpudw->getStagingVar(
           *device_var, it->first.m_label.c_str(),
           it->second.m_sourcePatchPointer->getID(), it->first.m_matlIndx,
-          it->first.m_levelIndx, ghostLow, ghostSize);
+          it->first.m_levelIndx,
+          make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
+          make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
       device_var->getArray3(device_offset, device_size, device_ptr);
 
       // if offset and size is equal to CPU DW, directly copy back to CPU var
@@ -4148,8 +3994,6 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
   }
 }
 
-#endif // if defined(HAVE_SYCL)
-
 //______________________________________________________________________
 //  generate string   <MPI_rank>.<Thread_ID>
 std::string SYCLScheduler::myRankThread() {
@@ -4158,59 +4002,20 @@ std::string SYCLScheduler::myRankThread() {
   return out.str();
 }
 
-//______________________________________________________________________
-//
 void SYCLScheduler::init_threads(SYCLScheduler *sched, int num_threads) {
   Impl::init_threads(sched, num_threads);
 }
 
-//------------------------------------------
-// SYCLSchedulerWorker Thread Methods
-//------------------------------------------
 SYCLSchedulerWorker::SYCLSchedulerWorker(SYCLScheduler *scheduler, int tid,
                                          int affinity)
-    : m_scheduler{scheduler}, m_rank{scheduler->d_myworld->myRank()},
-      m_tid{tid}, m_affinity{affinity} {}
+  : m_scheduler{scheduler}, m_rank{scheduler->d_myworld->myRank()} {}
 
-//______________________________________________________________________
-//
 void SYCLSchedulerWorker::run() {
   while (Impl::g_run_tasks.load(std::memory_order_relaxed) == 1) {
     try {
-      resetWaitTime();
       m_scheduler->runTasks(Impl::t_tid);
     } catch (Exception &e) {
       std::exit(-1);
     }
   }
 }
-
-//______________________________________________________________________
-//
-void SYCLSchedulerWorker::resetWaitTime() {
-  m_wait_timer.reset(true);
-  m_wait_time = 0.0;
-}
-
-//______________________________________________________________________
-//
-void SYCLSchedulerWorker::startWaitTime() { m_wait_timer.start(); }
-
-//______________________________________________________________________
-//
-void SYCLSchedulerWorker::stopWaitTime() {
-  m_wait_timer.stop();
-  m_wait_time += m_wait_timer().seconds();
-}
-
-//______________________________________________________________________
-//
-const double SYCLSchedulerWorker::getWaitTime() const { return m_wait_time; }
-
-//______________________________________________________________________
-//
-const int SYCLSchedulerWorker::getAffinity() const { return m_affinity; }
-
-//______________________________________________________________________
-//
-const int SYCLSchedulerWorker::getLocalTID() const { return m_tid; }

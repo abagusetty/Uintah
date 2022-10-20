@@ -30,7 +30,7 @@
 #include <Core/Parallel/ProcessorGroup.h>
 
 #include <sci_defs/uintah_defs.h>
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #ifndef NO_ARCHES
 #  include <CCA/Components/Arches/Arches.h>

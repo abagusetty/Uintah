@@ -28,13 +28,14 @@
 #define UINTAH_CORE_GRID_VARIABLES_GPUPERPATCHBASE_H
 
 #include <Core/Grid/Variables/GPUVariable.h>
-#include <sci_defs/cuda_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 namespace Uintah {
 
 class GPUPerPatchBase : public GPUVariable {
 
-  friend class GPUDataWarehouse;  // allow DataWarehouse set/get data members
+  friend class SYCLScheduler;
+  friend class UnifiedScheduler;
 
   public:
     HOST_DEVICE virtual ~GPUPerPatchBase() {}
