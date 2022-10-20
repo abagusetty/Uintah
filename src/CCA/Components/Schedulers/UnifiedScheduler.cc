@@ -4365,10 +4365,17 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                       cerrLock.unlock();
                     }
 
-                    gpuError_t retVal;
-                    GPU_RT_SAFE_CALL(retVal = gpuMemcpyAsync(
+#ifdef HAVE_CUDA                    
+                    cudaError_t retVal;
+                    CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(
                                           host_ptr, device_ptr, host_bytes,
-                                          gpuMemcpyDeviceToHost, stream));
+                                          cudaMemcpyDeviceToHost, stream));
+#elif defined(HAVE_HIP)
+                    HIP_RT_SAFE_CALL(retVal = hipMemcpyAsync(
+                                          host_ptr, device_ptr, host_bytes,
+                                          hipMemcpyDeviceToHost, stream));
+#endif
+                    
                     IntVector temp(0, 0, 0);
 
                     dtask->getVarsBeingCopiedByTask().add(
@@ -4386,7 +4393,11 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                               dtask->getName(),
                           __FILE__, __LINE__));
                     } else {
-                      GPU_RT_SAFE_CALL(retVal);
+                      #ifdef HAVE_CUDA
+                      CUDA_RT_SAFE_CALL(retVal);
+                      #elif HAVE_HIP
+                      HIP_RT_SAFE_CALL(retVal);
+                      #endif
                     }
 #elif defined(HAVE_HIP)
                   if (device_offset.x == host_low.x() &&
