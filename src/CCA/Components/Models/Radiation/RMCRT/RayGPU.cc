@@ -27,7 +27,7 @@
 #include <Core/Exceptions/InternalError.h>
 #include <Core/Grid/DbgOutput.h>
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
 #include <CCA/Components/Models/Radiation/RMCRT/RayGPU.cuh>
 #elif defined(HAVE_SYCL)
 #include <CCA/Components/Models/Radiation/RMCRT/RayGPU.hpp>
@@ -57,7 +57,7 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
                       Task::WhichDW which_sigmaT4_dw,
                       Task::WhichDW which_celltype_dw) {
   if (event == Task::GPU) {
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     const Level *level = getLevel(patches);
 
     //__________________________________
@@ -239,7 +239,7 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
         std::cout << std::endl;
       }
     }  // end patch loop
-#endif // end #ifdef HAVE_CUDA, HAVE_SYCL
+#endif // end #ifdef HAVE_CUDA, HAVE_HIP, HAVE_SYCL
   }    // end GPU task code
 } // end GPU ray trace method
 
@@ -256,7 +256,7 @@ void Ray::rayTraceDataOnionGPU(
     Task::WhichDW which_sigmaT4_dw, Task::WhichDW which_celltype_dw) {
   if (event == Task::GPU) {
 
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     //__________________________________
     //  bulletproofing   FIX ME
     const Level *fineLevel = getLevel(finePatches);
@@ -298,6 +298,8 @@ void Ray::rayTraceDataOnionGPU(
     levelParams *levelP = new levelParams[maxLevels];
 #ifdef HAVE_CUDA
     cudaHostRegister(levelP, sizeof(levelParams) * maxLevels, cudaHostRegisterPortable);
+#elif defined(HAVE_HIP)
+    hipHostRegister(levelP, sizeof(levelParams) * maxLevels, hipHostRegisterPortable);    
 #endif
     dtask->addTempHostMemoryToBeFreedOnCompletion(levelP);
     for (int l = 0; l < maxLevels; ++l) {
@@ -507,7 +509,7 @@ void Ray::rayTraceDataOnionGPU(
 				       celltype_gdw,
 				       static_cast<GPUDataWarehouse*>(newTaskGpuDW));
 
-#else // FOR CUDA
+#else // FOR CUDA, HIP
 
 #if NDEBUG
       // Careful profiling seems to show that this does best fitting around 96
@@ -548,7 +550,7 @@ void Ray::rayTraceDataOnionGPU(
 
     } // end patch loop
 
-#endif // end #ifdef HAVE_CUDA, HAVE_SYCL
+#endif // end #ifdef HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
   } // end GPU task code
 }

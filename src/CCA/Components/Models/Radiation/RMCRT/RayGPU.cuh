@@ -29,13 +29,22 @@
 #include <Core/Geometry/GPUVector.h>
 #include <Core/Grid/Task.h>
 
+#ifdef HAVE_CUDA
 #include <curand.h>
 #include <curand_kernel.h>
 #include <sci_defs/gpu_defs.h>
+#endif
 
-#define __CUDA_INTERNAL_COMPILATION__
-#include "math_functions.h" // needed for max()
-#undef __CUDA_INTERNAL_COMPILATION__
+#ifdef HAVE_HIP
+#include <rocrand.h>
+#include <sci_defs/gpu_defs.h>
+#endif
+
+//#define __CUDA_INTERNAL_COMPILATION__
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#include <math_functions.h> // needed for max()
+#endif
+//#undef __CUDA_INTERNAL_COMPILATION__
 
 namespace Uintah {
 
