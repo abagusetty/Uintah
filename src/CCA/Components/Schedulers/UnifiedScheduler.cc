@@ -251,9 +251,7 @@ void init_threads(UnifiedScheduler *sched, int num_threads) {
 UnifiedScheduler::UnifiedScheduler(const ProcessorGroup *myworld,
                                    UnifiedScheduler *parentScheduler)
     : MPIScheduler(myworld, parentScheduler) {
-#ifdef HAVE_CUDA
-  //__________________________________
-  //
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
   if (Uintah::Parallel::usingDevice()) {
     gpuInitialize();
 
@@ -264,21 +262,21 @@ UnifiedScheduler::UnifiedScheduler(const ProcessorGroup *myworld,
 
     // get the true numDevices (in case we have the simulation turned on)
     int numDevices{};
-    CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
+    gpuGetDeviceCount(&numDevices);
     int can_access = 0;
     for (int i = 0; i < numDevices; i++) {
-      CUDA_RT_SAFE_CALL(cudaSetDevice(i));
+      GPU_RT_SAFE_CALL(gpuSetDevice(i));
       for (int j = 0; j < numDevices; j++) {
         if (i != j) {
-          cudaDeviceCanAccessPeer(&can_access, i, j);
+          gpuDeviceCanAccessPeer(&can_access, i, j);
           if (can_access) {
             printf("GOOD\n GPU device #%d can access GPU device #%d\n", i, j);
-            cudaDeviceEnablePeerAccess(j, 0);
+            gpuDeviceEnablePeerAccess(j, 0);
           } else {
             printf("ERROR\n GPU device #%d cannot access GPU device #%d\n.  "
                    "Uintah is not yet configured to work with multiple GPUs in "
                    "different NUMA regions.  For now, use the environment "
-                   "variable CUDA_VISIBLE_DEVICES and don't list GPU device "
+                   "variable GPU_VISIBLE_DEVICES and don't list GPU device "
                    "#%d\n.",
                    i, j, j);
             SCI_THROW(InternalError(
@@ -289,47 +287,7 @@ UnifiedScheduler::UnifiedScheduler(const ProcessorGroup *myworld,
       }
     }
   }    // using Device
-#endif // HAVE_CUDA
-
-#ifdef HAVE_HIP
-  //__________________________________
-  //
-  if (Uintah::Parallel::usingDevice()) {
-    gpuInitialize();
-
-    // disable memory windowing on variables.  This will ensure that
-    // each variable is allocated its own memory on each patch,
-    // precluding memory blocks being defined across multiple patches.
-    Uintah::OnDemandDataWarehouse::s_combine_memory = false;
-
-    // get the true numDevices (in case we have the simulation turned on)
-    int numDevices{};
-    HIP_RT_SAFE_CALL(hipGetDeviceCount(&numDevices));
-    int can_access = 0;
-    for (int i = 0; i < numDevices; i++) {
-      HIP_RT_SAFE_CALL(hipSetDevice(i));
-      for (int j = 0; j < numDevices; j++) {
-        if (i != j) {
-          hipDeviceCanAccessPeer(&can_access, i, j);
-          if (can_access) {
-            printf("GOOD\n GPU device #%d can access GPU device #%d\n", i, j);
-            hipDeviceEnablePeerAccess(j, 0);
-          } else {
-            printf(
-                "ERROR\n GPU device #%d cannot access GPU device #%d\n.  "
-                "Uintah is not yet configured to work with multiple GPUs in "
-                "different NUMA regions.  For now, use the environment "
-                "variable HIP_VISIBLE_DEVICES and don't list GPU device #%d\n.",
-                i, j, j);
-            SCI_THROW(InternalError(
-                "** GPUs in multiple NUMA regions are currently unsupported.",
-                __FILE__, __LINE__));
-          }
-        }
-      }
-    }
-  }    // using Device
-#endif // HAVE_HIP
+#endif // HAVE_CUDA, HAVE_HIP
 
 #if defined(HAVE_SYCL)
   if (Uintah::Parallel::usingDevice()) {
@@ -455,35 +413,16 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
               << num_threads + 1 << ").\n"
               << std::endl;
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
     if (!gpu_ids && Uintah::Parallel::usingDevice()) {
-      cudaError_t retVal;
       int availableDevices;
-      CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&availableDevices));
+      gpuGetDeviceCount(&availableDevices);
       std::cout << "   Using " << m_num_devices << "/" << availableDevices
                 << " available GPU(s)" << std::endl;
 
       for (int device_id = 0; device_id < availableDevices; device_id++) {
-        cudaDeviceProp device_prop;
-        CUDA_RT_SAFE_CALL(retVal =
-                              cudaGetDeviceProperties(&device_prop, device_id));
-        printf("   GPU Device %d: \"%s\" with compute capability %d.%d\n",
-               device_id, device_prop.name, device_prop.major,
-               device_prop.minor);
-      }
-    }
-#elif defined(HAVE_HIP)
-    if (!gpu_ids && Uintah::Parallel::usingDevice()) {
-      hipError_t retVal;
-      int availableDevices;
-      HIP_RT_SAFE_CALL(retVal = hipGetDeviceCount(&availableDevices));
-      std::cout << "   Using " << m_num_devices << "/" << availableDevices
-                << " available GPU(s)" << std::endl;
-
-      for (int device_id = 0; device_id < availableDevices; device_id++) {
-        hipDeviceProp_t device_prop;
-        HIP_RT_SAFE_CALL(retVal =
-                             hipGetDeviceProperties(&device_prop, device_id));
+        gpuDeviceProp device_prop;
+        GPU_RT_SAFE_CALL(gpuGetDeviceProperties(&device_prop, device_id));
         printf("   GPU Device %d: \"%s\" with compute capability %d.%d\n",
                device_id, device_prop.name, device_prop.major,
                device_prop.minor);
@@ -533,41 +472,17 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
 #endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
   }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
   if (gpu_ids && Uintah::Parallel::usingDevice()) {
-    cudaError_t retVal;
     int availableDevices;
     std::ostringstream message;
-    CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&availableDevices));
+    gpuGetDeviceCount(&availableDevices);
     message << "   Rank-" << d_myworld->myRank() << " using " << m_num_devices
             << "/" << availableDevices << " available GPU(s)\n";
 
     for (int device_id = 0; device_id < availableDevices; device_id++) {
-      cudaDeviceProp device_prop;
-      CUDA_RT_SAFE_CALL(retVal =
-                            cudaGetDeviceProperties(&device_prop, device_id));
-      message << "   Rank-" << d_myworld->myRank() << " using GPU Device "
-              << device_id << ": \"" << device_prop.name << "\""
-              << " with compute capability " << device_prop.major << "."
-              << device_prop.minor << " on PCI " << device_prop.pciDomainID
-              << ":" << device_prop.pciBusID << ":" << device_prop.pciDeviceID
-              << "\n";
-    }
-    DOUT(true, message.str());
-  }
-#elif defined(HAVE_HIP)
-  if (gpu_ids && Uintah::Parallel::usingDevice()) {
-    hipError_t retVal;
-    int availableDevices;
-    std::ostringstream message;
-    HIP_RT_SAFE_CALL(retVal = hipGetDeviceCount(&availableDevices));
-    message << "   Rank-" << d_myworld->myRank() << " using " << m_num_devices
-            << "/" << availableDevices << " available GPU(s)\n";
-
-    for (int device_id = 0; device_id < availableDevices; device_id++) {
-      hipDeviceProp_t device_prop;
-      HIP_RT_SAFE_CALL(retVal =
-                           hipGetDeviceProperties(&device_prop, device_id));
+      gpuDeviceProp device_prop;
+      GPU_RT_SAFE_CALL(gpuGetDeviceProperties(&device_prop, device_id));
       message << "   Rank-" << d_myworld->myRank() << " using GPU Device "
               << device_id << ": \"" << device_prop.name << "\""
               << " with compute capability " << device_prop.major << "."
@@ -1917,36 +1832,20 @@ void UnifiedScheduler::prepareGpuDependencies(
 //______________________________________________________________________
 //
 void UnifiedScheduler::gpuInitialize(bool reset) {
-#ifdef HAVE_CUDA
-  cudaError_t retVal;
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
   int numDevices = 0;
-  CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
+  gpuGetDeviceCount(&numDevices);
   m_num_devices = numDevices;
 
   for (int i = 0; i < m_num_devices; i++) {
     if (reset) {
-      CUDA_RT_SAFE_CALL(retVal = cudaSetDevice(i));
-      CUDA_RT_SAFE_CALL(retVal = cudaDeviceReset());
+      GPU_RT_SAFE_CALL(gpuSetDevice(i));
+      GPU_RT_SAFE_CALL(gpuDeviceReset());
     }
   }
 
   // set it back to the 0th device
-  CUDA_RT_SAFE_CALL(retVal = cudaSetDevice(0));
-#elif defined(HAVE_HIP)
-  hipError_t retVal;
-  int numDevices = 0;
-  HIP_RT_SAFE_CALL(retVal = hipGetDeviceCount(&numDevices));
-  m_num_devices = numDevices;
-
-  for (int i = 0; i < m_num_devices; i++) {
-    if (reset) {
-      HIP_RT_SAFE_CALL(retVal = hipSetDevice(i));
-      HIP_RT_SAFE_CALL(retVal = hipDeviceReset());
-    }
-  }
-
-  // set it back to the 0th device
-  HIP_RT_SAFE_CALL(retVal = hipSetDevice(0));
+  GPU_RT_SAFE_CALL(gpuSetDevice(0));
 #elif defined(HAVE_SYCL)
   int numDevices = 0;
   syclGetDeviceCount(&numDevices);
@@ -3424,14 +3323,10 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
                                             __FILE__, __LINE__));
                   }
 
-#ifdef HAVE_CUDA
-                  CUDA_RT_SAFE_CALL(cudaMemcpyAsync(
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+                  GPU_RT_SAFE_CALL(gpuMemcpyAsync(
                       device_ptr, host_ptr, it->second.m_varMemSize,
-                      cudaMemcpyHostToDevice, *stream));
-#elif defined(HAVE_HIP)
-                  HIP_RT_SAFE_CALL(hipMemcpyAsync(
-                      device_ptr, host_ptr, it->second.m_varMemSize,
-                      hipMemcpyHostToDevice, *stream));
+                      gpuMemcpyHostToDevice, *stream));
 #elif defined(HAVE_SYCL)
                   // ABB 05/09/22: TODO: wait() needs to be removed for Async
                   // behaviour
@@ -4365,17 +4260,10 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                       cerrLock.unlock();
                     }
 
-#ifdef HAVE_CUDA                    
-                    cudaError_t retVal;
-                    CUDA_RT_SAFE_CALL(retVal = cudaMemcpyAsync(
-                                          host_ptr, device_ptr, host_bytes,
-                                          cudaMemcpyDeviceToHost, stream));
-#elif defined(HAVE_HIP)
-                    HIP_RT_SAFE_CALL(retVal = hipMemcpyAsync(
-                                          host_ptr, device_ptr, host_bytes,
-                                          hipMemcpyDeviceToHost, stream));
-#endif
-                    
+                    GPU_RT_SAFE_CALL(gpuMemcpyAsync(
+                                       host_ptr, device_ptr, host_bytes,
+                                       gpuMemcpyDeviceToHost, *stream));
+
                     IntVector temp(0, 0, 0);
 
                     dtask->getVarsBeingCopiedByTask().add(
@@ -4386,50 +4274,7 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                                   device_offset.z),
                         comp, gtype, numGhostCells, deviceNum, gridVar,
                         GpuUtilities::sameDeviceSameMpiRank);
-
-                    if (retVal == gpuErrorLaunchFailure) {
-                      SCI_THROW(InternalError(
-                          "Detected GPU kernel execution failure on Task: " +
-                              dtask->getName(),
-                          __FILE__, __LINE__));
-                    } else {
-                      #ifdef HAVE_CUDA
-                      CUDA_RT_SAFE_CALL(retVal);
-                      #elif HAVE_HIP
-                      HIP_RT_SAFE_CALL(retVal);
-                      #endif
-                    }
-#elif defined(HAVE_HIP)
-                  if (device_offset.x == host_low.x() &&
-                      device_offset.y == host_low.y() &&
-                      device_offset.z == host_low.z() &&
-                      device_size.x == host_size.x() &&
-                      device_size.y == host_size.y() &&
-                      device_size.z == host_size.z()) {
-
-                    hipError_t retVal;
-                    HIP_RT_SAFE_CALL(retVal = hipMemcpyAsync(
-					 host_ptr, device_ptr, host_bytes,
-					 hipMemcpyDeviceToHost, *stream));
-                    IntVector temp(0, 0, 0);
-
-		    dtask->getVarsBeingCopiedByTask().add(
-                        patch, matlID, levelID, false,
-                        IntVector(device_size.x, device_size.y, device_size.z),
-                        host_strides.x(), host_bytes,
-                        IntVector(device_offset.x, device_offset.y,
-                                  device_offset.z),
-                        comp, gtype, numGhostCells, deviceNum, gridVar,
-                        GpuUtilities::sameDeviceSameMpiRank);
-
-                    if (retVal == hipErrorLaunchFailure) {
-		      SCI_THROW(InternalError(
-                          "Detected HIP kernel execution failure on Task: " +
-		              dtask->getName(),
-		          __FILE__, __LINE__));
-		    } else {
-	              HIP_RT_SAFE_CALL(retVal);
-                    }
+                  }
 #elif defined(HAVE_SYCL)
                   if (device_offset.x() == host_low.x() &&
                       device_offset.y() == host_low.y() &&
@@ -4450,8 +4295,8 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                                   device_offset.z()),
                         comp, gtype, numGhostCells, deviceNum, gridVar,
                         GpuUtilities::sameDeviceSameMpiRank);
-#endif
                   }
+#endif
                   delete gridVar;
                 }
                 break;
@@ -4767,28 +4612,22 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
 
             bool proceedWithCopy = false;
             // See if the size of the host var and the device var match.
-#if defined(HAVE_CUDA)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
             if (device_offset.x == host_low.x() &&
                 device_offset.y == host_low.y() &&
                 device_offset.z == host_low.z() &&
                 device_size.x == host_size.x() &&
                 device_size.y == host_size.y() &&
-                device_size.z == host_size.z()) {
-#elif defined(HAVE_HIP)
-            if (device_offset.x == host_low.x() &&
-                device_offset.y == host_low.y() &&
-                device_offset.z == host_low.z() &&
-                device_size.x == host_size.x() &&
-                device_size.y == host_size.y() &&
-                device_size.z == host_size.z()) {
+                device_size.z == host_size.z())
 #elif defined(HAVE_SYCL)
             if (device_offset.x() == host_low.x() &&
                 device_offset.y() == host_low.y() &&
                 device_offset.z() == host_low.z() &&
                 device_size.x() == host_size.x() &&
                 device_size.y() == host_size.y() &&
-                device_size.z() == host_size.z()) {
+                device_size.z() == host_size.z())
 #endif
+            {
               proceedWithCopy = true;
 
               // Note, race condition possible here
@@ -4817,29 +4656,22 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
                   host_lowOffset, host_highOffset, host_low, host_high);
 
               host_size = host_high - host_low;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
               if (device_offset.x == host_low.x() &&
                   device_offset.y == host_low.y() &&
                   device_offset.z == host_low.z() &&
                   device_size.x == host_size.x() &&
                   device_size.y == host_size.y() &&
-                  device_size.z == host_size.z()) {
-#elif defined(HAVE_HIP)
-              if (device_offset.x == host_low.x() &&
-                  device_offset.y == host_low.y() &&
-                  device_offset.z == host_low.z() &&
-                  device_size.x == host_size.x() &&
-                  device_size.y == host_size.y() &&
-                  device_size.z == host_size.z()) {
+                  device_size.z == host_size.z())
 #elif defined(HAVE_SYCL)
               if (device_offset.x() == host_low.x() &&
                   device_offset.y() == host_low.y() &&
                   device_offset.z() == host_low.z() &&
                   device_size.x() == host_size.x() &&
                   device_size.y() == host_size.y() &&
-                  device_size.z() == host_size.z()) {
+                  device_size.z() == host_size.z())
 #endif
-
+              {
                 proceedWithCopy = true;
 
                 // Note, race condition possible here
@@ -4857,29 +4689,22 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
                 // Assume it was using up to 32768 ghost cells.
                 level->findCellIndexRange(host_low, host_high);
                 host_size = host_high - host_low;
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
                 if (device_offset.x == host_low.x() &&
                     device_offset.y == host_low.y() &&
                     device_offset.z == host_low.z() &&
                     device_size.x == host_size.x() &&
                     device_size.y == host_size.y() &&
-                    device_size.z == host_size.z()) {
-#elif defined(HAVE_HIP)
-                if (device_offset.x == host_low.x() &&
-                    device_offset.y == host_low.y() &&
-                    device_offset.z == host_low.z() &&
-                    device_size.x == host_size.x() &&
-                    device_size.y == host_size.y() &&
-                    device_size.z == host_size.z()) {
+                    device_size.z == host_size.z())
 #elif defined(HAVE_SYCL)
                 if (device_offset.x() == host_low.x() &&
                     device_offset.y() == host_low.y() &&
                     device_offset.z() == host_low.z() &&
                     device_size.x() == host_size.x() &&
                     device_size.y() == host_size.y() &&
-                    device_size.z() == host_size.z()) {
+                    device_size.z() == host_size.z())
 #endif
-
+                {
                   // ok, this worked.  Allocate it the large ghost cell way with
                   // getRegion Note, race condition possible here
                   bool finalized = dw->isFinalized();
@@ -4892,11 +4717,6 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
                   }
                   proceedWithCopy = true;
                 } else {
-                  // printf("ERROR:\nUnifiedScheduler::initiateD2H() - Device
-                  // and host sizes didn't match.  Device size is (%d, %d, %d),
-                  // and host size is (%d, %d, %d)\n", device_size.x,
-                  // device_size.y, device_size.y,host_size.x(),
-                  // host_size.y(),host_size.z());
                   SCI_THROW(InternalError("UnifiedScheduler::initiateD2H() - "
                                           "Device and host sizes didn't match.",
                                           __FILE__, __LINE__));
@@ -4933,25 +4753,20 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
 #endif
 
               if (host_bytes == 0) {
-                printf("ERROR:\nUnifiedScheduler::initiateD2H() - Transfer "
-                       "bytes is listed as zero.\n");
                 SCI_THROW(InternalError("UnifiedScheduler::initiateD2H() - "
                                         "Transfer bytes is listed as zero.",
                                         __FILE__, __LINE__));
               }
               if (!host_ptr) {
-                printf("ERROR:\nUnifiedScheduler::initiateD2H() - Invalid host "
-                       "pointer, it was nullptr.\n");
                 SCI_THROW(InternalError("UnifiedScheduler::initiateD2H() - "
                                         "Invalid host pointer, it was nullptr.",
                                         __FILE__, __LINE__));
               }
 
-#ifdef HAVE_CUDA
-              cudaError_t retVal;
-              CUDA_RT_SAFE_CALL(
-                  retVal = cudaMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                           cudaMemcpyDeviceToHost, stream));
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+              GPU_RT_SAFE_CALL(
+                gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                               gpuMemcpyDeviceToHost, *stream));
 
               IntVector temp(0, 0, 0);
               dtask->getVarsBeingCopiedByTask().add(
@@ -4961,38 +4776,6 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
                   IntVector(device_offset.x, device_offset.y, device_offset.z),
                   dependantVar, gtype, numGhostCells, deviceNum, gridVar,
                   GpuUtilities::sameDeviceSameMpiRank);
-
-              if (retVal == cudaErrorLaunchFailure) {
-                SCI_THROW(InternalError(
-                    "Detected CUDA kernel execution failure on Task: " +
-                        dtask->getName(),
-                    __FILE__, __LINE__));
-              } else {
-                CUDA_RT_SAFE_CALL(retVal);
-              }
-#elif defined(HAVE_HIP)
-              hipError_t retVal;
-              HIP_RT_SAFE_CALL(
-                 retVal = hipMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                         hipMemcpyDeviceToHost, *stream));
-
-	      IntVector temp(0, 0, 0);
-              dtask->getVarsBeingCopiedByTask().add(
-                  patch, matlID, levelID, false,
-                  IntVector(device_size.x, device_size.y, device_size.z),
-                  elementDataSize, host_bytes,
-                  IntVector(device_offset.x, device_offset.y, device_offset.z),
-                  dependantVar, gtype, numGhostCells, deviceNum, gridVar,
-                  GpuUtilities::sameDeviceSameMpiRank);
-
-	      if (retVal == hipErrorLaunchFailure) {
-                SCI_THROW(InternalError(
-                    "Detected HIP kernel execution failure on Task: " +
-                        dtask->getName(),
-                     __FILE__, __LINE__));
-              } else {
-                HIP_RT_SAFE_CALL(retVal);
-              }
 #elif defined(HAVE_SYCL)
               stream->memcpy(host_ptr, device_ptr, host_bytes);
 
@@ -5052,14 +4835,10 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
 
             // TODO: Verify no memory leaks
             if (host_bytes == device_bytes) {
-#ifdef HAVE_CUDA
-              CUDA_RT_SAFE_CALL(
-                  cudaMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                  cudaMemcpyDeviceToHost, stream));
-#elif defined(HAVE_HIP)
-              HIP_RT_SAFE_CALL(
-                  hipMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                 hipMemcpyDeviceToHost, *stream));
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+              GPU_RT_SAFE_CALL(
+                  gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                                  gpuMemcpyDeviceToHost, *stream));
 #elif defined(HAVE_SYCL)
               stream->memcpy(host_ptr, device_ptr, host_bytes);
 #endif
@@ -5068,8 +4847,6 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
                   deviceNum, hostPerPatchVar,
                   GpuUtilities::sameDeviceSameMpiRank);
             } else {
-              printf("ERROR: InitiateD2H - PerPatch variable memory sizes "
-                     "didn't match\n");
               SCI_THROW(InternalError(
                   "InitiateD2H - PerPatch variable memory sizes didn't match",
                   __FILE__, __LINE__));
@@ -5120,14 +4897,10 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
 #endif
 
             if (host_bytes == device_bytes) {
-#ifdef HAVE_CUDA
-              CUDA_RT_SAFE_CALL(
-                  cudaMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                  cudaMemcpyDeviceToHost, stream));
-#elif defined(HAVE_HIP)
-              HIP_RT_SAFE_CALL(
-                  hipMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                 hipMemcpyDeviceToHost, *stream));
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+              GPU_RT_SAFE_CALL(
+                  gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                                 gpuMemcpyDeviceToHost, *stream));
 #elif defined(HAVE_SYCL)
               stream->memcpy(host_ptr, device_ptr, host_bytes);
 #endif
@@ -5136,8 +4909,6 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
                   deviceNum, hostReductionVar,
                   GpuUtilities::sameDeviceSameMpiRank);
             } else {
-              printf("ERROR: InitiateD2H - Reduction variable memory sizes "
-                     "didn't match\n");
               SCI_THROW(InternalError(
                   "InitiateD2H - Reduction variable memory sizes didn't match",
                   __FILE__, __LINE__));
@@ -5608,14 +5379,10 @@ void UnifiedScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
           dtask->getGpuStreamForThisTask(it->second.m_destDeviceNum);
       OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_destDeviceNum);
 
-#ifdef HAVE_CUDA
-      CUDA_RT_SAFE_CALL(cudaMemcpyPeerAsync(
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+      GPU_RT_SAFE_CALL(gpuMemcpyPeerAsync(
           device_dest_ptr, it->second.m_destDeviceNum, device_source_ptr,
-          it->second.m_sourceDeviceNum, memSize, stream));
-#elif defined(HAVE_HIP)
-      HIP_RT_SAFE_CALL(hipMemcpyPeerAsync(
-	 device_dest_ptr, it->second.m_destDeviceNum, device_source_ptr,
-	 it->second.m_sourceDeviceNum, memSize, *stream));
+          it->second.m_sourceDeviceNum, memSize, *stream));
 #elif defined(HAVE_SYCL)
       stream->memcpy(device_dest_ptr, device_source_ptr,
                      memSize); // SYCL P2P memcpy
@@ -5691,11 +5458,7 @@ void UnifiedScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
 
       // if offset and size is equal to CPU DW, directly copy back to CPU var
       // memory;
-#ifdef HAVE_CUDA
-      if (device_offset.x == host_low.x() && device_offset.y == host_low.y() &&
-          device_offset.z == host_low.z() && device_size.x == host_size.x() &&
-          device_size.y == host_size.y() && device_size.z == host_size.z()) {
-#elif defined(HAVE_HIP)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
       if (device_offset.x == host_low.x() && device_offset.y == host_low.y() &&
           device_offset.z == host_low.z() && device_size.x == host_size.x() &&
           device_size.y == host_size.y() && device_size.z == host_size.z()) {
@@ -5712,7 +5475,7 @@ void UnifiedScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
         gpuStream_t *stream =
             dtask->getGpuStreamForThisTask(it->second.m_sourceDeviceNum);
         OnDemandDataWarehouse::uintahSetGpuDevice(it->second.m_sourceDeviceNum);
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
         if (gpu_stats.active()) {
           cerrLock.lock();
           {
@@ -5730,12 +5493,9 @@ void UnifiedScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
         }
 #endif
 
-#ifdef HAVE_CUDA
-        CUDA_RT_SAFE_CALL(cudaMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                          cudaMemcpyDeviceToHost, stream));
-#elif defined(HAVE_HIP)
-        HIP_RT_SAFE_CALL(hipMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                        hipMemcpyDeviceToHost, *stream));
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+        GPU_RT_SAFE_CALL(gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                                          gpuMemcpyDeviceToHost, *stream));
 #elif defined(HAVE_SYCL)
         stream->memcpy(host_ptr, device_ptr, host_bytes);
 #endif

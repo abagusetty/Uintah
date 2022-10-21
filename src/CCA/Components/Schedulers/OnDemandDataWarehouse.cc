@@ -146,18 +146,11 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
 {
   doReserve();
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   if (Uintah::Parallel::usingDevice()) {
     int numDevices;
-
-#if defined(HAVE_CUDA)
-    cudaError_t retVal;
-    CUDA_RT_SAFE_CALL(retVal = cudaGetDeviceCount(&numDevices));
-#elif defined(HAVE_HIP)
-    hipError_t retVal;
-    HIP_RT_SAFE_CALL(retVal = hipGetDeviceCount(&numDevices));
-#endif
+    gpuGetDeviceCount(&numDevices);
 
     for (int i = 0; i < numDevices; i++) {
       //those gpuDWs should only live host side.
@@ -169,27 +162,7 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
       out << "Host-side GPU DW";
 
       gpuDW->init(i, out.str());
-      gpuDW->setDebug(gpudbg.active());
-      d_gpuDWs.push_back(gpuDW);
-    }
-  }
-
-#elif defined(HAVE_SYCL)
-
-  if (Uintah::Parallel::usingDevice()) {
-    int numDevices;
-    syclGetDeviceCount(&numDevices);
-
-    for (int i = 0; i < numDevices; i++) {
-      //those gpuDWs should only live host side.
-      //Ideally these don't need to be created at all as a separate datawarehouse,
-      //but could be contained within this datawarehouse
-
-      GPUDataWarehouse* gpuDW = (GPUDataWarehouse*)malloc(sizeof(GPUDataWarehouse) - sizeof(GPUDataWarehouse::dataItem) * MAX_VARDB_ITEMS);
-      std::ostringstream out;
-      out << "Host-side GPU DW";
-
-      gpuDW->init(i, out.str());
+      //gpuDW->setDebug(gpudbg.active());
       d_gpuDWs.push_back(gpuDW);
     }
   }
@@ -453,27 +426,13 @@ OnDemandDataWarehouse::getReductionVariable( const VarLabel * label
 
 void
 OnDemandDataWarehouse::uintahSetGpuDevice(int deviceID) {
-#ifdef HAVE_CUDA
-  CUDA_RT_SAFE_CALL( cudaSetDevice(deviceID) );
-#elif defined(HAVE_HIP)
-  HIP_RT_SAFE_CALL( hipSetDevice(deviceID) );
-#elif HAVE_SYCL
-  syclSetDevice(deviceID);
-#endif
+  gpuSetDevice(deviceID);
 }
 
 int
 OnDemandDataWarehouse::getNumDevices() {
   int numDevices = 0;
-
-#ifdef HAVE_CUDA
-  CUDA_RT_SAFE_CALL(cudaGetDeviceCount(&numDevices));
-#elif defined(HAVE_HIP)
-  HIP_RT_SAFE_CALL(hipGetDeviceCount(&numDevices));
-#elif defined(HAVE_SYCL)
-  syclGetDeviceCount(&numDevices);
-#endif
-
+  gpuGetDeviceCount(&numDevices);
   return numDevices;
 }
 

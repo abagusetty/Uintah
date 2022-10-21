@@ -314,13 +314,7 @@ public:
   GPUDataWarehouse *getGPUDW(int devID) const { return d_gpuDWs[devID]; }
   GPUDataWarehouse *getGPUDW() const {
     int devID;
-#ifdef HAVE_CUDA
-    CUDA_RT_SAFE_CALL(cudaGetDevice(&devID));
-#elif defined(HAVE_HIP)
-    HIP_RT_SAFE_CALL(hipGetDevice(&devID));
-#elif defined(HAVE_SYCL)
-    syclGetDevice(&devID);
-#endif
+    GPU_RT_SAFE_CALL(gpuGetDevice(&devID));
     return d_gpuDWs[devID];
   }
 #endif // #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)

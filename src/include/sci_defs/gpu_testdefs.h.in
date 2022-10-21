@@ -25,7 +25,9 @@
 #ifndef SCI_GPU_DEFS_H
 #define SCI_GPU_DEFS_H
 
-@DEF_CUDA@
+#cmakedefine HAVE_CUDA
+#cmakedefine HAVE_NCCL
+
 #define SCI_GPU_ASSERTION_LEVEL @ASSERTION_LEVEL@
 
 #ifdef HAVE_CUDA
@@ -33,6 +35,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
+#ifdef HAVE_NCCL
+#include <nccl.h>
+#endif
 
 #ifdef __CUDACC__
 #define HOST_DEVICE __host__ __device__
@@ -48,12 +53,30 @@
 
   using gpuStream_t = cudaStream_t;
   using gpuEvent_t = cudaEvent_t;
+  using gpuError_t = cudaError_t;
+  #define gpuMemcpyAsync cudaMemcpyAsync
+  #define gpuMemcpyPeerAsync cudaMemcpyPeerAsync
+  #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
+  #define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
+  #define gpuErrorLaunchFailure cudaErrorLaunchFailure
+  #define gpuGetDevice cudaGetDevice
+  #define gpuStreamQuery cudaStreamQuery
+  #define gpuSuccess cudaSuccess
+  #define gpuErrorNotReady cudaErrorNotReady
+  #define gpuErrorLaunchFailure cudaErrorLaunchFailure
+  #define gpuSetDevice cudaSetDevice
+  #define gpuDeviceReset cudaDeviceReset
+  #define gpuGetDeviceCount cudaGetDeviceCount
+  #define gpuDeviceCanAccessPeer cudaDeviceCanAccessPeer
+  #define gpuDeviceEnablePeerAccess cudaDeviceEnablePeerAccess
+  #define gpuDeviceProp cudaDeviceProp
+  #define gpuGetDeviceProperties cudaGetDeviceProperties
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
 
 // Error handling wrapper for CUDA RUNTIME API calls (no-sync)
-#define CUDA_RT_SAFE_CALL(call)                                                \
+#define GPU_RT_SAFE_CALL(call)                                                \
   {                                                                            \
     cudaError err = call;                                                      \
     if (err != cudaSuccess) {                                                  \
@@ -124,12 +147,16 @@
 #endif // HAVE_CUDA
 
 
-@DEF_HIP@
+#cmakedefine HAVE_HIP
+#cmakedefine HAVE_RCCL
 
 #ifdef HAVE_HIP
 
 #include <hip/hip_runtime.h>
 #include <hip/hip_runtime_api.h>
+#ifdef HAVE_RCCL
+#include <rccl.h>
+#endif
 
 #ifdef __HIPCC__
 #define HOST_DEVICE __host__ __device__
@@ -145,12 +172,30 @@
 
   using gpuStream_t = hipStream_t;
   using gpuEvent_t = hipEvent_t;
+  using gpuError_t = hipError_t;
+  #define gpuMemcpyAsync hipMemcpyAsync
+  #define gpuMemcpyPeerAsync hipMemcpyPeerAsync
+  #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
+  #define gpuMemcpyHostToDevice hipMemcpyHostToDevice
+  #define gpuErrorLaunchFailure hipErrorLaunchFailure
+  #define gpuGetDevice hipGetDevice
+  #define gpuStreamQuery hipStreamQuery
+  #define gpuSuccess hipSuccess
+  #define gpuErrorNotReady hipErrorNotReady
+  #define gpuErrorLaunchFailure hipErrorLaunchFailure
+  #define gpuSetDevice hipSetDevice
+  #define gpuDeviceReset hipDeviceReset
+  #define gpuGetDeviceCount hipGetDeviceCount
+  #define gpuDeviceCanAccessPeer hipDeviceCanAccessPeer
+  #define gpuDeviceEnablePeerAccess hipDeviceEnablePeerAccess
+  #define gpuDeviceProp hipDeviceProp_t
+  #define gpuGetDeviceProperties hipGetDeviceProperties
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
 
 // Error handling wrapper for HIP RUNTIME API calls (no-sync)
-#define HIP_RT_SAFE_CALL(call)                                                 \
+#define GPU_RT_SAFE_CALL(call)                                                 \
   {                                                                            \
     hipError_t err = call;                                                     \
     if (err != hipSuccess) {                                                   \
@@ -218,8 +263,7 @@
 
 #endif // HAVE_HIP
 
-
-@DEF_SYCL@
+#cmakedefine HAVE_SYCL
 
 #ifdef HAVE_SYCL
 
@@ -251,6 +295,10 @@ namespace sycl = cl::sycl;
 
 using gpuStream_t = sycl::queue;
 using gpuEvent_t = sycl::event;
+#define gpuGetDevice syclGetDevice
+#define GPU_RT_SAFE_CALL
+#define gpuSetDevice syclSetDevice
+#define gpuGetDeviceCount syclGetDeviceCount
 
 using int3 = sycl::int3;
 using uint3 = sycl::uint3;

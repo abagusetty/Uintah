@@ -775,24 +775,24 @@ bool DetailedTask::checkGpuStreamDoneForThisTask(
     int device_id, gpuStream_t* taskGpuStream) const {
   OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
 
-#ifdef HAVE_CUDA
-  // sets the CUDA context, for the call to cudaEventQuery()
-  cudaError_t retVal;
-  retVal = cudaStreamQuery(*taskGpuStream);
-  if (retVal == cudaSuccess) {
+#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+  // sets the GPU,HIP context, for the call to gpu/hipEventQuery()
+  gpuError_t retVal;
+  retVal = gpuStreamQuery(*taskGpuStream);
+  if (retVal == gpuSuccess) {
     return true;
-  } else if (retVal == cudaErrorNotReady) {
+  } else if (retVal == gpuErrorNotReady) {
     return false;
-  } else if (retVal == cudaErrorLaunchFailure) {
-    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask(%d) - CUDA "
+  } else if (retVal == gpuErrorLaunchFailure) {
+    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask(%d) - GPU "
            "kernel execution failure on Task: %s\n",
            device_id, getName().c_str());
-    SCI_THROW(InternalError("Detected CUDA kernel execution failure on Task: " +
+    SCI_THROW(InternalError("Detected GPU kernel execution failure on Task: " +
                                 getName(),
                             __FILE__, __LINE__));
     return false;
   } else { // other error
-    printf("\nA CUDA error occurred with error code %d.\n\nWaiting for 60 "
+    printf("\nA GPU error occurred with error code %d.\n\nWaiting for 60 "
            "seconds\n",
            retVal);
 
@@ -804,39 +804,7 @@ bool DetailedTask::checkGpuStreamDoneForThisTask(
 
     nanosleep(&ts, &ts);
 
-    CUDA_RT_SAFE_CALL(retVal);
-    return false;
-  }
-#elif defined(HAVE_HIP)
-  // sets the HIP context, for the call to hipEventQuery()
-  hipError_t retVal;
-  retVal = hipStreamQuery(*taskGpuStream);
-  if (retVal == hipSuccess) {
-    return true;
-  } else if (retVal == hipErrorNotReady) {
-    return false;
-  } else if (retVal == hipErrorLaunchFailure) {
-    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask(%d) - HIP "
-           "kernel execution failure on Task: %s\n",
-           device_id, getName().c_str());
-    SCI_THROW(InternalError("Detected HIP kernel execution failure on Task: " +
-                                getName(),
-                            __FILE__, __LINE__));
-    return false;
-  } else { // other error
-    printf("\nA HIP error occurred with error code %d.\n\nWaiting for 60 "
-           "seconds\n",
-           retVal);
-
-    int sleepTime = 60;
-
-    struct timespec ts;
-    ts.tv_sec = (int)sleepTime;
-    ts.tv_nsec = (int)(1.e9 * (sleepTime - ts.tv_sec));
-
-    nanosleep(&ts, &ts);
-
-    HIP_RT_SAFE_CALL(retVal);
+    GPU_RT_SAFE_CALL(retVal);
     return false;
   }
 
