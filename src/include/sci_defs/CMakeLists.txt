@@ -63,13 +63,13 @@ configure_file( config_testdefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/config_defs.h )
 
 if( ENABLE_CUDA )
   set( HAVE_CUDA true )
-endif( ENABLE_CUDA )
+endif ()
 if( ENABLE_HIP )
   set( HAVE_HIP true )
-endif( ENABLE_HIP )
+endif ()
 if( ENABLE_SYCL )
   set( HAVE_SYCL true )
-endif( ENABLE_SYCL )
+endif ()
 configure_file( gpu_testdefs.h.in ${CMAKE_CURRENT_BINARY_DIR}/gpu_defs.h )
 
 if( LAPACK_FOUND )
@@ -130,6 +130,8 @@ set_active_flags( PHASEFIELD )
 set_active_flags( WASATCH )
 set_active_flags( RAY_SCATTER )
 set_active_flags( FORTRAN )
+
+message("check the variable status : ${NO_WASATCH}")
 
 set( HAVE_CXX11 true )  # we are requiring this as the minimum c++ standard
 

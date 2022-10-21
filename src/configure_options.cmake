@@ -63,7 +63,7 @@ if( ENABLE_CUDA )
   if( ENABLE_NCCL )
     find_dependency( NCCL )
   endif()
-endif()
+endif( ENABLE_CUDA )
 
 if( ENABLE_HIP )
   # unsets previous CXX standard and sets CXX to std++17
@@ -77,11 +77,6 @@ if( ENABLE_HIP )
     set(HIP_PATH "$ENV{ROCM_PATH}/include" CACHE PATH "Path to which HIP has been installed")
     list(APPEND CMAKE_PREFIX_PATH ${HIP_PATH})
     set(CMAKE_MODULE_PATH "$ENV{ROCM_PATH}/hip/cmake" ${CMAKE_MODULE_PATH})
-
-    message(STATUS "cmake_prefix_path : ${CMAKE_PREFIX_PATH}")
-    message(STATUS "cmake_module_path : ${CMAKE_MODULE_PATH}")
-
-    #target_compile_definitions(pi_hip PRIVATE __HIP_PLATFORM_AMD__)
   endif()
 
   find_package(hip REQUIRED)

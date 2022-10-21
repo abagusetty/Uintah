@@ -43,28 +43,6 @@ auto sycl_asynchandler = [](sycl::exception_list exceptions) {
 
 namespace Uintah {
 
-void gpuGetDeviceCount(int *ngpus) {
-#if defined(HAVE_CUDA)
-  cudaGetDeviceCount(ngpus);
-#elif defined(HAVE_HIP)
-  hipGetDeviceCount(ngpus);
-#elif defined(HAVE_SYCL)
-  syclGetDeviceCount(ngpus);
-#else
-  *ngpus = -1;
-#endif
-}
-
-void gpuSetDevice(int devID) {
-#if defined(HAVE_CUDA)
-  cudaSetDevice(devID);
-#elif defined(HAVE_HIP)
-  hipSetDevice(devID);
-#elif defined(HAVE_SYCL)
-  syclSetDevice(devID);
-#endif
-}
-
 /* MasterLock streampool_mutex{}; */
 #if defined(HAVE_CUDA)
 template <int N = 32>
@@ -106,11 +84,11 @@ private:
       for (int j = 0; j < N; j++) { // # of streams per GPU
 #if defined(HAVE_CUDA)
         gpuStream_t* stream = nullptr;
-        cudaStreamCreateWithFlags(stream, cudaStreamNonBlocking);
+        GPU_RT_SAFE_CALL(cudaStreamCreateWithFlags(stream, cudaStreamNonBlocking));
         s_idle_streams.push_back(stream);
 #elif defined(HAVE_HIP)
         gpuStream_t* stream = nullptr;
-        hipStreamCreateWithFlags(stream, hipStreamNonBlocking);
+        GPU_RT_SAFE_CALL(hipStreamCreateWithFlags(stream, hipStreamNonBlocking));
         s_idle_streams.push_back(stream);
 #elif defined(HAVE_SYCL)
         s_idle_streams.push_back( new sycl::queue(*sycl_get_context(devID),

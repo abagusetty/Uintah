@@ -464,9 +464,9 @@ public: // class Task
 
   //////////
   // Tells the task to actually execute the function assigned to it.
-  virtual void doit(DetailedTask *task, CallBackEvent event,
-                    const ProcessorGroup *pg, const PatchSubset *,
-                    const MaterialSubset *, std::vector<DataWarehouseP> &dws);
+  // virtual void doit(DetailedTask *task, CallBackEvent event,
+  //                   const ProcessorGroup *pg, const PatchSubset *,
+  //                   const MaterialSubset *, std::vector<DataWarehouseP> &dws);
   // #if defined(HAVE_CUDA) && defined(HAVE_SYCL)
   virtual void doit(DetailedTask *task, CallBackEvent event,
                     const ProcessorGroup *pg, const PatchSubset *,

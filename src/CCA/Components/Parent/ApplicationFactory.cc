@@ -38,7 +38,7 @@
 
 #ifndef NO_EXAMPLES
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 #  include <CCA/Components/Examples/UnifiedSchedulerTest.h>
 #endif
 
@@ -445,7 +445,7 @@ ApplicationFactory::create(       ProblemSpecP     & prob_spec
     turned_on_options += "wave ";
   }
 
-#ifdef HAVE_CUDA
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
   if (sim_comp == "unifiedschedulertest" || sim_comp == "UNIFIEDSCHEDULERTEST") {
     return scinew UnifiedSchedulerTest(myworld, materialManager);
   }
