@@ -36,13 +36,17 @@
 #endif
 
 #ifdef HAVE_HIP
-#include <rocrand.h>
+#include <hiprand.h>
+#include <hiprand_kernel.h>
 #include <sci_defs/gpu_defs.h>
 #endif
 
 //#define __CUDA_INTERNAL_COMPILATION__
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(HAVE_CUDA)
 #include <math_functions.h> // needed for max()
+#endif
+#if defined(HAVE_HIP)
+#include <hip/math_functions.h>
 #endif
 //#undef __CUDA_INTERNAL_COMPILATION__
 
@@ -528,42 +532,69 @@ enum ROI_algo {
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ GPUVector findRayDirectionDevice(curandState *randNumStates);
-
+#elif HAVE_HIP
+__device__ GPUVector findRayDirectionDevice(hiprandState *randNumStates);
+#endif
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ GPUVector findRayDirectionHyperCubeDevice(curandState *randNumStates,
+#elif HAVE_HIP
+__device__ GPUVector findRayDirectionHyperCubeDevice(hiprandState *randNumStates,
+#endif
                                                      const int nDivQRays,
                                                      const int bin_i,
                                                      const int bin_j);
 //______________________________________________________________________
 //
 __device__ void randVectorDevice(int int_array[], const int size,
-                                 curandState *randNumStates);
+#ifdef HAVE_CUDA
+	                         curandState *randNumStates);
+#elif HAVE_HIP
+                                 hiprandState *randNumStates);
+#endif
 //______________________________________________________________________
 //
 __device__ void rayDirection_cellFaceDevice(
+#ifdef HAVE_CUDA
     curandState *randNumStates, const GPUIntVector &origin,
+#elif HAVE_HIP
+    hiprandState *randNumStates, const GPUIntVector &origin,
+#endif
     const GPUIntVector &indexOrder, const GPUIntVector &signOrder,
     const int iRay, GPUVector &directionVector, double &cosTheta);
 
 //______________________________________________________________________
 //
 __device__ void rayDirectionHyperCube_cellFaceDevice(
+#ifdef HAVE_CUDA
     curandState *randNumStates, const GPUIntVector &origin,
+#elif HAVE_HIP
+    hiprandState *randNumStates, const GPUIntVector &origin,
+#endif
     const int3 &indexOrder, const int3 &signOrder, const int iRay,
     GPUVector &dirVector, double &cosTheta, const int bin_i, const int bin_j,
     const int nFluxRays);
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ GPUVector rayOriginDevice(curandState *randNumStates,
+#elif HAVE_HIP
+__device__ GPUVector rayOriginDevice(hiprandState *randNumStates,
+#endif
                                      const GPUPoint CC_pos, const GPUVector dx,
                                      const bool useCCRays);
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ void rayLocation_cellFaceDevice(curandState *randNumStates,
+#elif HAVE_HIP
+__device__ void rayLocation_cellFaceDevice(hiprandState *randNumStates,
+#endif
                                            const int face, const GPUVector Dx,
                                            const GPUPoint CC_pos,
                                            GPUVector &rayOrigin);
@@ -601,7 +632,11 @@ updateSumIDevice(levelParams level, GPUVector &ray_direction,
                  const GPUVector &Dx, const GPUGridVariable<T> &sigmaT4OverPi,
                  const GPUGridVariable<T> &abskg,
                  const GPUGridVariable<int> &celltype, double &sumI,
-                 curandState *randNumStates, RMCRT_flags RT_flags);
+#ifdef HAVE_CUDA
+		 curandState *randNumStates, RMCRT_flags RT_flags);
+#elif HAVE_HIP
+                 hiprandState *randNumStates, RMCRT_flags RT_flags);
+#endif
 
 //______________________________________________________________________
 //  Multi-level
@@ -614,26 +649,46 @@ __device__ void updateSumI_MLDevice(
     const int3 *regionLo, const int3 *regionHi,
     const GPUGridVariable<T> *sigmaT4OverPi, const GPUGridVariable<T> *abskg,
     const GPUGridVariable<int> *celltype, double &sumI,
+#ifdef HAVE_CUDA
     curandState *randNumStates, RMCRT_flags RT_flags);
+#elif HAVE_HIP
+    hiprandState *randNumStates, RMCRT_flags RT_flags);
+#endif
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ void setupRandNumsSeedAndSequences(curandState *randNumStates,
+#elif HAVE_HIP
+__device__ void setupRandNumsSeedAndSequences(hiprandState *randNumStates,
+#endif
                                               int numStates,
                                               unsigned long long patchID,
                                               unsigned long long curTimestep);
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ double randDblExcDevice(curandState *randNumStates);
+#elif HAVE_HIP
+__device__ double randDblExcDevice(hiprandState *randNumStates);
+#endif
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ double randDblDevice(curandState *randNumStates);
+#elif HAVE_HIP
+__device__ double randDblDevice(hiprandState *randNumStates);
+#endif
 
 //______________________________________________________________________
 //
+#ifdef HAVE_CUDA
 __device__ int randIntDevice(curandState *randNumStates, const int B);
+#elif HAVE_HIP
+__device__ int randIntDevice(hiprandState *randNumStates, const int B);
+#endif
 
 //______________________________________________________________________
 //

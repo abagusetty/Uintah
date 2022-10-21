@@ -189,8 +189,8 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
       patchP.ID = patch->getID();
 
       // define dimensions of the thread grid to be launched
-      int xblocks = (int)ceil((float)xdim / BLOCKSIZE);
-      int yblocks = (int)ceil((float)ydim / BLOCKSIZE);
+      int xblocks = (int)ceil((float)xdim / (int)BLOCKSIZE);
+      int yblocks = (int)ceil((float)ydim / (int)BLOCKSIZE);
 
       // if the # cells in a block < BLOCKSIZE^2 reduce block size
       int blocksize = BLOCKSIZE;
