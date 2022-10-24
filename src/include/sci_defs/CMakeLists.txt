@@ -131,8 +131,6 @@ set_active_flags( WASATCH )
 set_active_flags( RAY_SCATTER )
 set_active_flags( FORTRAN )
 
-message("check the variable status : ${NO_WASATCH}")
-
 set( HAVE_CXX11 true )  # we are requiring this as the minimum c++ standard
 
 # jcs what about zoltan, radprops?

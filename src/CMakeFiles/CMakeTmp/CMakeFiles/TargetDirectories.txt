@@ -1,0 +1,3 @@
+/ccs/home/abagusetty/Uintah/src/CMakeFiles/CMakeTmp/CMakeFiles/cmTC_580f1.dir
+/ccs/home/abagusetty/Uintah/src/CMakeFiles/CMakeTmp/CMakeFiles/edit_cache.dir
+/ccs/home/abagusetty/Uintah/src/CMakeFiles/CMakeTmp/CMakeFiles/rebuild_cache.dir

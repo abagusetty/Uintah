@@ -46,6 +46,21 @@
 
 @DEF_CXX11@
 
+#cmakedefine NO_ARCHES
+#cmakedefine NO_EXAMPLES
+#cmakedefine NO_FVM
+#cmakedefine NO_ICE
+#cmakedefine NO_MPM
+#cmakedefine NO_MODELS_RADIATION
+#cmakedefine NO_PHASEFIELD
+#cmakedefine NO_WASATCH
+
+#cmakedefine NO_RAY_SCATTER
+
+#cmakedefine HAVE_CXX11
+
+#cmakedefine NO_FORTRAN
+
 #if !defined( FIX_NAME )
 #  if defined( FORTRAN_UNDERSCORE_END )
      // This ## magic (apparently) concatenates the _ to the 'fun' varaible.

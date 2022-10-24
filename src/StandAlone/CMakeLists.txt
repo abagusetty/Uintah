@@ -18,6 +18,10 @@ target_link_libraries( sus
         ${VISIT_INTERFACE}
     )
 
+if( HAVE_HIP )
+    target_link_libraries( sus PUBLIC hip::host )
+endif( HAVE_HIP )
+
 # ensure symlinks are generated when sus is built
 add_dependencies( sus
     input_dir_links

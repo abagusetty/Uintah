@@ -57,6 +57,17 @@ option( ENABLE_RAY_SCATTER "Enable the ray scattering tools" OFF )
 #               Set up GPU dependencies
 #----------------------------------------------------------
 
+# Die if two or more device backends are chosen
+if( ENABLE_CUDA AND ENABLE_SYCL )
+  message( FATAL_ERROR "CUDA / SYCL bindings are mutually exclusive" )
+endif()
+if( ENABLE_CUDA AND ENABLE_HIP )
+  message( FATAL_ERROR "CUDA / HIP bindings are mutually exclusive" )
+endif()
+if( ENABLE_SYCL AND ENABLE_HIP )
+  message( FATAL_ERROR "SYCL / HIP bindings are mutually exclusive" )
+endif()
+
 if( ENABLE_CUDA )
   enable_language( CUDA )
   find_dependency( CUDAToolkit REQUIRED )
@@ -79,8 +90,8 @@ if( ENABLE_HIP )
     set(CMAKE_MODULE_PATH "$ENV{ROCM_PATH}/hip/cmake" ${CMAKE_MODULE_PATH})
   endif()
 
-  find_package(hip REQUIRED)
-  #  enable_language( HIP )
+  #find_package(hip REQUIRED)
+  enable_language( HIP )
   if(hip_FOUND)
      message(STATUS "Found HIP: ${HIP_VERSION}")
      message(STATUS "         HIP: Runtime=${HIP_RUNTIME} , Compiler=${HIP_COMPILER} , Path=${HIP_PATH}")

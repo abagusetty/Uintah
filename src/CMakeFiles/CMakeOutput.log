@@ -1,0 +1,14 @@
+The system is: Linux - 5.3.18-150300.59.87_11.0.78-cray_shasta_c - x86_64
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /opt/cray/pe/craype/2.7.16/bin/CC 
+Build flags: 
+Id flags:  
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+
+The CXX compiler identification is Clang, found in "/ccs/home/abagusetty/Uintah/src/CMakeFiles/3.23.2/CompilerIdCXX/a.out"
+
