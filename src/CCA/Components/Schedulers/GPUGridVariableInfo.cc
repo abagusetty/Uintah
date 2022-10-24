@@ -23,7 +23,9 @@
  */
 
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
-#include <CCA/Components/Schedulers/SYCLScheduler.hpp>
+#ifdef HAVE_SYCL
+  #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
+#endif
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
 
 #include <Core/Parallel/MasterLock.h>

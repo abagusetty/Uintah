@@ -1,34 +1,31 @@
-if( HAVE_CUDA )
+if( ENABLE_CUDA )
     set( GPU_SRC
             GPUDataWarehouse.cu
             GPUGridVariableGhosts.cc
             GPUGridVariableInfo.cc
-            GPUMemoryPool.cc
         )
-endif( HAVE_CUDA )
+endif( ENABLE_CUDA )
 
-if( HAVE_HIP )
+if( ENABLE_HIP )
     set( GPU_SRC
             GPUDataWarehouse.cu
             GPUGridVariableGhosts.cc
             GPUGridVariableInfo.cc
-            GPUMemoryPool.cc
         )
 
-    # find_package( hip REQUIRED )
     # target_sources( CCA_Components_Schedulers PRIVATE ${GPU_SRC} )
     # target_link_libraries( CCA_Components_Schedulers PUBLIC hip::host )
-endif( HAVE_HIP )
+    set_source_files_properties(${GPU_SRC} PROPERTIES COMPILE_FLAGS "-D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=$ENV{ROCM_PATH} --offload-arch=gfx90a -x hip")
+endif( ENABLE_HIP )
 
-if( HAVE_SYCL )
+if( ENABLE_SYCL )
     set( GPU_SRC
             GPUDataWarehouse.cc
             GPUGridVariableGhosts.cc
             GPUGridVariableInfo.cc
-            GPUMemoryPool.cc
             SYCLScheduler.cc
         )
-endif( HAVE_SYCL )
+endif( ENABLE_SYCL )
 
 add_library( CCA_Components_Schedulers
         DependencyBatch.cc
@@ -53,11 +50,7 @@ add_library( CCA_Components_Schedulers
 
 # jcs sort out this "DLINK_FILES" business
 
-if( HAVE_CUDA )
-    target_link_libraries( CCA_Components_Schedulers PUBLIC CUDA::cudart )
-endif( HAVE_CUDA )
-
-target_link_libraries( CCA_Components_Schedulers
+target_link_libraries( CCA_Components_Schedulers PRIVATE
         CCA_Ports
         CCA_Components_ProblemSpecification
         Core_Containers
@@ -71,10 +64,13 @@ target_link_libraries( CCA_Components_Schedulers
         Threads::Threads
     )
 
-# if( HAVE_HIP )
-#     message("hello I am linking here with amdhip64")
-#     target_link_libraries( CCA_Components_Schedulers PUBLIC amdhip64 )
-# endif( HAVE_HIP )
+if( ENABLE_CUDA )
+    target_link_libraries( CCA_Components_Schedulers PRIVATE CUDA::cudart )
+endif( ENABLE_CUDA )
+
+if( ENABLE_HIP )
+    target_link_libraries( CCA_Components_Schedulers PRIVATE hip::host )
+endif( ENABLE_HIP )
 
 
 target_include_directories( CCA_Components_Schedulers

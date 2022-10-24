@@ -103,8 +103,8 @@ if( ENABLE_HIP )
     find_dependency( rccl REQUIRED )
   endif( ENABLE_RCCL )
 
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=\"$ENV{ROCM_PATH}\" --offload-arch=gfx90a -x hip -D__HIP_PLATFORM_AMD__=1")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__=1")
+  link_libraries("-L$ENV{ROCM_PATH}/lib -lamdhip64")
 endif( ENABLE_HIP )
 
 if( ENABLE_SYCL )
