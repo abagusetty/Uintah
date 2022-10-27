@@ -1931,7 +1931,7 @@ GPUDataWarehouse::deleteSelfOnDevice()
       cerrLock.unlock();
     }
 
-    GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id, d_device_copy);
+    GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id, d_device_copy, objectSizeInBytes);
   }
 }
 

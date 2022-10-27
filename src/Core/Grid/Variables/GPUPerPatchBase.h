@@ -34,6 +34,7 @@ namespace Uintah {
 
 class GPUPerPatchBase : public GPUVariable {
 
+  friend class GPUDataWarehouse;
   friend class SYCLScheduler;
   friend class UnifiedScheduler;
 

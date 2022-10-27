@@ -328,7 +328,7 @@ public:
 
   struct stagingVarInfo {
     void *device_ptr{nullptr}; // Where it is on the device
-    size_t memSizeInBytesDevicePtr;
+    size_t sizeInBytesDevicePtr;
     void *host_contiguousArrayPtr{nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
     int varDB_index;
     atomicDataStatus atomicStatusInHostMemory;
@@ -348,6 +348,7 @@ public:
       gtype = GhostType::None;
     }
     void *device_ptr{nullptr}; // Where it is on the device
+    size_t sizeInBytesDevicePtr;
     void *host_contiguousArrayPtr{nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
     int3 device_offset{
         0, 0, 0}; // TODO, split this into a device_low and a device_offset.

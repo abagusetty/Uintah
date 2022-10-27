@@ -39,7 +39,7 @@ template<class T>
 class GPUReductionVariable : public GPUReductionVariableBase {
 
   friend class SYCLScheduler;
-  friend class UnifiedScheduler; // allow scheduler access
+  friend class UnifiedScheduler;
 
   public:
 
