@@ -1184,8 +1184,7 @@ void SYCLScheduler::prepareGpuDependencies(
 
   DetailedTask *toTask = nullptr;
   // Go through all toTasks
-  for (auto iter = dep->m_to_tasks.cbegin();
-       iter != dep->m_to_tasks.cend(); ++iter) {
+  for (const auto iter : dep->m_to_tasks) {
     toTask = (*iter);
 
     constHandle<PatchSubset> patches = toTask->getPatches();
@@ -1580,8 +1579,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
 
   // Go through each unique dependent var and see if we should allocate space
   // and/or queue it to be copied H2D.
-  std::map<labelPatchMatlDependency, const Task::Dependency *>::iterator varIter;
-  for (varIter = vars.begin(); varIter != vars.end(); ++varIter) {
+  for (auto varIter : vars) {
 
     const Task::Dependency *curDependency = varIter->second;
     const TypeDescription::Type type = curDependency->m_var->typeDescription()->getType();
@@ -1738,9 +1736,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
             dw->getValidNeighbors(
                 curDependency->m_var, matlID, patch, curDependency->m_gtype,
                 curDependency->m_num_ghost_cells, validNeighbors);
-            for (std::vector<OnDemandDataWarehouse::ValidNeighbors>::iterator
-                     iter = validNeighbors.begin();
-                 iter != validNeighbors.end(); ++iter) {
+            for (auto iter : validNeighbors) {
 
               const Patch *sourcePatch = nullptr;
               if (iter->neighborPatch->getID() >= 0) {
@@ -2144,7 +2140,7 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
     std::multimap<GpuUtilities::LabelPatchMatlLevelDw, DeviceGridVariableInfo>
         &varMap = dtask->getDeviceVars().getMap();
 
-    for (auto it = varMap.begin(); it != varMap.end(); ++it) {
+    for (auto it : varMap) {
       int whichGPU = it->second.m_whichGPU;
       int dwIndex = it->second.m_dep->mapDataWarehouse();
 
@@ -2453,7 +2449,7 @@ void SYCLScheduler::prepareTaskVarsIntoTaskDW(DetailedTask *dtask) {
   bool isStaging = false;
 
   for (int i = 0; i < 2; i++) {
-    for (auto it = taskVarMap.cbegin(); it != taskVarMap.cend(); ++it) {
+    for (const auto it : taskVarMap) {
       // If isStaging is false, do the non-staging vars, then if isStaging is
       // true, do the staging vars. isStaging is flipped after the first
       // iteration of the i for loop.
@@ -2515,7 +2511,7 @@ void SYCLScheduler::prepareGhostCellsIntoTaskDW(DetailedTask *dtask) {
 
   const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
       &ghostVarMap = dtask->getGhostVars().getMap();
-  for (auto it = ghostVarMap.cbegin(); it != ghostVarMap.cend(); ++it) {
+  for (const auto it = ghostVarMap) {
     // If the neighbor is valid on the GPU, we just send in from and to
     // coordinates and call a kernel to copy those coordinates If it's not valid
     // on the GPU, we copy in the grid var and send in from and to coordinates
@@ -2577,7 +2573,7 @@ bool SYCLScheduler::ghostCellsProcessingReady(DetailedTask *dtask) {
 
   const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
       &ghostVarMap = dtask->getGhostVars().getMap();
-  for (auto it = ghostVarMap.cbegin(); it != ghostVarMap.cend(); ++it) {
+  for (const auto it : ghostVarMap) {
 
     GPUDataWarehouse *gpudw = m_dws[it->first.m_dataWarehouse]->getGPUDW(
         GpuUtilities::getGpuIndexForPatch(it->second.m_sourcePatchPointer));
@@ -2649,9 +2645,7 @@ bool SYCLScheduler::allHostVarsProcessingReady(DetailedTask *dtask) {
   }
 
   // Go through each var, see if it's valid or valid with ghosts.
-  std::map<labelPatchMatlDependency, const Task::Dependency *>::iterator
-      varIter;
-  for (varIter = vars.begin(); varIter != vars.end(); ++varIter) {
+  for (auto varIter : vars) {
     const Task::Dependency *curDependency = varIter->second;
 
     constHandle<PatchSubset> patches =
@@ -2730,9 +2724,7 @@ bool SYCLScheduler::allGPUVarsProcessingReady(DetailedTask *dtask) {
   }
 
   // Go through each var, see if it's valid or valid with ghosts.
-  std::map<labelPatchMatlDependency, const Task::Dependency *>::iterator
-      varIter;
-  for (varIter = vars.begin(); varIter != vars.end(); ++varIter) {
+  for (auto varIter : vars) {
     const Task::Dependency *curDependency = varIter->second;
 
     constHandle<PatchSubset> patches =
@@ -2808,9 +2800,7 @@ void SYCLScheduler::markDeviceRequiresDataAsValid(DetailedTask *dtask) {
   // got copied in and the stream completed.
   std::multimap<GpuUtilities::LabelPatchMatlLevelDw, DeviceGridVariableInfo>
       &varMap = dtask->getVarsBeingCopiedByTask().getMap();
-  for (std::multimap<GpuUtilities::LabelPatchMatlLevelDw,
-                     DeviceGridVariableInfo>::iterator it = varMap.begin();
-       it != varMap.end(); ++it) {
+  for (auto it : varMap) {
     int whichGPU = it->second.m_whichGPU;
     int dwIndex = it->second.m_dep->mapDataWarehouse();
     GPUDataWarehouse *gpudw = m_dws[dwIndex]->getGPUDW(whichGPU);
@@ -2846,7 +2836,7 @@ void SYCLScheduler::markDeviceGhostsAsValid(DetailedTask *dtask) {
   // collection.  Any in there should be marked as valid with ghost cells
   std::multimap<GpuUtilities::LabelPatchMatlLevelDw, DeviceGridVariableInfo>
       &varMap = dtask->getVarsToBeGhostReady().getMap();
-  for (auto it = varMap.begin(); it != varMap.end(); ++it) {
+  for (auto it : varMap) {
     int whichGPU = it->second.m_whichGPU;
     int dwIndex = it->second.m_dep->mapDataWarehouse();
     GPUDataWarehouse *gpudw = m_dws[dwIndex]->getGPUDW(whichGPU);
@@ -2908,9 +2898,7 @@ void SYCLScheduler::markHostRequiresDataAsValid(DetailedTask *dtask) {
   // The only thing we need to process is the requires.
   std::multimap<GpuUtilities::LabelPatchMatlLevelDw, DeviceGridVariableInfo>
       &varMap = dtask->getVarsBeingCopiedByTask().getMap();
-  for (std::multimap<GpuUtilities::LabelPatchMatlLevelDw,
-                     DeviceGridVariableInfo>::iterator it = varMap.begin();
-       it != varMap.end(); ++it) {
+  for (auto it : varMap) {
     int whichGPU = it->second.m_whichGPU;
     int dwIndex = it->second.m_dep->mapDataWarehouse();
     GPUDataWarehouse *gpudw = m_dws[dwIndex]->getGPUDW(whichGPU);
@@ -3176,9 +3164,7 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
 
   // Go through each unique dependent var and see if we should queue up a D2H
   // copy
-  std::map<labelPatchMatlDependency, const Task::Dependency *>::iterator
-      varIter;
-  for (varIter = vars.begin(); varIter != vars.end(); ++varIter) {
+  for (auto varIter : vars) {
     const Task::Dependency *dependantVar = varIter->second;
     constHandle<PatchSubset> patches =
         dependantVar->getPatchesUnderDomain(dtask->getPatches());
@@ -3538,7 +3524,7 @@ void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
   // GPUDataWarehouse.h for more information.
 
   std::set<int> deviceNums = dtask->getDeviceNums();
-  for (auto deviceNums_it = deviceNums.cbegin(); deviceNums_it != deviceNums.cend(); ++deviceNums_it) {
+  for (const auto deviceNums_it : deviceNums) {
     const int currentDevice = *deviceNums_it;
 
     int numItemsInDW =
@@ -3598,7 +3584,7 @@ void SYCLScheduler::assignDevicesAndStreamsFromGhostVars(DetailedTask *dtask) {
   //  Go through the ghostVars collection and look at the patch where all ghost
   //  cells are going.
   std::set<unsigned int> &destinationDevices = dtask->getGhostVars().getDestinationDevices();
-  for (std::set<unsigned int>::iterator iter = destinationDevices.begin(); iter != destinationDevices.end(); ++iter) {
+  for (auto iter : destinationDevices) {
     dtask->setGpuStreamForThisTask(*iter, GPUStreamPool<>::getInstance().getGpuStreamFromPool(*iter));
   }
 }
@@ -3691,8 +3677,7 @@ void SYCLScheduler::syncTaskGpuDWs(DetailedTask *dtask) {
   // copied if so, launch a kernel that copies them.
   std::set<int> deviceNums = dtask->getDeviceNums();
   GPUDataWarehouse *taskgpudw;
-  for (auto deviceNums_it = deviceNums.cbegin();
-       deviceNums_it != deviceNums.cend(); ++deviceNums_it) {
+  for (const auto deviceNums_it : deviceNums) {
     const int currentDevice = *deviceNums_it;
     taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
     if (taskgpudw) {
@@ -3712,8 +3697,7 @@ void SYCLScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
   // For each GPU datawarehouse, see if there are ghost cells listed to be
   // copied if so, launch a kernel that copies them.
   std::set<int> deviceNums = dtask->getDeviceNums();
-  for (auto deviceNums_it = deviceNums.cbegin();
-       deviceNums_it != deviceNums.cend(); ++deviceNums_it) {
+  for (auto deviceNums_it : deviceNums) {
     const int currentDevice = *deviceNums_it;
     if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW) != nullptr &&
         dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)
@@ -3742,7 +3726,7 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
   // GPU copy.
   const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
       &ghostVarMap = dtask->getGhostVars().getMap();
-  for (auto it = ghostVarMap.cbegin(); it != ghostVarMap.cend(); ++it) {
+  for (const auto it : ghostVarMap) {
     if (it->second.m_dest == GpuUtilities::anotherDeviceSameMpiRank) {
       // TODO: Needs a particle section
 
@@ -3822,7 +3806,7 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
   // out via MPI that way and avoid the manual D2H copy and the H2H copy.
   const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
       &ghostVarMap = dtask->getGhostVars().getMap();
-  for (auto it = ghostVarMap.cbegin(); it != ghostVarMap.cend(); ++it) {
+  for (const auto it = ghostVarMap) {
     // TODO: Needs a particle section
     if (it->second.m_dest == GpuUtilities::anotherMpiRank) {
       void *host_ptr = nullptr;   // host base pointer to raw data
@@ -3909,7 +3893,7 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
       // printf("Sleeping\n");
     }
 
-    for (auto it = ghostVarMap.cbegin(); it != ghostVarMap.cend(); ++it) {
+    for (const auto it : ghostVarMap) {
 
       if (it->second.m_dest == GpuUtilities::anotherMpiRank) {
         // TODO: Needs a particle section

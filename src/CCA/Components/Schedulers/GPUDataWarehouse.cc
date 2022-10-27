@@ -2071,9 +2071,7 @@ bool GPUDataWarehouse::areAllStagingVarsValid(char const *label, int patchID,
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
       varPointers->find(lpml);
   if (it != varPointers->end()) {
-    for (std::map<stagingVar, stagingVarInfo>::iterator staging_it =
-             it->second.var->stagingVars.begin();
-         staging_it != it->second.var->stagingVars.end(); ++staging_it) {
+    for (auto staging_it : it->second.var->stagingVars) {
       if (!checkValid(staging_it->second.atomicStatusInGpuMemory)) {
         varLock->unlock();
         return false;
