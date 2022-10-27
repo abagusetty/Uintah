@@ -1,5 +1,5 @@
 if( ENABLE_ICE AND ENABLE_MPM )
-    set( MDL_SRC ${MDL_SRC}
+    set( MDL_SRM_SRC ${MDL_SRM_SRC}
             ${CMAKE_CURRENT_SOURCE_DIR}/Arrhenius.cc
             ${CMAKE_CURRENT_SOURCE_DIR}/AvaramiErofeevModel.cc
             ${CMAKE_CURRENT_SOURCE_DIR}/ContractingCylinderModel.cc

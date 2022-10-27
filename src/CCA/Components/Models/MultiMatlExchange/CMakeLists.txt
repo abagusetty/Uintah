@@ -1,5 +1,5 @@
 if( ENABLE_ICE )
-    set( MDL_SRC ${MDL_SRC}
+    set( MDLMMEXCH_SRC ${MDLMMEXCH_SRC}
         ${CMAKE_CURRENT_SOURCE_DIR}/ExchangeFactory.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/Scalar.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/Slip.cc

@@ -22,8 +22,7 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef CCA_COMPONENTS_MODELS_RADIATION_RMCRT_RAYGPU_CUH
-#define CCA_COMPONENTS_MODELS_RADIATION_RMCRT_RAYGPU_CUH
+#pragma once
 
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
 #include <Core/Geometry/GPUVector.h>
@@ -45,9 +44,9 @@
 #if defined(HAVE_CUDA)
 #include <math_functions.h> // needed for max()
 #endif
-#if defined(HAVE_HIP)
-#include <hip/math_functions.h>
-#endif
+// #if defined(HAVE_HIP)
+// #include <hip/math_functions.h>
+// #endif
 //#undef __CUDA_INTERNAL_COMPILATION__
 
 namespace Uintah {
@@ -532,69 +531,39 @@ enum ROI_algo {
 
 //______________________________________________________________________
 //
-#ifdef HAVE_CUDA
-__device__ GPUVector findRayDirectionDevice(curandState *randNumStates);
-#elif HAVE_HIP
-__device__ GPUVector findRayDirectionDevice(hiprandState *randNumStates);
-#endif
-//______________________________________________________________________
-//
-#ifdef HAVE_CUDA
-__device__ GPUVector findRayDirectionHyperCubeDevice(curandState *randNumStates,
-#elif HAVE_HIP
-__device__ GPUVector findRayDirectionHyperCubeDevice(hiprandState *randNumStates,
-#endif
+__device__ GPUVector findRayDirectionDevice(gpurandState *randNumStates);
+__device__ GPUVector findRayDirectionHyperCubeDevice(gpurandState *randNumStates,
                                                      const int nDivQRays,
                                                      const int bin_i,
                                                      const int bin_j);
 //______________________________________________________________________
 //
 __device__ void randVectorDevice(int int_array[], const int size,
-#ifdef HAVE_CUDA
-	                         curandState *randNumStates);
-#elif HAVE_HIP
-                                 hiprandState *randNumStates);
-#endif
+	                         gpurandState *randNumStates);
 //______________________________________________________________________
 //
 __device__ void rayDirection_cellFaceDevice(
-#ifdef HAVE_CUDA
-    curandState *randNumStates, const GPUIntVector &origin,
-#elif HAVE_HIP
-    hiprandState *randNumStates, const GPUIntVector &origin,
-#endif
+    gpurandState *randNumStates, const GPUIntVector &origin,
     const GPUIntVector &indexOrder, const GPUIntVector &signOrder,
     const int iRay, GPUVector &directionVector, double &cosTheta);
 
 //______________________________________________________________________
 //
 __device__ void rayDirectionHyperCube_cellFaceDevice(
-#ifdef HAVE_CUDA
-    curandState *randNumStates, const GPUIntVector &origin,
-#elif HAVE_HIP
-    hiprandState *randNumStates, const GPUIntVector &origin,
-#endif
+    gpurandState *randNumStates, const GPUIntVector &origin,
     const int3 &indexOrder, const int3 &signOrder, const int iRay,
     GPUVector &dirVector, double &cosTheta, const int bin_i, const int bin_j,
     const int nFluxRays);
 
 //______________________________________________________________________
 //
-#ifdef HAVE_CUDA
-__device__ GPUVector rayOriginDevice(curandState *randNumStates,
-#elif HAVE_HIP
-__device__ GPUVector rayOriginDevice(hiprandState *randNumStates,
-#endif
+__device__ GPUVector rayOriginDevice(gpurandState *randNumStates,
                                      const GPUPoint CC_pos, const GPUVector dx,
                                      const bool useCCRays);
 
 //______________________________________________________________________
 //
-#ifdef HAVE_CUDA
-__device__ void rayLocation_cellFaceDevice(curandState *randNumStates,
-#elif HAVE_HIP
-__device__ void rayLocation_cellFaceDevice(hiprandState *randNumStates,
-#endif
+__device__ void rayLocation_cellFaceDevice(gpurandState *randNumStates,
                                            const int face, const GPUVector Dx,
                                            const GPUPoint CC_pos,
                                            GPUVector &rayOrigin);
@@ -632,11 +601,7 @@ updateSumIDevice(levelParams level, GPUVector &ray_direction,
                  const GPUVector &Dx, const GPUGridVariable<T> &sigmaT4OverPi,
                  const GPUGridVariable<T> &abskg,
                  const GPUGridVariable<int> &celltype, double &sumI,
-#ifdef HAVE_CUDA
-		 curandState *randNumStates, RMCRT_flags RT_flags);
-#elif HAVE_HIP
-                 hiprandState *randNumStates, RMCRT_flags RT_flags);
-#endif
+		 gpurandState *randNumStates, RMCRT_flags RT_flags);
 
 //______________________________________________________________________
 //  Multi-level
@@ -649,73 +614,29 @@ __device__ void updateSumI_MLDevice(
     const int3 *regionLo, const int3 *regionHi,
     const GPUGridVariable<T> *sigmaT4OverPi, const GPUGridVariable<T> *abskg,
     const GPUGridVariable<int> *celltype, double &sumI,
-#ifdef HAVE_CUDA
-    curandState *randNumStates, RMCRT_flags RT_flags);
-#elif HAVE_HIP
-    hiprandState *randNumStates, RMCRT_flags RT_flags);
-#endif
+    gpurandState *randNumStates, RMCRT_flags RT_flags);
 
 //______________________________________________________________________
 //
-#ifdef HAVE_CUDA
-__device__ void setupRandNumsSeedAndSequences(curandState *randNumStates,
-#elif HAVE_HIP
-__device__ void setupRandNumsSeedAndSequences(hiprandState *randNumStates,
-#endif
+__device__ void setupRandNumsSeedAndSequences(gpurandState *randNumStates,
                                               int numStates,
                                               unsigned long long patchID,
                                               unsigned long long curTimestep);
-
-//______________________________________________________________________
-//
-#ifdef HAVE_CUDA
-__device__ double randDblExcDevice(curandState *randNumStates);
-#elif HAVE_HIP
-__device__ double randDblExcDevice(hiprandState *randNumStates);
-#endif
-
-//______________________________________________________________________
-//
-#ifdef HAVE_CUDA
-__device__ double randDblDevice(curandState *randNumStates);
-#elif HAVE_HIP
-__device__ double randDblDevice(hiprandState *randNumStates);
-#endif
-
-//______________________________________________________________________
-//
-#ifdef HAVE_CUDA
-__device__ int randIntDevice(curandState *randNumStates, const int B);
-#elif HAVE_HIP
-__device__ int randIntDevice(hiprandState *randNumStates, const int B);
-#endif
-
-//______________________________________________________________________
-//
+__device__ double randDblExcDevice(gpurandState *randNumStates);
+__device__ double randDblDevice(gpurandState *randNumStates);
+__device__ int randIntDevice(gpurandState *randNumStates, const int B);
 __device__ bool isDbgCellDevice(GPUIntVector me);
 
-//______________________________________________________________________
-//
 template <class T>
-__device__ void GPUVariableSanityCK(const GPUGridVariable<T> &Q,
-                                    const GPUIntVector Lo,
-                                    const GPUIntVector Hi);
-
-//______________________________________________________________________
-//
-template <class T>
-__host__ void
+void
 launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
                      const int matlIndex, levelParams level, patchParams patch,
                      gpuStream_t *stream, RMCRT_flags RT_flags, int curTimestep,
                      GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
-                     GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *old_gdw,
-                     GPUDataWarehouse *new_gdw);
+                     GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *new_gdw);
 
-//______________________________________________________________________
-//
 template <class T>
-__host__ void launchRayTraceDataOnionKernel(
+void launchRayTraceDataOnionKernel(
     DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock, int matlIndex,
     patchParams patchP, gridParams gridP, levelParams *levelP,
     GPUIntVector fineLevel_ROI_Lo, GPUIntVector fineLevel_ROI_Hi,
@@ -725,5 +646,3 @@ __host__ void launchRayTraceDataOnionKernel(
     GPUDataWarehouse *new_gdw);
 
 } // end namespace Uintah
-
-#endif // end #ifndef CCA_COMPONENTS_MODELS_RADIATION_RMCRT_RAYGPU_CUH

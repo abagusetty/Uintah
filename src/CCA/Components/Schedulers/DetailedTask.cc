@@ -905,8 +905,7 @@ void *
 DetailedTask::addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id,
                                                     std::size_t sizeinbytes) {
   void *dev_ptr{nullptr};
-  auto &memGPUPool = GPUMemoryPool::getInstance();
-  dev_ptr = memGPUPool.allocateGpuSpaceFromPool(device_id, sizeinbytes);
+  dev_ptr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(device_id, sizeinbytes);
   gpuMemoryPoolDevicePtrItem gpuItem(device_id, dev_ptr, sizeinbytes);
   taskGpuMemoryPoolItems.push_back(gpuItem);
 

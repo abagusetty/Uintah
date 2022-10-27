@@ -63,8 +63,6 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
     //__________________________________
     //  increase the size of the printbuffer on the device
 
-    //__________________________________
-    //
     // GPUDataWarehouse* old_taskgdw = nullptr;
     // if (oldTaskGpuDW) {
     //  old_taskgdw =
@@ -95,22 +93,6 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
     } else {
       celltype_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
     }
-
-#if 0
-    //__________________________________
-    //  varLabel name struct
-
-    varLabelNames*  labelNames = new varLabelNames;
-
-    labelNames->abskg   = d_abskgLabel->getName().c_str();    // CUDA doesn't support C++ strings
-    labelNames->sigmaT4 = d_sigmaT4Label->getName().c_str();
-    labelNames->divQ    = d_divQLabel->getName().c_str();
-    labelNames->celltype  = d_cellTypeLabel->getName().c_str();
-    labelNames->boundFlux = d_boundFluxLabel->getName().c_str();
-    labelNames->radVolQ   = d_radiationVolqLabel->getName().c_str();
-
-    labelNames->print();
-#endif
 
     //__________________________________
     //  RMCRT_flags
@@ -206,12 +188,6 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
       sycl::range<2> dimGrid(yblocks, xblocks);
 #endif
 
-#ifdef DEBUG
-      patchP.print();
-      cout << " xdim: " << xdim << " ydim: " << ydim << endl;
-      cout << " blocksize: " << blocksize << " xblocks: " << xblocks << " yblocks: " << yblocks << endl;
-#endif
-
       RT_flags.nRaySteps = 0;
 
       //__________________________________
@@ -221,8 +197,6 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
                               sigmaT4_gdw, celltype_gdw,
                               static_cast<GPUDataWarehouse *>(newTaskGpuDW));
 
-      //__________________________________
-      //
       double end = clock();
       double efficiency = RT_flags.nRaySteps / ((end - start) / CLOCKS_PER_SEC);
 

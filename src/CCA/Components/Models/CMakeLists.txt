@@ -1,4 +1,4 @@
-set( MDL_SRC ModelFactory.cc )
+#set( MDL_SRC ModelFactory.cc )
 
 set( LIB_DEPS
         CCA_Ports
@@ -20,7 +20,21 @@ add_subdirectory( MultiMatlExchange )
 add_subdirectory( Radiation )
 add_subdirectory( SolidReactionModel )
 
-add_library( CCA_Components_Models ${MDL_SRC} )
+# for now only Radiation/RMCRT is GPU enabled
+if( ENABLE_CUDA )
+    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CUDA)
+endif( ENABLE_CUDA )
+if( ENABLE_HIP )
+    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES COMPILE_FLAGS "-D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=$ENV{ROCM_PATH} --offload-arch=gfx90a -x hip")
+endif( ENABLE_HIP )
+
+add_library( CCA_Components_Models
+               ModelFactory.cc
+               ${MDL_FLUIDSBASED_SRC}
+               ${MDL_HECHEM_SRC}
+               ${MDL_MMEXCH_SRC}
+               ${MDL_RADIATION_SRC}
+               ${MKL_SRM_SRC} )
 
 if( ENABLE_ICE )
     list( APPEND LIB_DEPS
@@ -36,7 +50,14 @@ if( ENABLE_MPM_ICE )
         )
 endif()
 
-target_link_libraries( CCA_Components_Models ${LIB_DEPS} )
+target_link_libraries( CCA_Components_Models PRIVATE ${LIB_DEPS} )
+if( ENABLE_CUDA )
+    target_link_libraries( CCA_Components_Models PRIVATE CUDA::cudart )
+endif( ENABLE_CUDA )
+if( ENABLE_HIP )
+    target_link_libraries( CCA_Components_Models PRIVATE hip::host )
+endif( ENABLE_HIP )
+
 target_include_directories( CCA_Components_Models
     PUBLIC
         ${CMAKE_SOURCE_DIR}

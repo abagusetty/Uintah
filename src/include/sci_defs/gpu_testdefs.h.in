@@ -58,6 +58,7 @@
   #define gpuMemcpyPeerAsync cudaMemcpyPeerAsync
   #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
   #define gpuMemcpyHostToDevice cudaMemcpyHostToDevice
+  #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
   #define gpuErrorLaunchFailure cudaErrorLaunchFailure
   #define gpuGetDevice cudaGetDevice
   #define gpuStreamQuery cudaStreamQuery
@@ -71,6 +72,7 @@
   #define gpuDeviceEnablePeerAccess cudaDeviceEnablePeerAccess
   #define gpuDeviceProp cudaDeviceProp
   #define gpuGetDeviceProperties cudaGetDeviceProperties
+  #define gpurandState curandState
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
@@ -177,6 +179,7 @@
   #define gpuMemcpyPeerAsync hipMemcpyPeerAsync
   #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
   #define gpuMemcpyHostToDevice hipMemcpyHostToDevice
+  #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
   #define gpuErrorLaunchFailure hipErrorLaunchFailure
   #define gpuGetDevice hipGetDevice
   #define gpuStreamQuery hipStreamQuery
@@ -190,6 +193,7 @@
   #define gpuDeviceEnablePeerAccess hipDeviceEnablePeerAccess
   #define gpuDeviceProp hipDeviceProp_t
   #define gpuGetDeviceProperties hipGetDeviceProperties
+  #define gpurandState hiprandState
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))

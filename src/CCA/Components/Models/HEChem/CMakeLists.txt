@@ -1,5 +1,5 @@
 if( ENABLE_ICE AND ENABLE_MPM )
-    set( MDL_SRC ${MDL_SRC}
+    set( MDL_HECHEM_SRC ${MDL_HECHEM_SRC}
             ${CMAKE_CURRENT_SOURCE_DIR}/Common.cc
             ${CMAKE_CURRENT_SOURCE_DIR}/DDT0.cc
             ${CMAKE_CURRENT_SOURCE_DIR}/DDT1.cc

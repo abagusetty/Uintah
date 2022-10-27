@@ -13,8 +13,7 @@ if( ENABLE_HIP )
             GPUGridVariableInfo.cc
         )
 
-    # target_sources( CCA_Components_Schedulers PRIVATE ${GPU_SRC} )
-    # target_link_libraries( CCA_Components_Schedulers PUBLIC hip::host )
+    set_source_files_properties(${GPU_SRC} PROPERTIES LANGUAGE CXX)
     set_source_files_properties(${GPU_SRC} PROPERTIES COMPILE_FLAGS "-D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=$ENV{ROCM_PATH} --offload-arch=gfx90a -x hip")
 endif( ENABLE_HIP )
 
@@ -63,11 +62,9 @@ target_link_libraries( CCA_Components_Schedulers PRIVATE
         Core_Util
         Threads::Threads
     )
-
 if( ENABLE_CUDA )
     target_link_libraries( CCA_Components_Schedulers PRIVATE CUDA::cudart )
 endif( ENABLE_CUDA )
-
 if( ENABLE_HIP )
     target_link_libraries( CCA_Components_Schedulers PRIVATE hip::host )
 endif( ENABLE_HIP )

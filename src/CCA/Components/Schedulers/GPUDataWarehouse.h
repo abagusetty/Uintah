@@ -328,6 +328,7 @@ public:
 
   struct stagingVarInfo {
     void *device_ptr{nullptr}; // Where it is on the device
+    size_t memSizeInBytesDevicePtr;
     void *host_contiguousArrayPtr{nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
     int varDB_index;
     atomicDataStatus atomicStatusInHostMemory;
@@ -834,7 +835,7 @@ public:
 #else
   __device__ void copyGpuGhostCellsToGpuVars();
 #endif
-  HOST_DEVICE bool ghostCellCopiesNeeded();
+  __host__ bool ghostCellCopiesNeeded();
   __host__ void getSizes(int3 &low, int3 &high, int3 &siz, GhostType &gtype,
                          int &numGhostCells, char const *label, int patchID,
                          int matlIndx, int levelIndx = 0);

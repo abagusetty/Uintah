@@ -111,7 +111,7 @@ void GPUDataWarehouse::getLevel(const GPUGridVariableBase &var,
 //   // host code
 //   varLock->lock();
 //   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-//   auto it = varPointers->find(lpml);  
+//   auto it = varPointers->find(lpml);
 //   if (it != varPointers->end()) {
 //     allVarPointersInfo vp = it->second;
 //     if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
@@ -132,7 +132,7 @@ void GPUDataWarehouse::get(const GPUGridVariableBase &var, char const *label,
   // host code
   varLock->lock();
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);  
+  auto it = varPointers->find(lpml);
   if (it != varPointers->end()) {
     allVarPointersInfo vp = it->second;
     var.setArray3(vp.var->device_offset, vp.var->device_size,
@@ -662,8 +662,7 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
     }
     }
 
-    auto& memPool = GPUMemoryPool::getInstance();
-    addr = memPool.allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
 
     // Also update the var object itself (i.e., addr)
     GPUGridVariableBase_offset = offset;
@@ -822,9 +821,7 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
   // Now allocate it
   if (allocationNeeded) {
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
-    unsigned int memSize = var.getMemSize();
-    auto& memPool = GPUMemoryPool::getInstance();
-    addr = memPool.allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, var.getMemSize());
 
     // Also update the var object itself (i.e., addr)
     var.setArray3(offset, size, addr);
@@ -1238,8 +1235,7 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
     }
     }
 
-    auto& memPool = GPUMemoryPool::getInstance();
-    addr = memPool.allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
 
     // Also update the var object itself
     GPUReductionPerPatchVariableBase = addr;
@@ -1289,8 +1285,7 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
 
   // Now see if we allocate the variable or use a previous existing allocation.
   // See if someone has stated they are allocating it
-  allocationNeeded =
-      compareAndSwapAllocating(it->second.var->atomicStatusInGpuMemory);
+  allocationNeeded = compareAndSwapAllocating(it->second.var->atomicStatusInGpuMemory);
   if (!allocationNeeded) {
     // Someone else is allocating it or it has already been allocated.
     // Space for this var already exists.  Use that and return.
@@ -1310,8 +1305,7 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
     // We are the first task to request allocation.  Do it.
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     std::size_t memSize = var.getMemSize();
-    auto& memPool = GPUMemoryPool::getInstance();
-    addr = memPool.allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
 
     // Also update the var object itself
     var.setData(addr);
@@ -1380,8 +1374,7 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
     // We are the first task to request allocation.  Do it.
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     std::size_t memSize = var.getMemSize();
-    auto& memPool = GPUMemoryPool::getInstance();
-    addr = memPool.allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
 
     // Also update the var object itself
     var.setData(addr);
@@ -1407,11 +1400,9 @@ bool GPUDataWarehouse::remove(char const *label, int patchID, int matlIndx,
 void GPUDataWarehouse::init(int id, std::string internalName) {
 
   d_device_id = id;
-  // this->_internalName = new std::string(internalName);
   strncpy(_internalName, internalName.c_str(), sizeof(_internalName));
   objectSizeInBytes = 0;
   d_maxdVarDBItems = 0;
-  // this->placementNewBuffer = placementNewBuffer;
 
   allocateLock = new Uintah::MasterLock{};
   varLock = new Uintah::MasterLock{};
@@ -1490,68 +1481,66 @@ void GPUDataWarehouse::syncto_device(gpuStream_t* gpu_stream) {
 //
 void GPUDataWarehouse::clear() {
 
-  // OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
 
-  // varLock->lock();
+  varLock->lock();
 
-  // auto& memPool = GPUMemoryPool::getInstance();
-  // std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator varIter;
-  // for (varIter = varPointers->begin(); varIter != varPointers->end();
-  //      ++varIter) {
-  //   // clear out all the staging vars, if any
-  //   std::map<stagingVar, stagingVarInfo>::iterator stagingIter;
-  //   for (stagingIter = varIter->second.var->stagingVars.begin();
-  //        stagingIter != varIter->second.var->stagingVars.end(); ++stagingIter) {
-  //     if (compareAndSwapDeallocating(
-  //             stagingIter->second.atomicStatusInGpuMemory)) {
-  //       // The counter hit zero, so lets deallocate the var.
+  auto& memPool = GPUMemoryPool::getInstance();
+  for (auto varIter : varPointers) {
+    // clear out all the staging vars, if any
+    std::map<stagingVar, stagingVarInfo>::iterator stagingIter;
+    for (auto stagingIter : varIter->second.var->stagingVars) {
+      if (compareAndSwapDeallocating(
+              stagingIter->second.atomicStatusInGpuMemory)) {
+        // The counter hit zero, so lets deallocate the var.
 
-  //       if (memPool.freeGpuSpaceToPool(d_device_id, stagingIter->second.device_ptr)) {
-  //         stagingIter->second.device_ptr = nullptr;
-  //         compareAndSwapDeallocate(stagingIter->second.atomicStatusInGpuMemory);
-  //       } else {
-  //         printf("ERROR:\nGPUDataWarehouse::clear(), for a staging variable, "
-  //                "couldn't find in the GPU memory pool the space starting at "
-  //                "address %p\n",
-  //                stagingIter->second.device_ptr);
-  //         varLock->unlock();
-  //         exit(-1);
-  //       }
-  //     }
-  //   }
+        if (memPool.freeGpuSpaceToPool(d_device_id, stagingIter->second.device_ptr, stagingIter->second.sizeInBytesDevicePtr)) {
+          stagingIter->second.device_ptr = nullptr;
+          stagingIter->second.device_ptr = nullptr;
+          compareAndSwapDeallocate(stagingIter->second.atomicStatusInGpuMemory);
+        } else {
+          printf("ERROR:\nGPUDataWarehouse::clear(), for a staging variable, "
+                 "couldn't find in the GPU memory pool the space starting at "
+                 "address %p\n",
+                 stagingIter->second.device_ptr);
+          varLock->unlock();
+          exit(-1);
+        }
+      }
+    }
 
-  //   varIter->second.var->stagingVars.clear();
+    varIter->second.var->stagingVars.clear();
 
-  //   // clear out the regular vars
+    // clear out the regular vars
 
-  //   // See if it's a placeholder var for staging vars.  This happens if the
-  //   // non-staging var had a device_ptr of nullptr, and it was only in the
-  //   // varPointers map to only hold staging vars
-  //   if (compareAndSwapDeallocating(
-  //           varIter->second.var->atomicStatusInGpuMemory)) {
-  //     if (varIter->second.var->device_ptr) {
+    // See if it's a placeholder var for staging vars.  This happens if the
+    // non-staging var had a device_ptr of nullptr, and it was only in the
+    // varPointers map to only hold staging vars
+    if (compareAndSwapDeallocating(
+            varIter->second.var->atomicStatusInGpuMemory)) {
+      if (varIter->second.var->device_ptr) {
 
-  //       if (memPool.freeGpuSpaceToPool(
-  //               d_device_id, varIter->second.var->device_ptr)) {
-  //         varIter->second.var->device_ptr = nullptr;
-  //         compareAndSwapDeallocate(
-  //             varIter->second.var->atomicStatusInGpuMemory);
-  //       } else {
-  //         printf("ERROR:\nGPUDataWarehouse::clear(), for a non-staging "
-  //                "variable, couldn't find in the GPU memory pool the space "
-  //                "starting at address %p\n",
-  //                varIter->second.var->device_ptr);
-  //         varLock->unlock();
-  //         exit(-1);
-  //       }
-  //     }
-  //   }
-  // }
-  // varPointers->clear();
+        if (memPool.freeGpuSpaceToPool(
+                d_device_id, varIter->second.var->device_ptr)) {
+          varIter->second.var->device_ptr = nullptr;
+          compareAndSwapDeallocate(
+              varIter->second.var->atomicStatusInGpuMemory);
+        } else {
+          printf("ERROR:\nGPUDataWarehouse::clear(), for a non-staging "
+                 "variable, couldn't find in the GPU memory pool the space "
+                 "starting at address %p\n",
+                 varIter->second.var->device_ptr);
+          varLock->unlock();
+          exit(-1);
+        }
+      }
+    }
+  }
+  varPointers->clear();
 
-  // varLock->unlock();
+  varLock->unlock();
 
-  // init(d_device_id, _internalName);
+  init(d_device_id, _internalName);
 }
 
 //______________________________________________________________________

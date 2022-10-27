@@ -1,7 +1,7 @@
 set( SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/Radiometer.cc
-        ${CMAKE_CURRENT_SOURCE_DIR}/RayGPU.cc
         ${CMAKE_CURRENT_SOURCE_DIR}/RMCRTCommon.cc
+        ${CMAKE_CURRENT_SOURCE_DIR}/RayGPU.cc
     )
 
 # jcs sort out kokkos stuff
@@ -12,13 +12,10 @@ else()
 endif()
 
 # jcs need to sort out cuda stuff
-if( ENABLE_CUDA )
+if( ENABLE_CUDA OR ENABLE_HIP )
     list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cu )
-endif()
+elseif( ENABLE_SYCL )
+    list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cc )
+endif( )
 
-if( ENABLE_HIP )
-    list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cu )
-    #set_source_files_properties(RayGPUKernel.cu PROPERTIES COMPILE_FLAGS -D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --offload-arch=gfx90a -x hip)
-endif()
-
-set( MDL_SRC ${MDL_SRC} ${SRC} PARENT_SCOPE )
+set( MDL_RADIATION_SRC ${MDL_RADIATION_SRC} ${SRC} PARENT_SCOPE )
