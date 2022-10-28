@@ -176,9 +176,9 @@ private:
       stream_event_pair stream_event{stream_to_store, event_to_store};
 
 #if defined(HAVE_CUDA)
-      cudaEventCreateWithFlags(stream_event.event, cudaEventDisableTiming);
+      GPU_RT_SAFE_CALL(cudaEventCreateWithFlags(stream_event.event, cudaEventDisableTiming));
 #elif defined(HAVE_HIP)
-      hipEventCreateWithFlags(stream_event.event, hipEventDisableTiming);
+      GPU_RT_SAFE_CALL(hipEventCreateWithFlags(stream_event.event, hipEventDisableTiming));
 #elif defined(HAVE_SYCL)
       // there is no need to create an event explicitly
 #endif
@@ -273,9 +273,9 @@ private:
           // Since we found a block associated with a different stream, we have to insert a wait
           // on the stream's associated event into the allocating stream.
 #if defined(HAVE_CUDA)
-          cudaStreamWaitEvent(*(stream_event.stream), other_event, 0);
+          GPU_RT_SAFE_CALL(cudaStreamWaitEvent(*(stream_event.stream), other_event, 0));
 #elif defined(HAVE_HIP)
-          hipStreamWaitEvent(*(stream_event.stream), other_event, 0);
+          GPU_RT_SAFE_CALL(hipStreamWaitEvent(*(stream_event.stream), other_event, 0));
 #elif defined(HAVE_SYCL)
 	  (stream_event.stream)->submit([&](sycl::handler& cgh) {
 	    cgh.depends_on(other_event);
@@ -310,9 +310,9 @@ private:
     // Since we found a block associated with a different stream, we have to insert a wait
     // on the stream's associated event into the allocating stream.
 #if defined(HAVE_CUDA)
-    cudaStreamWaitEvent(*(stream_event.stream), other_event, 0);
+    GPU_RT_SAFE_CALL(cudaStreamWaitEvent(*(stream_event.stream), other_event, 0));
 #elif defined(HAVE_HIP)
-    hipStreamWaitEvent(*(stream_event.stream), other_event, 0);
+    GPU_RT_SAFE_CALL(hipStreamWaitEvent(*(stream_event.stream), other_event, 0));
 #elif defined(HAVE_SYCL)
     (stream_event.stream)->submit([&](sycl::handler& cgh) {
       cgh.depends_on(other_event);
@@ -334,11 +334,11 @@ private:
 
     for (auto s_e : stream_events_) {
 #if defined(HAVE_CUDA)
-      cudaEventSynchronize(*(s_e.second.event));
-      cudaEventDestroy(*(s_e.second.event));
+      GPU_RT_SAFE_CALL(cudaEventSynchronize(*(s_e.second.event)));
+      GPU_RT_SAFE_CALL(cudaEventDestroy(*(s_e.second.event)));
 #elif defined(HAVE_HIP)
-      hipEventSynchronize(*(s_e.second.event));
-      hipEventDestroy(*(s_e.second.event));
+      GPU_RT_SAFE_CALL(hipEventSynchronize(*(s_e.second.event)));
+      GPU_RT_SAFE_CALL(hipEventDestroy(*(s_e.second.event)));
 #elif defined(HAVE_SYCL)
       s_e.second.event->wait();
       delete s_e.second.event;

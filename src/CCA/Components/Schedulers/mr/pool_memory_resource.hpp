@@ -150,9 +150,9 @@ protected:
     auto const try_size = [&]() {
       std::size_t free{}, total{};
 #if defined(HAVE_CUDA)
-      cudaMemGetInfo(&free, &total);
+      GPU_RT_SAFE_CALL(cudaMemGetInfo(&free, &total));
 #elif defined(HAVE_HIP)
-      hipMemGetInfo(&free, &total);
+      GPU_RT_SAFE_CALL(hipMemGetInfo(&free, &total));
 #elif defined(HAVE_SYCL)
       syclMemGetInfo(&free, &total);
 #endif

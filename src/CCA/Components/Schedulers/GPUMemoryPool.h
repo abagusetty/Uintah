@@ -47,9 +47,9 @@ private:
     auto &streamPool = GPUStreamPool<>::getInstance();
 
     int ngpus{};
-    gpuGetDeviceCount(&ngpus);
+    GPU_RT_SAFE_CALL(gpuGetDeviceCount(&ngpus));
     for (int devID = 0; devID < ngpus; devID++) {
-      gpuSetDevice(devID);
+      GPU_RT_SAFE_CALL(gpuSetDevice(devID));
       auto dev_stream = streamPool.getDefaultGpuStreamFromPool(devID);
       per_device_mr_.push_back(std::make_unique<pool_mr>(
           rmm::mr::get_per_device_resource(devID), dev_stream));
@@ -63,8 +63,8 @@ public:
         memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
     return addr;
   }
-  // TODO: ABB 08/27/22 check to ensure that the pointer, memSize returned to the
-  // pool were obtained using the above API
+  // TODO: ABB 08/27/22 check to ensure that the pointer, memSize returned to
+  // the pool were obtained using the above API
   void freeGpuSpaceToPool(int device_id, void *addr, std::size_t memSize) {
     auto &streamPool = GPUStreamPool<>::getInstance();
     per_device_mr_[device_id].get()->deallocate(

@@ -74,11 +74,11 @@ protected:
 
 private:
   GPUStreamPool() {
-    gpuGetDeviceCount(&s_ngpus);
+    GPU_RT_SAFE_CALL( gpuGetDeviceCount(&s_ngpus) );
     s_count = new unsigned int[s_ngpus];
 
     for (int devID = 0; devID < s_ngpus; devID++) { // # of GPUs per node
-      gpuSetDevice(devID);
+      GPU_RT_SAFE_CALL( gpuSetDevice(devID) );
       s_count[devID] = 0;
 
       for (int j = 0; j < N; j++) { // # of streams per GPU

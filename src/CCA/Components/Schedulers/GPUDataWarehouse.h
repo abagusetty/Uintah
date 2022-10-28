@@ -33,8 +33,8 @@
 #include <Core/Grid/Variables/GPUGridVariable.h>
 #include <Core/Grid/Variables/GPUPerPatch.h>
 #include <Core/Grid/Variables/GPUReductionVariable.h>
-#include <Core/Grid/Variables/GPUVariable.h>
 #include <Core/Grid/Variables/GPUStencil7.h>
+#include <Core/Grid/Variables/GPUVariable.h>
 #include <Core/Grid/Variables/GridVariableBase.h>
 #include <Core/Parallel/MasterLock.h>
 
@@ -165,8 +165,8 @@ public:
       sizeOfAllocatedMemory = 0;
       assignedOffset = 0; // To keep up to the point where data has been "put".
                           // Computes data will be assigned
-      copiedOffset = 0; // To keep up to the point where data will need to be
-                        // copied.  Required data will be copied
+      copiedOffset = 0;   // To keep up to the point where data will need to be
+                          // copied.  Required data will be copied
     }
     // Overloaded constructor
     contiguousArrayInfo(double *allocatedDeviceMemory,
@@ -329,7 +329,8 @@ public:
   struct stagingVarInfo {
     void *device_ptr{nullptr}; // Where it is on the device
     size_t sizeInBytesDevicePtr;
-    void *host_contiguousArrayPtr{nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
+    void *host_contiguousArrayPtr{
+        nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
     int varDB_index;
     atomicDataStatus atomicStatusInHostMemory;
     atomicDataStatus atomicStatusInGpuMemory;
@@ -349,7 +350,8 @@ public:
     }
     void *device_ptr{nullptr}; // Where it is on the device
     size_t sizeInBytesDevicePtr;
-    void *host_contiguousArrayPtr{nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
+    void *host_contiguousArrayPtr{
+        nullptr}; // TODO, remove this.  It's an old idea that didn't pan out.
     int3 device_offset{
         0, 0, 0}; // TODO, split this into a device_low and a device_offset.
                   // Device_low goes here but device_offset should NOT go here
@@ -422,24 +424,22 @@ public:
                                  char const *label, int patchID, int matlIndx,
                                  int levelIndx, int3 offset, int3 size);
   HOST_DEVICE bool stagingVarExists(char const *label, int patchID,
-                                    int matlIndx, int levelIndx, const int3 &offset,
-                                    const int3 &size);
+                                    int matlIndx, int levelIndx,
+                                    const int3 &offset, const int3 &size);
 
 #ifdef HAVE_SYCL // APIs only makes sense for SYCL-side
   // device-side calls
 
   // GPUGridVariableBase
   template <typename T, int DIM>
-  SYCL_EXTERNAL void get(sycl::nd_item<DIM> &item,
-			 sycl::device_ptr<T> GPUGridVariableBase_ptr,
-                         sycl::int3 &GPUGridVariableBase_size,
-                         sycl::int3 &GPUGridVariableBase_offset,
-                         const char *label,
-			 const int patchID,
-                         const int8_t matlIndx,
-			 const int8_t levelIndx = 0) {
+  SYCL_EXTERNAL void
+  get(sycl::nd_item<DIM> &item, sycl::device_ptr<T> GPUGridVariableBase_ptr,
+      sycl::int3 &GPUGridVariableBase_size,
+      sycl::int3 &GPUGridVariableBase_offset, const char *label,
+      const int patchID, const int8_t matlIndx, const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem =
+        getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       GPUGridVariableBase_ptr = static_cast<T *>(ditem->var_ptr);
       GPUGridVariableBase_size = ditem->var_size;
@@ -448,63 +448,58 @@ public:
   }
   // GPUReductionVariableBase, GPUPerPatchBase
   template <typename T, int DIM>
-  SYCL_EXTERNAL void get(sycl::nd_item<DIM> &item,
-			 sycl::device_ptr<T> gpu_ptr,
-                         const char *label,
-			 const int patchID,
-                         const int8_t matlIndx,
-			 const int8_t levelIndx = 0) {
+  SYCL_EXTERNAL void get(sycl::nd_item<DIM> &item, sycl::device_ptr<T> gpu_ptr,
+                         const char *label, const int patchID,
+                         const int8_t matlIndx, const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem =
+        getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       gpu_ptr = static_cast<T *>(ditem->var_ptr);
     }
   }
 
   template <typename T, int DIM>
-  SYCL_EXTERNAL void
-  getModifiable(sycl::nd_item<DIM> &item,
-		sycl::device_ptr<T> GPUGridVariableBase_ptr,
-                sycl::int3 &GPUGridVariableBase_size,
-                sycl::int3 &GPUGridVariableBase_offset,
-		char const *label,
-                const int patchID,
-		const int8_t matlIndx,
-                const int8_t levelIndx = 0) {
-    // device code
-    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
-    if (ditem != nullptr) {
-      GPUGridVariableBase_ptr = static_cast<T *>(ditem->var_ptr);
-      GPUGridVariableBase_size = ditem->var_size;
-      GPUGridVariableBase_offset = ditem->var_offset;
-    }
-  }
-  // GPUReductionVariableBase, GPUPerPatchBase
-  template <typename T, int DIM>
   SYCL_EXTERNAL void getModifiable(sycl::nd_item<DIM> &item,
-				   sycl::device_ptr<T> gpu_ptr,
-                                   char const *label,
-				   const int patchID,
+                                   sycl::device_ptr<T> GPUGridVariableBase_ptr,
+                                   sycl::int3 &GPUGridVariableBase_size,
+                                   sycl::int3 &GPUGridVariableBase_offset,
+                                   char const *label, const int patchID,
                                    const int8_t matlIndx,
                                    const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem =
+        getItem(item, label, patchID, matlIndx, levelIndx);
+    if (ditem != nullptr) {
+      GPUGridVariableBase_ptr = static_cast<T *>(ditem->var_ptr);
+      GPUGridVariableBase_size = ditem->var_size;
+      GPUGridVariableBase_offset = ditem->var_offset;
+    }
+  }
+  // GPUReductionVariableBase, GPUPerPatchBase
+  template <typename T, int DIM>
+  SYCL_EXTERNAL void
+  getModifiable(sycl::nd_item<DIM> &item, sycl::device_ptr<T> gpu_ptr,
+                char const *label, const int patchID, const int8_t matlIndx,
+                const int8_t levelIndx = 0) {
+    // device code
+    GPUDataWarehouse::dataItem *ditem =
+        getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       gpu_ptr = static_cast<T *>(ditem->var_ptr);
     }
   }
 
   template <typename T, int DIM>
-  SYCL_EXTERNAL void
-  getLevel(sycl::nd_item<DIM> &item,
-	   sycl::device_ptr<T> GPUGridVariableBase_ptr,
-           sycl::int3 &GPUGridVariableBase_size,
-           sycl::int3 &GPUGridVariableBase_offset,
-	   const char *label, const int8_t matlIndx,
-	   const int8_t levelIndx) {
+  SYCL_EXTERNAL void getLevel(sycl::nd_item<DIM> &item,
+                              sycl::device_ptr<T> GPUGridVariableBase_ptr,
+                              sycl::int3 &GPUGridVariableBase_size,
+                              sycl::int3 &GPUGridVariableBase_offset,
+                              const char *label, const int8_t matlIndx,
+                              const int8_t levelIndx) {
     // device code
     get(item, GPUGridVariableBase_ptr, GPUGridVariableBase_size,
-	GPUGridVariableBase_offset, label, -99999999, matlIndx, levelIndx);
+        GPUGridVariableBase_offset, label, -99999999, matlIndx, levelIndx);
   }
 
   // host-side calls
@@ -512,47 +507,26 @@ public:
   //                        std::is_same_v<T, GPUGridVariableBase> ||
   //                        std::is_same_v<T, GPUReductionVariableBase> ||
   //                        std::is_same_v<T, GPUPerPatchBase>>>
-  /* template<typename T> */
-  /* void get(const T &var, char const *label, const int patchID, */
-  /*          const int8_t matlIndx, const int8_t levelIndx = 0) { */
-  /*   // host code */
-  /*   varLock->lock(); */
-  /*   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx); */
-  /*   auto it = varPointers->find(lpml); */
-  /*   if (it != varPointers->end()) { */
-  /*     allVarPointersInfo vp = it->second; */
-  /*     if constexpr (std::is_same_v<T, GPUGridVariableBase>) { */
-  /*         var.setArray3(vp.var->device_offset, vp.var->device_size, */
-  /*                       vp.var->device_ptr); */
-  /*       } */
-  /*     else { */
-  /*       //static_cast<GPUPerPatch<double>&>(var).setData(vp.var->device_ptr); */
-  /*       var.setData(vp.var->device_ptr); */
-  /*     } */
-  /*   } */
-  /*   varLock->unlock(); */
-  /* } */
-
-  void get(const GPUGridVariableBase &var, char const *label, const int patchID,
-           const int8_t matlIndx, const int8_t levelIndx);
-  void get(const GPUGridVariableBase &var, char const *label, const int patchID,
-           const int8_t matlIndx) {
-    get(var, label, patchID, matlIndx, 0);
-  }
-
-  void get(const GPUReductionVariableBase &var, char const *label,
-           const int patchID, const int8_t matlIndx, const int8_t levelIndx);
-  void get(const GPUReductionVariableBase &var, char const *label,
-           const int patchID, const int8_t matlIndx) {
-    get(var, label, patchID, matlIndx, 0);
-  }
-
-  void get(const GPUPerPatchBase &var, char const *label, const int patchID,
-           const int8_t matlIndx, const int8_t levelIndx);
-  void get(const GPUPerPatchBase &var, char const *label, const int patchID,
-           const int8_t matlIndx) {
-    get(var, label, patchID, matlIndx, 0);
-  }
+  // template<typename T>
+  // void get(const T &var, char const *label, const int patchID,
+  //          const int8_t matlIndx, const int8_t levelIndx = 0) {
+  //   // host code
+  //   varLock->lock();
+  //   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
+  //   auto it = varPointers->find(lpml);
+  //   if (it != varPointers->end()) {
+  //     allVarPointersInfo vp = it->second;
+  //     if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
+  //         var.setArray3(vp.var->device_offset, vp.var->device_size,
+  //                       vp.var->device_ptr);
+  //       }
+  //     else {
+  //       //static_cast<GPUPerPatch<double>&>(var).setData(vp.var->device_ptr);
+  //       var.setData(vp.var->device_ptr);
+  //     }
+  //   }
+  //   varLock->unlock();
+  // }
 
   void getModifiable(GPUGridVariableBase &var, char const *label,
                      const int patchID, const int8_t matlIndx,
@@ -566,164 +540,112 @@ public:
   void getLevel(const GPUGridVariableBase &var, char const *label,
                 const int8_t matlIndx, const int8_t levelIndx);
 
-  void put(void* GPUGridVariableBase_ptr,
-           sycl::int3& GPUGridVariableBase_size,
-           sycl::int3& GPUGridVariableBase_offset,
-           std::size_t sizeOfDataType,
-           char const *label, int patchID, int matlIndx,
-           int levelIndx = 0, bool staging = false,
-           GhostType gtype = None, int numGhostCells = 0,
+  void put(void *GPUGridVariableBase_ptr, sycl::int3 &GPUGridVariableBase_size,
+           sycl::int3 &GPUGridVariableBase_offset, std::size_t sizeOfDataType,
+           char const *label, int patchID, int matlIndx, int levelIndx = 0,
+           bool staging = false, GhostType gtype = None, int numGhostCells = 0,
            void *hostPtr = nullptr);
   // SYCL varient: GPUReductionVariableBase, GPUPerPatchBase
-  void put(void* GPUPerPatchBase_ptr, std::size_t sizeOfDataType,
-           char const *label, int patchID, int matlIndx,
-           int levelIndx = 0, void *hostPtr = nullptr);
+  void put(void *GPUPerPatchBase_ptr, std::size_t sizeOfDataType,
+           char const *label, int patchID, int matlIndx, int levelIndx = 0,
+           void *hostPtr = nullptr);
   void put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
-           char const *label, int patchID, int matlIndx,
-           int levelIndx = 0, bool staging = false,
-           GhostType gtype = None, int numGhostCells = 0,
+           char const *label, int patchID, int matlIndx, int levelIndx = 0,
+           bool staging = false, GhostType gtype = None, int numGhostCells = 0,
            void *hostPtr = nullptr);
   void put(GPUReductionVariableBase &var, std::size_t sizeOfDataType,
-           char const *label, int patchID, int matlIndx,
-           int levelIndx = 0, void *hostPtr = nullptr);
-  void put(GPUPerPatchBase &var, std::size_t sizeOfDataType,
-           char const *label, int patchID, int matlIndx,
-           int levelIndx = 0, void *hostPtr = nullptr);
+           char const *label, int patchID, int matlIndx, int levelIndx = 0,
+           void *hostPtr = nullptr);
+  void put(GPUPerPatchBase &var, std::size_t sizeOfDataType, char const *label,
+           int patchID, int matlIndx, int levelIndx = 0,
+           void *hostPtr = nullptr);
 
-  void allocateAndPut(const Uintah::TypeDescription::Type& type,
-                      void*& GPUGridVariableBase_ptr,
-                      sycl::int3& GPUGridVariableBase_size,
-                      sycl::int3& GPUGridVariableBase_offset,
-                      char const *label,
-                      int patchID, int matlIndx, int levelIndx,
-                      bool staging, const sycl::int3& low, const sycl::int3& high,
+  void allocateAndPut(const Uintah::TypeDescription::Type &type,
+                      void *&GPUGridVariableBase_ptr,
+                      sycl::int3 &GPUGridVariableBase_size,
+                      sycl::int3 &GPUGridVariableBase_offset, char const *label,
+                      int patchID, int matlIndx, int levelIndx, bool staging,
+                      const sycl::int3 &low, const sycl::int3 &high,
                       std::size_t sizeOfDataType, GhostType gtype = None,
                       int numGhostCells = 0);
   // for both GPUGridVariableBase, GPUPerPatchBase
-  void allocateAndPut(const Uintah::TypeDescription::Type& type,
-                      void*& GPUReductionPerPatchVariableBase,
-                      char const *label,
-                      int patchID, int matlIndx, int levelIndx,
-                      std::size_t sizeOfDataType);
-  void allocateAndPut(GPUGridVariableBase &var, char const *label,
-                      int patchID, int matlIndx, int levelIndx,
-                      bool staging, const sycl::int3& low, const sycl::int3& high,
+  void allocateAndPut(const Uintah::TypeDescription::Type &type,
+                      void *&GPUReductionPerPatchVariableBase,
+                      char const *label, int patchID, int matlIndx,
+                      int levelIndx, std::size_t sizeOfDataType);
+  void allocateAndPut(GPUGridVariableBase &var, char const *label, int patchID,
+                      int matlIndx, int levelIndx, bool staging,
+                      const sycl::int3 &low, const sycl::int3 &high,
                       std::size_t sizeOfDataType, GhostType gtype = None,
                       int numGhostCells = 0);
   void allocateAndPut(GPUReductionVariableBase &var, char const *label,
                       int patchID, int matlIndx, int levelIndx,
                       std::size_t sizeOfDataType);
-  void allocateAndPut(GPUPerPatchBase &var, char const *label,
-                      int patchID, int matlIndx, int levelIndx,
-                      std::size_t sizeOfDataType);
+  void allocateAndPut(GPUPerPatchBase &var, char const *label, int patchID,
+                      int matlIndx, int levelIndx, std::size_t sizeOfDataType);
 
-  bool transferFrom(gpuStream_t* stream,
-		    GPUDataWarehouse *from, char const *label,
-		    int patchID, int matlIndx, int levelIndx);
+  bool transferFrom(gpuStream_t *stream, GPUDataWarehouse *from,
+                    char const *label, int patchID, int matlIndx,
+                    int levelIndx);
 
 #else // for CUDA, HIP and/or CPU
-
-  HOST_DEVICE void get(const GPUGridVariableBase &var, char const *label,
-                       const int patchID, const int8_t matlIndx,
-                       const int8_t levelIndx);
-  HOST_DEVICE void get(const GPUGridVariableBase &var, char const *label,
-                       const int patchID, const int8_t matlIndx) {
-    get(var, label, patchID, matlIndx, 0);
-  }
-
-  HOST_DEVICE void get(const GPUReductionVariableBase &var, char const *label,
-                       const int patchID, const int8_t matlIndx,
-                       const int8_t levelIndx);
-  HOST_DEVICE void get(const GPUReductionVariableBase &var, char const *label,
-                       const int patchID, const int8_t matlIndx) {
-    get(var, label, patchID, matlIndx, 0);
-  }
-
-  HOST_DEVICE void get(const GPUPerPatchBase &var, char const *label,
-                       const int patchID, const int8_t matlIndx,
-                       const int8_t levelIndx);
-  HOST_DEVICE void get(const GPUPerPatchBase &var, char const *label,
-                       const int patchID, const int8_t matlIndx) {
-    get(var, label, patchID, matlIndx, 0);
-  }
-
-  HOST_DEVICE void getModifiable(GPUGridVariableBase &var, char const *label,
-                                 const int patchID, const int8_t matlIndx,
-                                 const int8_t levelIndx);
-  HOST_DEVICE void getModifiable(GPUGridVariableBase &var, char const *label,
-                                 const int patchID, const int8_t matlIndx) {
-    getModifiable(var, label, patchID, matlIndx, 0);
-  }
-
-  HOST_DEVICE void getModifiable(GPUReductionVariableBase &var,
-                                 char const *label, const int patchID,
-                                 const int8_t matlIndx, const int8_t levelIndx);
-  HOST_DEVICE void getModifiable(GPUReductionVariableBase &var,
-                                 char const *label, const int patchID,
-                                 const int8_t matlIndx) {
-    getModifiable(var, label, patchID, matlIndx, 0);
-  }
-
-  HOST_DEVICE void getModifiable(GPUPerPatchBase &var, char const *label,
-                                 const int patchID, const int8_t matlIndx,
-                                 const int8_t levelIndx);
-  HOST_DEVICE void getModifiable(GPUPerPatchBase &var, char const *label,
-                                 const int patchID, const int8_t matlIndx) {
-    getModifiable(var, label, patchID, matlIndx, 0);
-  }
 
   HOST_DEVICE void getLevel(const GPUGridVariableBase &var, char const *label,
                             const int8_t matlIndx, const int8_t levelIndx);
 
-  __host__ void put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
-                    char const *label, int patchID, int matlIndx,
-                    int levelIndx = 0, bool staging = false,
-                    GhostType gtype = None, int numGhostCells = 0,
-                    void *hostPtr = nullptr);
-  __host__ void put(GPUReductionVariableBase &var, std::size_t sizeOfDataType,
-                    char const *label, int patchID, int matlIndx,
-                    int levelIndx = 0, void *hostPtr = nullptr);
-  __host__ void put(GPUPerPatchBase &var, std::size_t sizeOfDataType,
-                    char const *label, int patchID, int matlIndx,
-                    int levelIndx = 0, void *hostPtr = nullptr);
+  void put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
+           char const *label, int patchID, int matlIndx, int levelIndx = 0,
+           bool staging = false, GhostType gtype = None, int numGhostCells = 0,
+           void *hostPtr = nullptr);
+  void put(GPUReductionVariableBase &var, std::size_t sizeOfDataType,
+           char const *label, int patchID, int matlIndx, int levelIndx = 0,
+           void *hostPtr = nullptr);
+  void put(GPUPerPatchBase &var, std::size_t sizeOfDataType, char const *label,
+           int patchID, int matlIndx, int levelIndx = 0,
+           void *hostPtr = nullptr);
 
-  __host__ void allocateAndPut(GPUGridVariableBase &var, char const *label,
-                               int patchID, int matlIndx, int levelIndx,
-                               bool staging, const int3 &low, const int3 &high,
-                               std::size_t sizeOfDataType, GhostType gtype = None,
-                               int numGhostCells = 0);
-  __host__ void allocateAndPut(GPUReductionVariableBase &var, char const *label,
-                               int patchID, int matlIndx, int levelIndx,
-                               std::size_t sizeOfDataType);
-  __host__ void allocateAndPut(GPUPerPatchBase &var, char const *label,
-                               int patchID, int matlIndx, int levelIndx,
-                               std::size_t sizeOfDataType);
+  void allocateAndPut(GPUGridVariableBase &var, char const *label, int patchID,
+                      int matlIndx, int levelIndx, bool staging,
+                      const int3 &low, const int3 &high,
+                      std::size_t sizeOfDataType, GhostType gtype = None,
+                      int numGhostCells = 0);
+  void allocateAndPut(GPUReductionVariableBase &var, char const *label,
+                      int patchID, int matlIndx, int levelIndx,
+                      std::size_t sizeOfDataType);
+  void allocateAndPut(GPUPerPatchBase &var, char const *label, int patchID,
+                      int matlIndx, int levelIndx, std::size_t sizeOfDataType);
 
-  __host__ bool transferFrom(gpuStream_t* stream,
-                             GPUGridVariableBase &var_source,
-                             GPUDataWarehouse *from, char const *label,
-                             int patchID, int matlIndx, int levelIndx);
+  bool transferFrom(gpuStream_t *stream, GPUGridVariableBase &var_source,
+                    GPUDataWarehouse *from, char const *label, int patchID,
+                    int matlIndx, int levelIndx);
 #endif
 
-  __host__ void copySuperPatchInfo(char const *label, int superPatchBaseID,
-                                   int superPatchDestinationID, int matlIndx,
-                                   int levelIndx);
+  template <typename T>
+  HOST_DEVICE void get(const T &var, char const *label, const int patchID,
+                       const int8_t matlIndx, const int8_t levelIndx = 0);
 
+  template <typename T>
+  HOST_DEVICE void getModifiable(T &var, char const *label, const int patchID,
+                                 const int8_t matlIndx,
+                                 const int8_t levelIndx = 0);
 
-  __host__ void putUnallocatedIfNotExists(char const *label, int patchID,
-                                          int matlIndx, int levelIndx,
-                                          bool staging, const int3& offset, const int3& size);
-  __host__ void copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
-                                   char const *label, int patchID, int matlIndx,
-                                   int levelIndx, bool staging, int3 offset,
-                                   int3 size);
+  void copySuperPatchInfo(char const *label, int superPatchBaseID,
+                          int superPatchDestinationID, int matlIndx,
+                          int levelIndx);
 
-  __host__ void putContiguous(GPUGridVariableBase &var, char const *indexID,
-                              char const *label, int patchID, int matlIndx,
-                              int levelIndx, bool staging, int3 low, int3 high,
-                              std::size_t sizeOfDataType, GridVariableBase *gridVar,
-                              bool stageOnHost);
-  __host__ void allocate(const char *indexID, std::size_t size);
+  void putUnallocatedIfNotExists(char const *label, int patchID, int matlIndx,
+                                 int levelIndx, bool staging,
+                                 const int3 &offset, const int3 &size);
+  void copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW, char const *label,
+                          int patchID, int matlIndx, int levelIndx,
+                          bool staging, int3 offset, int3 size);
+
+  void putContiguous(GPUGridVariableBase &var, char const *indexID,
+                     char const *label, int patchID, int matlIndx,
+                     int levelIndx, bool staging, int3 low, int3 high,
+                     std::size_t sizeOfDataType, GridVariableBase *gridVar,
+                     bool stageOnHost);
+  void allocate(const char *indexID, std::size_t size);
 
   //______________________________________________________________________
   // GPU DataWarehouse support methods
@@ -732,38 +654,36 @@ public:
   // HOST_DEVICE bool existsLevelDB( char const* name, int matlIndx, int
   // levelIndx);       // levelDB HOST_DEVICE bool removeLevelDB( char const*
   // name, int matlIndx, int levelIndx);
-  __host__ bool remove(char const *label, int patchID, int matlIndx,
-                       int levelIndx);
-  __host__ void *getPlacementNewBuffer();
-  __host__ void syncto_device(gpuStream_t* gpu_stream);
-  __host__ void clear();
-  __host__ void deleteSelfOnDevice();
-  __host__ GPUDataWarehouse *getdevice_ptr() { return d_device_copy; };
-  __host__ void setDebug(bool s) { d_debug = s; }
-  __host__ void copyHostContiguousToHost(GPUGridVariableBase &device_var,
-                                         GridVariableBase *host_var,
-                                         char const *label, int patchID,
-                                         int matlIndx, int levelIndx);
+  bool remove(char const *label, int patchID, int matlIndx, int levelIndx);
+  void *getPlacementNewBuffer();
+  void syncto_device(gpuStream_t *gpu_stream);
+  void clear();
+  void deleteSelfOnDevice();
+  GPUDataWarehouse *getdevice_ptr() { return d_device_copy; };
+  void setDebug(bool s) { d_debug = s; }
+  void copyHostContiguousToHost(GPUGridVariableBase &device_var,
+                                GridVariableBase *host_var, char const *label,
+                                int patchID, int matlIndx, int levelIndx);
 
   //______________________________________________________________________
   // Additional support methods
-  __host__ void putMaterials(std::vector<std::string> materials);
+  void putMaterials(std::vector<std::string> materials);
   HOST_DEVICE materialType getMaterial(int i) const;
   HOST_DEVICE int getNumMaterials() const;
-  __host__ void putGhostCell(char const *label, int sourcePatchID,
-                             int destPatchID, int matlIndx, int levelIndx,
-                             bool sourceStaging, bool deststaging,
-                             const int3& varOffset, const int3& varSize,
-                             const int3& sharedLowCoordinates,
-                             const int3& sharedHighCoordinates, const int3& virtualOffset);
+  void putGhostCell(char const *label, int sourcePatchID, int destPatchID,
+                    int matlIndx, int levelIndx, bool sourceStaging,
+                    bool deststaging, const int3 &varOffset,
+                    const int3 &varSize, const int3 &sharedLowCoordinates,
+                    const int3 &sharedHighCoordinates,
+                    const int3 &virtualOffset);
 
-  __host__ bool areAllStagingVarsValid(char const *label, int patchID,
-                                       int matlIndx, int levelIndx);
+  bool areAllStagingVarsValid(char const *label, int patchID, int matlIndx,
+                              int levelIndx);
 
-  //__host__ atomicDataStatus getStatus(std::shared_ptr<atomicDataStatus>&
-  //status);
-  __host__ std::string getDisplayableStatusCodes(atomicDataStatus &status);
-  __host__ void getStatusFlagsForVariableOnGPU(
+  // atomicDataStatus getStatus(std::shared_ptr<atomicDataStatus>&
+  // status);
+  std::string getDisplayableStatusCodes(atomicDataStatus &status);
+  void getStatusFlagsForVariableOnGPU(
       bool &correctSize, bool &allocating, bool &allocated, bool &copyingIn,
       bool &validOnGPU, bool &gatheringGhostCells,
       bool &validWithGhostCellsOnGPU, bool &deallocating,
@@ -771,82 +691,72 @@ public:
       const int patchID, const int matlIndx, const int levelIndx,
       const int3 &offset, const int3 &size);
 
-  __host__ bool compareAndSwapAllocating(atomicDataStatus &status);
-  __host__ bool compareAndSwapAllocate(atomicDataStatus &status);
-  __host__ bool checkAllocated(atomicDataStatus &status);
-  __host__ bool checkValid(atomicDataStatus &status);
+  bool compareAndSwapAllocating(atomicDataStatus &status);
+  bool compareAndSwapAllocate(atomicDataStatus &status);
+  bool checkAllocated(atomicDataStatus &status);
+  bool checkValid(atomicDataStatus &status);
 
-  __host__ bool isAllocatedOnGPU(char const *label, int patchID, int matlIndx,
-                                 int levelIndx);
-  __host__ bool isAllocatedOnGPU(char const *label, int patchID, int matlIndx,
-                                 int levelIndx, int3 offset, int3 size);
-  __host__ bool isValidOnGPU(char const *label, int patchID, int matlIndx,
-                             int levelIndx);
-  __host__ bool compareAndSwapSetValidOnGPU(char const *const label,
-                                            const int patchID,
-                                            const int matlIndx,
-                                            const int levelIndx);
-  __host__ bool compareAndSwapSetValidOnGPUStaging(char const *label,
-                                                   int patchID, int matlIndx,
-                                                   int levelIndx, const int3& offset,
-                                                   const int3& size);
-  __host__ bool dwEntryExistsOnCPU(char const *label, int patchID, int matlIndx,
-                                   int levelIndx);
-  __host__ bool isValidOnCPU(char const *label, const int patchID,
-                             const int matlIndx, const int levelIndx);
-  __host__ bool compareAndSwapSetValidOnCPU(char const *const label,
-                                            int patchID, int matlIndx,
-                                            int levelIndx);
+  bool isAllocatedOnGPU(char const *label, int patchID, int matlIndx,
+                        int levelIndx);
+  bool isAllocatedOnGPU(char const *label, int patchID, int matlIndx,
+                        int levelIndx, int3 offset, int3 size);
+  bool isValidOnGPU(char const *label, int patchID, int matlIndx,
+                    int levelIndx);
+  bool compareAndSwapSetValidOnGPU(char const *const label, const int patchID,
+                                   const int matlIndx, const int levelIndx);
+  bool compareAndSwapSetValidOnGPUStaging(char const *label, int patchID,
+                                          int matlIndx, int levelIndx,
+                                          const int3 &offset, const int3 &size);
+  bool dwEntryExistsOnCPU(char const *label, int patchID, int matlIndx,
+                          int levelIndx);
+  bool isValidOnCPU(char const *label, const int patchID, const int matlIndx,
+                    const int levelIndx);
+  bool compareAndSwapSetValidOnCPU(char const *const label, int patchID,
+                                   int matlIndx, int levelIndx);
 
-  __host__ bool compareAndSwapAwaitingGhostDataOnGPU(char const *label,
-                                                     int patchID, int matlIndx,
-                                                     int levelIndx);
-  __host__ bool compareAndSwapCopyingIntoGPU(char const *label, int patchID,
-                                             int matlIndx, int levelIndx);
-  __host__ bool compareAndSwapCopyingIntoCPU(char const *label, int patchID,
-                                             int matlIndx, int levelIndx);
-  __host__ bool compareAndSwapCopyingIntoGPUStaging(char const *label,
-                                                    int patchID, int matlIndx,
-                                                    int levelIndx, int3 offset,
-                                                    int3 size);
-  __host__ bool isValidWithGhostsOnGPU(char const *label, int patchID,
-                                       int matlIndx, int levelIndx);
-  __host__ void setValidWithGhostsOnGPU(char const *label, int patchID,
+  bool compareAndSwapAwaitingGhostDataOnGPU(char const *label, int patchID,
+                                            int matlIndx, int levelIndx);
+  bool compareAndSwapCopyingIntoGPU(char const *label, int patchID,
+                                    int matlIndx, int levelIndx);
+  bool compareAndSwapCopyingIntoCPU(char const *label, int patchID,
+                                    int matlIndx, int levelIndx);
+  bool compareAndSwapCopyingIntoGPUStaging(char const *label, int patchID,
+                                           int matlIndx, int levelIndx,
+                                           int3 offset, int3 size);
+  bool isValidWithGhostsOnGPU(char const *label, int patchID, int matlIndx,
+                              int levelIndx);
+  void setValidWithGhostsOnGPU(char const *label, int patchID, int matlIndx,
+                               int levelIndx);
+
+  bool compareAndSwapFormASuperPatchGPU(char const *label, int patchID,
                                         int matlIndx, int levelIndx);
-
-  __host__ bool compareAndSwapFormASuperPatchGPU(char const *label, int patchID,
-                                                 int matlIndx, int levelIndx);
-  __host__ bool compareAndSwapSetSuperPatchGPU(char const *label, int patchID,
-                                               int matlIndx, int levelIndx);
-  __host__ bool isSuperPatchGPU(char const *label, int patchID, int matlIndx,
-                                int levelIndx);
-  __host__ void setSuperPatchLowAndSize(char const *const label,
-                                        const int patchID, const int matlIndx,
-                                        const int levelIndx, const int3 &low,
-                                        const int3 &size);
-  __host__ bool compareAndSwapDeallocating(atomicDataStatus &status);
-  __host__ bool compareAndSwapDeallocate(atomicDataStatus &status);
+  bool compareAndSwapSetSuperPatchGPU(char const *label, int patchID,
+                                      int matlIndx, int levelIndx);
+  bool isSuperPatchGPU(char const *label, int patchID, int matlIndx,
+                       int levelIndx);
+  void setSuperPatchLowAndSize(char const *const label, const int patchID,
+                               const int matlIndx, const int levelIndx,
+                               const int3 &low, const int3 &size);
+  bool compareAndSwapDeallocating(atomicDataStatus &status);
+  bool compareAndSwapDeallocate(atomicDataStatus &status);
 
   // This and the function below go through the d_ghostCellData array and copies
   // data into the correct destination GPU var.  This would be the final step of
   // a GPU ghost cell transfer.
-  __host__ void copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t* stream);
+  void copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t *stream);
 #ifdef HAVE_SYCL
   void copyGpuGhostCellsToGpuVars(sycl::nd_item<3> &item);
 #else
   __device__ void copyGpuGhostCellsToGpuVars();
 #endif
-  __host__ bool ghostCellCopiesNeeded();
-  __host__ void getSizes(int3 &low, int3 &high, int3 &siz, GhostType &gtype,
-                         int &numGhostCells, char const *label, int patchID,
-                         int matlIndx, int levelIndx = 0);
+  bool ghostCellCopiesNeeded();
+  void getSizes(int3 &low, int3 &high, int3 &siz, GhostType &gtype,
+                int &numGhostCells, char const *label, int patchID,
+                int matlIndx, int levelIndx = 0);
 
-  __host__ void init_device(std::size_t objectSizeInBytes,
-                            unsigned int maxdVarDBItems);
-  __host__ void init(int id, std::string internalName);
-  __host__ void cleanup();
-
-  __device__ void print();
+  void init_device(std::size_t objectSizeInBytes, unsigned int maxdVarDBItems);
+  void init(int id, std::string internalName);
+  void cleanup();
 
 private:
 #ifdef HAVE_SYCL
@@ -882,7 +792,8 @@ private:
     // sequential search with one thread, we can let every thread search for it.
     // Only the winning thread gets to write to shared data.
 
-    sycl::local_ptr<int> index = sycl::ext::oneapi::group_local_memory_for_overwrite<int>(work_grp);
+    sycl::local_ptr<int> index =
+        sycl::ext::oneapi::group_local_memory_for_overwrite<int>(work_grp);
     *index = -1;
 
     sycl::group_barrier(work_grp);
@@ -893,22 +804,24 @@ private:
       char const *s2 = &(d_varDB[i].label[0]);
 
       // a one-line strcmp.  This should keep branching down to a minimum.
-      while (!(strmatch = *(unsigned char *)s1 - *(unsigned char *)s2) && *s1++ && *s2++);
+      while (!(strmatch = *(unsigned char *)s1 - *(unsigned char *)s2) &&
+             *s1++ && *s2++)
+        ;
 
       // only one thread will ever match this.
       // And nobody on the device side should ever access "staging" variables.
       if (strmatch == 0) {
-	if (patchID == -99999999 && d_varDB[i].matlIndx == matlIndx &&
-	    d_varDB[i].levelIndx == levelIndx &&
-	    d_varDB[i].varItem.staging == false &&
-	    d_varDB[i].ghostItem.dest_varDB_index == -1) {
-	  *index = i;
-	} else if (d_varDB[i].domainID == patchID &&
-		   d_varDB[i].matlIndx == matlIndx &&
-		   d_varDB[i].varItem.staging == false &&
-		   d_varDB[i].ghostItem.dest_varDB_index == -1) {
-	  *index = i;
-	}
+        if (patchID == -99999999 && d_varDB[i].matlIndx == matlIndx &&
+            d_varDB[i].levelIndx == levelIndx &&
+            d_varDB[i].varItem.staging == false &&
+            d_varDB[i].ghostItem.dest_varDB_index == -1) {
+          *index = i;
+        } else if (d_varDB[i].domainID == patchID &&
+                   d_varDB[i].matlIndx == matlIndx &&
+                   d_varDB[i].varItem.staging == false &&
+                   d_varDB[i].ghostItem.dest_varDB_index == -1) {
+          *index = i;
+        }
       }
       i = i + numThreads;
     }
@@ -920,18 +833,6 @@ private:
   __device__ dataItem *getItem(char const *label, const int patchID,
                                const int8_t matlIndx, const int8_t levelIndx);
 #endif
-
-  HOST_DEVICE void printError(const char *msg, const char *methodName,
-                              char const *label, int patchID, int8_t matlIndx,
-                              int8_t levelIndx);
-  HOST_DEVICE void printError(const char *msg, const char *methodName) {
-    printError(msg, methodName, "", 0, 0, 0);
-  }
-  HOST_DEVICE void printGetError(const char *msg, char const *label,
-                                 int8_t matlIndx, const int patchID,
-                                 int8_t levelIndx);
-  HOST_DEVICE void printGetLevelError(const char *msg, char const *label,
-                                      int8_t levelIndx, int8_t matlIndx);
 
   std::map<labelPatchMatlLevel, allVarPointersInfo> *varPointers;
 

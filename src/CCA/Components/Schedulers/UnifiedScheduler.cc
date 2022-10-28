@@ -262,16 +262,16 @@ UnifiedScheduler::UnifiedScheduler(const ProcessorGroup *myworld,
 
     // get the true numDevices (in case we have the simulation turned on)
     int numDevices{};
-    gpuGetDeviceCount(&numDevices);
+    GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
     int can_access = 0;
     for (int i = 0; i < numDevices; i++) {
       GPU_RT_SAFE_CALL(gpuSetDevice(i));
       for (int j = 0; j < numDevices; j++) {
         if (i != j) {
-          gpuDeviceCanAccessPeer(&can_access, i, j);
+          GPU_RT_SAFE_CALL(gpuDeviceCanAccessPeer(&can_access, i, j));
           if (can_access) {
             printf("GOOD\n GPU device #%d can access GPU device #%d\n", i, j);
-            gpuDeviceEnablePeerAccess(j, 0);
+            GPU_RT_SAFE_CALL(gpuDeviceEnablePeerAccess(j, 0));
           } else {
             printf("ERROR\n GPU device #%d cannot access GPU device #%d\n.  "
                    "Uintah is not yet configured to work with multiple GPUs in "
@@ -416,7 +416,7 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
     if (!gpu_ids && Uintah::Parallel::usingDevice()) {
       int availableDevices;
-      gpuGetDeviceCount(&availableDevices);
+      GPU_RT_SAFE_CALL(gpuGetDeviceCount(&availableDevices));
       std::cout << "   Using " << m_num_devices << "/" << availableDevices
                 << " available GPU(s)" << std::endl;
 
@@ -476,7 +476,7 @@ void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
   if (gpu_ids && Uintah::Parallel::usingDevice()) {
     int availableDevices;
     std::ostringstream message;
-    gpuGetDeviceCount(&availableDevices);
+    GPU_RT_SAFE_CALL(gpuGetDeviceCount(&availableDevices));
     message << "   Rank-" << d_myworld->myRank() << " using " << m_num_devices
             << "/" << availableDevices << " available GPU(s)\n";
 
@@ -1834,7 +1834,7 @@ void UnifiedScheduler::prepareGpuDependencies(
 void UnifiedScheduler::gpuInitialize(bool reset) {
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
   int numDevices = 0;
-  gpuGetDeviceCount(&numDevices);
+  GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
   m_num_devices = numDevices;
 
   for (int i = 0; i < m_num_devices; i++) {
@@ -4260,8 +4260,8 @@ void UnifiedScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                       cerrLock.unlock();
                     }
 
-                    GPU_RT_SAFE_CALL(gpuMemcpyAsync(
-                                       host_ptr, device_ptr, host_bytes,
+                    GPU_RT_SAFE_CALL(
+                        gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
                                        gpuMemcpyDeviceToHost, *stream));
 
                     IntVector temp(0, 0, 0);
@@ -4764,9 +4764,8 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
               }
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
-              GPU_RT_SAFE_CALL(
-                gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                               gpuMemcpyDeviceToHost, *stream));
+              GPU_RT_SAFE_CALL(gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                                              gpuMemcpyDeviceToHost, *stream));
 
               IntVector temp(0, 0, 0);
               dtask->getVarsBeingCopiedByTask().add(
@@ -4836,9 +4835,8 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
             // TODO: Verify no memory leaks
             if (host_bytes == device_bytes) {
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
-              GPU_RT_SAFE_CALL(
-                  gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                  gpuMemcpyDeviceToHost, *stream));
+              GPU_RT_SAFE_CALL(gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                                              gpuMemcpyDeviceToHost, *stream));
 #elif defined(HAVE_SYCL)
               stream->memcpy(host_ptr, device_ptr, host_bytes);
 #endif
@@ -4898,9 +4896,8 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
 
             if (host_bytes == device_bytes) {
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
-              GPU_RT_SAFE_CALL(
-                  gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                 gpuMemcpyDeviceToHost, *stream));
+              GPU_RT_SAFE_CALL(gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
+                                              gpuMemcpyDeviceToHost, *stream));
 #elif defined(HAVE_SYCL)
               stream->memcpy(host_ptr, device_ptr, host_bytes);
 #endif
@@ -5495,7 +5492,7 @@ void UnifiedScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
         GPU_RT_SAFE_CALL(gpuMemcpyAsync(host_ptr, device_ptr, host_bytes,
-                                          gpuMemcpyDeviceToHost, *stream));
+                                        gpuMemcpyDeviceToHost, *stream));
 #elif defined(HAVE_SYCL)
         stream->memcpy(host_ptr, device_ptr, host_bytes);
 #endif
