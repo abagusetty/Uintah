@@ -73,6 +73,8 @@
   #define gpuDeviceProp cudaDeviceProp
   #define gpuGetDeviceProperties cudaGetDeviceProperties
   #define gpurandState curandState
+  #define gpuHostRegister cudaHostRegister
+  #define gpuHostRegisterPortable cudaHostRegisterPortable
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
@@ -194,6 +196,8 @@
   #define gpuDeviceProp hipDeviceProp_t
   #define gpuGetDeviceProperties hipGetDeviceProperties
   #define gpurandState hiprandState
+  #define gpuHostRegister hipHostRegister
+  #define gpuHostRegisterPortable hipHostRegisterPortable
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))

@@ -35,8 +35,8 @@
 #endif
 
 #ifdef HAVE_HIP
-#include <hiprand.h>
-#include <hiprand_kernel.h>
+#include <hiprand/hiprand.h>
+#include <hiprand/hiprand_kernel.h>
 #include <sci_defs/gpu_defs.h>
 #endif
 
@@ -594,7 +594,7 @@ __device__ void reflectDevice(double &fs, GPUIntVector &cur,
 
 //______________________________________________________________________
 //
-template <class T>
+template <typename T>
 __device__ void
 updateSumIDevice(levelParams level, GPUVector &ray_direction,
                  GPUVector &ray_location, const GPUIntVector &origin,
@@ -606,7 +606,7 @@ updateSumIDevice(levelParams level, GPUVector &ray_direction,
 //______________________________________________________________________
 //  Multi-level
 
-template <class T>
+template <typename T>
 __device__ void updateSumI_MLDevice(
     GPUVector &ray_direction, GPUVector &ray_location,
     const GPUIntVector &origin, gridParams gridP,
@@ -627,7 +627,7 @@ __device__ double randDblDevice(gpurandState *randNumStates);
 __device__ int randIntDevice(gpurandState *randNumStates, const int B);
 __device__ bool isDbgCellDevice(GPUIntVector me);
 
-template <class T>
+template <typename T>
 void
 launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
                      const int matlIndex, levelParams level, patchParams patch,
@@ -635,7 +635,7 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
                      GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
                      GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *new_gdw);
 
-template <class T>
+template <typename T>
 void launchRayTraceDataOnionKernel(
     DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock, int matlIndex,
     patchParams patchP, gridParams gridP, levelParams *levelP,

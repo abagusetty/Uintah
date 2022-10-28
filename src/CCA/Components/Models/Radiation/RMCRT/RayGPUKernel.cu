@@ -45,6 +45,16 @@
      //                      0),   7: (0,0,1)
 #define SIGN 1 // Multiply the FIXED_RAY_DIRs by value
 
+#ifdef HAVE_CUDA
+#define gpuMemcpyToSymbolAsync cudaMemcpyToSymbolAsync
+#define gpurand curand
+#define gpurand_init curand_init
+#elif defined(HAVE_HIP)
+#define gpuMemcpyToSymbolAsync hipMemcpyToSymbolAsync
+#define gpurand hiprand
+#define gpurand_init hiprand_init
+#endif
+
 //__________________________________
 //  To Do
 //  - Investigate using multiple GPUs per node.
@@ -68,7 +78,7 @@ namespace Uintah {
 //---------------------------------------------------------------------------
 // Kernel: The GPU ray tracer kernel
 //---------------------------------------------------------------------------
-template <class T>
+template <typename T>
 __global__ void
 rayTraceKernel(dim3 dimGrid, dim3 dimBlock, const int matl, levelParams level,
                patchParams patch, gpurandState *randNumStates,
@@ -125,7 +135,7 @@ rayTraceKernel(dim3 dimGrid, dim3 dimBlock, const int matl, levelParams level,
         GPUIntVector c = make_int3(tidX, tidY, z);
         divQ[c] = 0.0;
         radiationVolQ[c] = 0.0;
-        boundFlux[c].initialize(0.0);
+        boundFlux[c] = {0.0};
       }
     }
   }
@@ -205,7 +215,8 @@ rayTraceKernel(dim3 dimGrid, dim3 dimBlock, const int matl, levelParams level,
           randVectorDevice(rand_i, nFluxRays, randNumStates);
         }
 
-        boundFlux[origin].initialize(0.0);
+        //boundFlux[origin].initialize(0.0);
+        boundFlux[origin] = {0.0};
 
         BoundaryFaces boundaryFaces;
 
@@ -357,7 +368,7 @@ rayTraceKernel(dim3 dimGrid, dim3 dimBlock, const int matl, levelParams level,
 // hard-wired for 2-levels now, but this should be fast and fixes
 __constant__ levelParams d_levels[d_MAXLEVELS];
 
-template <class T>
+template <typename T>
 __global__
 #if NDEBUG // Uinth has a DNDEBUG compiler defined flag in normal trunk builds.
            // Debug builds have no compiler flags we can capture.
@@ -459,7 +470,8 @@ __launch_bounds__(640, 1) // For 96 registers with 320 threads.  Allows two kern
     while (threadID < RT_flags.endCell) {
       divQ_fine[c] = 0.0;
       radiationVolQ_fine[c] = 0.0;
-      boundFlux_fine[c].initialize(0.0);
+      //boundFlux_fine[c].initialize(0.0);
+      boundFlux_fine[c] = {0.0};
 
       // move to the next cell
       threadID += blockDim.x;
@@ -554,7 +566,8 @@ __launch_bounds__(640, 1) // For 96 registers with 320 threads.  Allows two kern
       if (cellType[fineL][origin] ==
           d_flowCell) { // don't solve for fluxes in intrusions
 
-        boundFlux_fine[origin].initialize(0.0); // FIXME: Already initialized?
+        //boundFlux_fine[origin].initialize(0.0); // FIXME: Already initialized?
+        boundFlux_fine[origin] = {0.0};
 
         BoundaryFaces boundaryFaces;
 
@@ -1040,7 +1053,7 @@ __device__ void reflect(double &fs, GPUIntVector &cur, GPUIntVector &prevCell,
 }
 
 //______________________________________________________________________
-template <class T>
+template <typename T>
 __device__ void
 updateSumIDevice(levelParams level, GPUVector &ray_direction,
                  GPUVector &ray_origin, const GPUIntVector &origin,
@@ -1227,7 +1240,7 @@ updateSumIDevice(levelParams level, GPUVector &ray_direction,
 
 //______________________________________________________________________
 //  Multi-level
-template <class T>
+template <typename T>
 __device__ void updateSumI_MLDevice(
     GPUVector &ray_direction, GPUVector &ray_origin, const GPUIntVector &origin,
     gridParams gridP, const GPUIntVector &fineLevel_ROI_Lo,
@@ -1434,7 +1447,7 @@ __device__ double randDblDevice(gpurandState *globalState) {
             threadIdx.z * blockDim.y * blockDim.x + threadIdx.y * blockDim.x +
             threadIdx.x;
   gpurandState localState = globalState[tid];
-  double val = curand(&localState);
+  double val = gpurand(&localState);
   globalState[tid] = localState;
 
 #ifdef FIXED_RANDOM_NUM
@@ -1454,7 +1467,7 @@ __device__ double randDblExcDevice(gpurandState *globalState) {
             (blockDim.x * blockDim.y) * threadIdx.z;
 
   gpurandState localState = globalState[tid];
-  double val = curand(&localState);
+  double val = gpurand(&localState);
   globalState[tid] = localState;
 
 #ifdef FIXED_RANDOM_NUM
@@ -1466,7 +1479,7 @@ __device__ double randDblExcDevice(gpurandState *globalState) {
 
 //______________________________________________________________________
 // Returns random integer in [0,n]
-// rnd_integer_from_A_to_B = A + curand() * (B-A);
+// rnd_integer_from_A_to_B = A + gpurand() * (B-A);
 //  A = 0
 //______________________________________________________________________
 __device__ int randIntDevice(gpurandState *globalState, const int B) {
@@ -1481,9 +1494,9 @@ __device__ void setupRandNumsSeedAndSequences(gpurandState *randNumStates,
                                               int numStates,
                                               unsigned long long patchID,
                                               unsigned long long curTimeStep) {
-  // Generate random numbers using curand_init().
+  // Generate random numbers using gpurand_init().
 
-  // Format is curand_init(seed, sequence, offset, state);
+  // Format is gpurand_init(seed, sequence, offset, state);
 
   // Note, it seems a very large sequence really slows things down (bits in the
   // high order region) I measured kernels taking an additional 300 milliseconds
@@ -1496,7 +1509,7 @@ __device__ void setupRandNumsSeedAndSequences(gpurandState *randNumStates,
   // of seeds may give statistically correlated sequences. Sequences generated
   // with the same seed and different sequence numbers will not have
   // statistically correlated values." from here:
-  // http://docs.nvidia.com/cuda/curand/device-api-overview.html#axzz4SPy8xMuj
+  // http://docs.nvidia.com/cuda/gpurand/device-api-overview.html#axzz4SPy8xMuj
 
   // For RMCRT we will take the tradeoff of possibly having statistically
   // correlated values over the 300 millisecond hit.
@@ -1518,10 +1531,10 @@ __device__ void setupRandNumsSeedAndSequences(gpurandState *randNumStates,
       (((patchID & 0xFFFFF) << 44) | ((curTimeStep & 0xFFFFF) << 24) |
        (threadId & 0xFFFFFF));
 
-  curand_init(tID, threadId, 0, &randNumStates[threadId]);
+  gpurand_init(tID, threadId, 0, &randNumStates[threadId]);
 
   // If you want to take the 300 millisecond hit, use this line below instead.
-  // curand_init(1234, tID, 0, &randNumStates[threadId]);
+  // gpurand_init(1234, tID, 0, &randNumStates[threadId]);
 }
 
 //______________________________________________________________________
@@ -1595,7 +1608,7 @@ __device__ int isNan(float value) {
 
 //______________________________________________________________________
 //
-template <class T>
+template <typename T>
 void
 launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
                      const int matlIndx, levelParams level, patchParams patch,
@@ -1621,15 +1634,15 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
 
   // Making sure we have kernel/mem copy overlapping
   double *h_debugRandNums = new double[nRandNums];
-  cudaHostRegister(h_debugRandNums, randNumsByteSize, cudaHostRegisterPortable);
+  GPU_RT_SAFE_CALL(gpuHostRegister(h_debugRandNums, randNumsByteSize, gpuHostRegisterPortable));
 
   // perform computations here on h_debugRandNums
   for (int i = 0; i < nRandNums; i++) {
     h_debugRandNums[i] = i;
   }
   dtask->addTempHostMemoryToBeFreedOnCompletion(h_debugRandNums);
-  gpuMemcpyAsync(d_debugRandNums, h_debugRandNums, randNumsByteSize,
-                  gpuMemcpyHostToDevice, *stream);
+  GPU_RT_SAFE_CALL(gpuMemcpyAsync(d_debugRandNums, h_debugRandNums, randNumsByteSize,
+                                  gpuMemcpyHostToDevice, *stream));
 
   rayTraceKernel<T><<<dimGrid, dimBlock, 0, *stream>>>(
       dimGrid, dimBlock, matlIndx, level, patch, randNumStates, RT_flags,
@@ -1638,7 +1651,7 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
 
 //______________________________________________________________________
 //
-template <class T>
+template <typename T>
 void launchRayTraceDataOnionKernel(
     DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock, int matlIndex,
     patchParams patch, gridParams gridP, levelParams *levelP,
@@ -1663,9 +1676,9 @@ void launchRayTraceDataOnionKernel(
 
   // More GPU stuff to allow kernel/copy overlapping
   int3 *myLo = new int3[d_MAXLEVELS];
-  cudaHostRegister(myLo, sizeof(int3) * d_MAXLEVELS, cudaHostRegisterPortable);
   int3 *myHi = new int3[d_MAXLEVELS];
-  cudaHostRegister(myHi, sizeof(int3) * d_MAXLEVELS, cudaHostRegisterPortable);
+  GPU_RT_SAFE_CALL(gpuHostRegister(myLo, sizeof(int3) * d_MAXLEVELS, gpuHostRegisterPortable));
+  GPU_RT_SAFE_CALL(gpuHostRegister(myHi, sizeof(int3) * d_MAXLEVELS, gpuHostRegisterPortable));
   dtask->addTempHostMemoryToBeFreedOnCompletion(myLo);
   dtask->addTempHostMemoryToBeFreedOnCompletion(myHi);
 

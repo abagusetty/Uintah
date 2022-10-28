@@ -150,7 +150,7 @@ OnDemandDataWarehouse::OnDemandDataWarehouse( const ProcessorGroup * myworld
 
   if (Uintah::Parallel::usingDevice()) {
     int numDevices;
-    gpuGetDeviceCount(&numDevices);
+    GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
 
     for (int i = 0; i < numDevices; i++) {
       //those gpuDWs should only live host side.
@@ -426,13 +426,13 @@ OnDemandDataWarehouse::getReductionVariable( const VarLabel * label
 
 void
 OnDemandDataWarehouse::uintahSetGpuDevice(int deviceID) {
-  gpuSetDevice(deviceID);
+  GPU_RT_SAFE_CALL(gpuSetDevice(deviceID));
 }
 
 int
 OnDemandDataWarehouse::getNumDevices() {
   int numDevices = 0;
-  gpuGetDeviceCount(&numDevices);
+  GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
   return numDevices;
 }
 

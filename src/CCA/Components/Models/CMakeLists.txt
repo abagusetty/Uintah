@@ -1,5 +1,3 @@
-#set( MDL_SRC ModelFactory.cc )
-
 set( LIB_DEPS
         CCA_Ports
         Core_Disclosure
@@ -20,11 +18,13 @@ add_subdirectory( MultiMatlExchange )
 add_subdirectory( Radiation )
 add_subdirectory( SolidReactionModel )
 
-# for now only Radiation/RMCRT is GPU enabled
+# abb: for now only Radiation/RMCRT is GPU enabled
 if( ENABLE_CUDA )
     set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CUDA)
 endif( ENABLE_CUDA )
+
 if( ENABLE_HIP )
+    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CXX)
     set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES COMPILE_FLAGS "-D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=$ENV{ROCM_PATH} --offload-arch=gfx90a -x hip")
 endif( ENABLE_HIP )
 

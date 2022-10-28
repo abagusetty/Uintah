@@ -25,9 +25,7 @@
 #ifndef UINTAH_GPUSTENCIL7_H
 #define UINTAH_GPUSTENCIL7_H
 
-#ifdef HAVE_SYCL
-#include <sci_defs/gpu_defs.h>
-#elif defined(HAVE_CUDA)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 #include <sci_defs/gpu_defs.h>
 #else
 #include <array>

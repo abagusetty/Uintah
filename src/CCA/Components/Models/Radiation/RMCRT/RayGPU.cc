@@ -270,11 +270,7 @@ void Ray::rayTraceDataOnionGPU(
     //  Level Parameters - first batch of level data
     // levelParams levelP[maxLevels];
     levelParams *levelP = new levelParams[maxLevels];
-#ifdef HAVE_CUDA
-    cudaHostRegister(levelP, sizeof(levelParams) * maxLevels, cudaHostRegisterPortable);
-#elif defined(HAVE_HIP)
-    hipHostRegister(levelP, sizeof(levelParams) * maxLevels, hipHostRegisterPortable);    
-#endif
+    GPU_RT_SAFE_CALL(gpuHostRegister(levelP, sizeof(levelParams) * maxLevels, gpuHostRegisterPortable));
     dtask->addTempHostMemoryToBeFreedOnCompletion(levelP);
     for (int l = 0; l < maxLevels; ++l) {
       LevelP level = new_dw->getGrid()->getLevel(l);
