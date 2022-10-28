@@ -195,7 +195,6 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
       launchRayTraceKernel<T>(dtask, dimGrid, dimBlock, d_matl, levelP, patchP,
                               stream, RT_flags, timeStep, abskg_gdw,
                               sigmaT4_gdw, celltype_gdw,
-                              static_cast<GPUDataWarehouse*>(oldTaskGpuDW),
       			      static_cast<GPUDataWarehouse *>(newTaskGpuDW));
 
       double end = clock();
