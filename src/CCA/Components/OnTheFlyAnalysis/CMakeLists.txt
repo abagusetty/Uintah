@@ -11,6 +11,7 @@ set ( OTF_SRC
         planeAverage.cc
         planeExtract.cc
         statistics.cc
+	turbulentFluxes.cc
     )
 
 # Collect list of library dependencies
