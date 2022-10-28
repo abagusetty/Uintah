@@ -1,5 +1,4 @@
-/*
- * The MIT License
+/* The MIT License
  *
  * Copyright (c) 1997-2021 The University of Utah
  *
@@ -38,7 +37,7 @@
 
 #ifndef NO_EXAMPLES
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA)
 #  include <CCA/Components/Examples/UnifiedSchedulerTest.h>
 #endif
 
@@ -445,7 +444,7 @@ ApplicationFactory::create(       ProblemSpecP     & prob_spec
     turned_on_options += "wave ";
   }
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA)
   if (sim_comp == "unifiedschedulertest" || sim_comp == "UNIFIEDSCHEDULERTEST") {
     return scinew UnifiedSchedulerTest(myworld, materialManager);
   }
