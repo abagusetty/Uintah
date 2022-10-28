@@ -40,7 +40,7 @@
 
 #include <sci_defs/gpu_defs.h>
 
-#ifndef HAVE_CUDA
+#if !defined(__CUDA_ARCH__) || !defined(__HIP_DEVICE_COMPILE__)
   #include <string.h>
   #include <string>
 #endif
@@ -58,7 +58,7 @@ namespace Uintah {
 HOST_DEVICE void
 GPUDataWarehouse::get(const GPUGridVariableBase& var, char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   //device code
   GPUDataWarehouse::dataItem* item = getItem(label, patchID, matlIndx, levelIndx);
   if (item) {
@@ -88,7 +88,7 @@ GPUDataWarehouse::get(const GPUGridVariableBase& var, char const* label, const i
 HOST_DEVICE bool
 GPUDataWarehouse::stagingVarExists(char const* label, int patchID, int matlIndx, int levelIndx, const int3& offset, const int3& size)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   printError("This method not defined for the device.", "stagingVarExists", label, patchID, matlIndx, levelIndx);
   return false;
@@ -116,7 +116,7 @@ GPUDataWarehouse::stagingVarExists(char const* label, int patchID, int matlIndx,
 HOST_DEVICE void
 GPUDataWarehouse::getStagingVar(const GPUGridVariableBase& var, char const* label, int patchID, int matlIndx, int levelIndx, int3 offset, int3 size)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   printError("This method not defined for the device.", "getStagingVar", label, patchID, matlIndx, levelIndx);
 #else
@@ -152,7 +152,7 @@ GPUDataWarehouse::getStagingVar(const GPUGridVariableBase& var, char const* labe
 HOST_DEVICE void
 GPUDataWarehouse::getLevel(const GPUGridVariableBase& var, char const* label, int8_t matlIndx, int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   get(var, label, -99999999, matlIndx, levelIndx);
 #else
@@ -166,7 +166,7 @@ GPUDataWarehouse::getLevel(const GPUGridVariableBase& var, char const* label, in
 HOST_DEVICE void
 GPUDataWarehouse::get(const GPUReductionVariableBase& var, char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   GPUDataWarehouse::dataItem* item = getItem(label, patchID, matlIndx, levelIndx);
   if (item) {
@@ -195,7 +195,7 @@ GPUDataWarehouse::get(const GPUReductionVariableBase& var, char const* label, co
 HOST_DEVICE void
 GPUDataWarehouse::get(const GPUPerPatchBase& var, char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   GPUDataWarehouse::dataItem* item = getItem(label, patchID, matlIndx, levelIndx);
   if (item) {
@@ -224,7 +224,7 @@ GPUDataWarehouse::get(const GPUPerPatchBase& var, char const* label, const int p
 HOST_DEVICE void
 GPUDataWarehouse::getModifiable(GPUGridVariableBase& var, char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   GPUDataWarehouse::dataItem* item = getItem(label, patchID, matlIndx, levelIndx);
   if (item) {
@@ -253,7 +253,7 @@ GPUDataWarehouse::getModifiable(GPUGridVariableBase& var, char const* label, con
 HOST_DEVICE void
 GPUDataWarehouse::getModifiable(GPUReductionVariableBase& var, char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   GPUDataWarehouse::dataItem* item = getItem(label, patchID,  matlIndx, levelIndx);
   if (item) {
@@ -282,7 +282,7 @@ GPUDataWarehouse::getModifiable(GPUReductionVariableBase& var, char const* label
 HOST_DEVICE void
 GPUDataWarehouse::getModifiable(GPUPerPatchBase& var, char const* label, const int patchID, const int8_t matlIndx, const int8_t levelIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // device code
   GPUDataWarehouse::dataItem* item = getItem(label, patchID, matlIndx, levelIndx);
   if (item) {
@@ -1065,7 +1065,7 @@ __host__ void
 GPUDataWarehouse::putContiguous(GPUGridVariableBase &var, const char* indexID, char const* label, int patchID, int matlIndx, int levelIndx, bool staging, int3 low, int3 high, size_t sizeOfDataType, GridVariableBase* gridVar, bool stageOnHost)
 {
 /*
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   //Should not put from device side as all memory allocation should be done on CPU side through CUDAMalloc()
 #else
 
@@ -1157,7 +1157,7 @@ __host__ void
 GPUDataWarehouse::allocate(const char* indexID, size_t size)
 {
 /*
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   // Should not put from device side as all memory allocation should be done on CPU side through CUDAMalloc()
 #else
   if (size == 0) {
@@ -1209,7 +1209,7 @@ GPUDataWarehouse::allocate(const char* indexID, size_t size)
 __host__ void
 GPUDataWarehouse::copyHostContiguousToHost(GPUGridVariableBase& device_var, GridVariableBase* host_var, char const* label, int patchID, int matlIndx, int levelIndx) {
 /*
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   //Should not called from device side as all memory allocation should be done on CPU side through CUDAMalloc()
 #else
   //see if this datawarehouse has anything for this patchGroupID.
@@ -1973,7 +1973,7 @@ GPUDataWarehouse::putMaterials( std::vector< std::string > materials)
 HOST_DEVICE int
 GPUDataWarehouse::getNumMaterials() const
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   return d_numMaterials;
 #else
   //I don't know if it makes sense to write this for the host side, when it already exists elsewhere host side.
@@ -1986,7 +1986,7 @@ GPUDataWarehouse::getNumMaterials() const
 HOST_DEVICE materialType
 GPUDataWarehouse::getMaterial(int i) const
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   if (i >= d_numMaterials) {
     printf("ERROR: Attempting to access material past bounds\n");
     assert(0);
@@ -3389,7 +3389,7 @@ __host__ void GPUDataWarehouse::setSuperPatchLowAndSize(char const* const label,
 __device__ void
 GPUDataWarehouse::print()
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   __syncthreads();
   if( isThread0_Blk0() ){
     printf("\nVariables in GPUDataWarehouse\n");
@@ -3413,7 +3413,7 @@ GPUDataWarehouse::print()
 HOST_DEVICE void
 GPUDataWarehouse::printError(const char* msg, const char* methodName, char const* label, const int patchID, int8_t matlIndx, int8_t levelIndx )
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   __syncthreads();
 
   if ( isThread0() ) {
@@ -3457,7 +3457,7 @@ GPUDataWarehouse::printError(const char* msg, const char* methodName, char const
 HOST_DEVICE void
 GPUDataWarehouse::printGetLevelError(const char* msg, char const* label, int8_t levelIndx, int8_t matlIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   __syncthreads();
 
   if ( isThread0() ) {
@@ -3486,7 +3486,7 @@ GPUDataWarehouse::printGetLevelError(const char* msg, char const* label, int8_t 
 HOST_DEVICE void
 GPUDataWarehouse::printGetError(const char* msg, char const* label, int8_t levelIndx, const int patchID, int8_t matlIndx)
 {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   __syncthreads();
 
   if ( isThread0() ) {
