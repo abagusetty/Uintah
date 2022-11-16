@@ -1,6 +1,11 @@
 #!/bin/bash
 
-module load cmake PrgEnv-cray
+#module unload craype-accel-amd-gfx90a
+#module load PrgEnv-amd
+#module load rocm
+#module load cray-libsci
+#module load cmake
+module load openblas/0.3.17
 module -t list
 
 rm -rf build
