@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#module unload craype-accel-amd-gfx90a
-#module load PrgEnv-amd
-#module load rocm
-#module load cray-libsci
-#module load cmake
+module unload craype-accel-amd-gfx90a
+module load PrgEnv-amd
+module load rocm
+module unload cray-libsci
+module load cmake
 module load openblas/0.3.17
 module -t list
 
