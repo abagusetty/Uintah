@@ -1489,27 +1489,27 @@ void GPUDataWarehouse::clear() {
   for (auto varIter : varPointers) {
     // clear out all the staging vars, if any
     std::map<stagingVar, stagingVarInfo>::iterator stagingIter;
-    for (auto stagingIter : varIter->second.var->stagingVars) {
+    for (auto stagingIter : varIter.second.var->stagingVars) {
       if (compareAndSwapDeallocating(
-              stagingIter->second.atomicStatusInGpuMemory)) {
+              stagingIter.second.atomicStatusInGpuMemory)) {
         // The counter hit zero, so lets deallocate the var.
 
-        if (memPool.freeGpuSpaceToPool(d_device_id, stagingIter->second.device_ptr, stagingIter->second.sizeInBytesDevicePtr)) {
-          stagingIter->second.device_ptr = nullptr;
-          stagingIter->second.device_ptr = nullptr;
-          compareAndSwapDeallocate(stagingIter->second.atomicStatusInGpuMemory);
+        if (memPool.freeGpuSpaceToPool(d_device_id, stagingIter.second.device_ptr, stagingIter.second.sizeInBytesDevicePtr)) {
+          stagingIter.second.device_ptr = nullptr;
+          stagingIter.second.device_ptr = nullptr;
+          compareAndSwapDeallocate(stagingIter.second.atomicStatusInGpuMemory);
         } else {
           printf("ERROR:\nGPUDataWarehouse::clear(), for a staging variable, "
                  "couldn't find in the GPU memory pool the space starting at "
                  "address %p\n",
-                 stagingIter->second.device_ptr);
+                 stagingIter.second.device_ptr);
           varLock->unlock();
           exit(-1);
         }
       }
     }
 
-    varIter->second.var->stagingVars.clear();
+    varIter.second.var->stagingVars.clear();
 
     // clear out the regular vars
 
@@ -1517,19 +1517,19 @@ void GPUDataWarehouse::clear() {
     // non-staging var had a device_ptr of nullptr, and it was only in the
     // varPointers map to only hold staging vars
     if (compareAndSwapDeallocating(
-            varIter->second.var->atomicStatusInGpuMemory)) {
-      if (varIter->second.var->device_ptr) {
+            varIter.second.var->atomicStatusInGpuMemory)) {
+      if (varIter.second.var->device_ptr) {
 
         if (memPool.freeGpuSpaceToPool(
-                d_device_id, varIter->second.var->device_ptr)) {
-          varIter->second.var->device_ptr = nullptr;
+                d_device_id, varIter.second.var->device_ptr)) {
+          varIter.second.var->device_ptr = nullptr;
           compareAndSwapDeallocate(
-              varIter->second.var->atomicStatusInGpuMemory);
+              varIter.second.var->atomicStatusInGpuMemory);
         } else {
           printf("ERROR:\nGPUDataWarehouse::clear(), for a non-staging "
                  "variable, couldn't find in the GPU memory pool the space "
                  "starting at address %p\n",
-                 varIter->second.var->device_ptr);
+                 varIter.second.var->device_ptr);
           varLock->unlock();
           exit(-1);
         }
@@ -2072,7 +2072,7 @@ bool GPUDataWarehouse::areAllStagingVarsValid(char const *label, int patchID,
       varPointers->find(lpml);
   if (it != varPointers->end()) {
     for (auto staging_it : it->second.var->stagingVars) {
-      if (!checkValid(staging_it->second.atomicStatusInGpuMemory)) {
+      if (!checkValid(staging_it.second.atomicStatusInGpuMemory)) {
         varLock->unlock();
         return false;
       }
