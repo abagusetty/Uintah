@@ -1486,7 +1486,7 @@ void GPUDataWarehouse::clear() {
   varLock->lock();
 
   auto& memPool = GPUMemoryPool::getInstance();
-  for (auto varIter : varPointers) {
+  for (auto varIter : *varPointers) {
     // clear out all the staging vars, if any
     std::map<stagingVar, stagingVarInfo>::iterator stagingIter;
     for (auto stagingIter : varIter.second.var->stagingVars) {
@@ -1521,7 +1521,7 @@ void GPUDataWarehouse::clear() {
       if (varIter.second.var->device_ptr) {
 
         if (memPool.freeGpuSpaceToPool(
-                d_device_id, varIter.second.var->device_ptr)) {
+                d_device_id, varIter.second.var->device_ptr, varIter.second.var->sizeInBytesDevicePtr)) {
           varIter.second.var->device_ptr = nullptr;
           compareAndSwapDeallocate(
               varIter.second.var->atomicStatusInGpuMemory);
