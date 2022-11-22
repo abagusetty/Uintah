@@ -771,76 +771,32 @@ void DetailedTask::setGpuStreamForThisTask(int device_id, gpuStream_t *stream) {
 
 void DetailedTask::clearGpuStreamsForThisTask() { d_gpuStreams.clear(); }
 
-bool DetailedTask::checkGpuStreamDoneForThisTask(
-    int device_id, gpuStream_t* taskGpuStream) const {
-  OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
-
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
-  // sets the GPU,HIP context, for the call to gpu/hipEventQuery()
-  gpuError_t retVal;
-  retVal = gpuStreamQuery(*taskGpuStream);
-  if (retVal == gpuSuccess) {
-    return true;
-  } else if (retVal == gpuErrorNotReady) {
-    return false;
-  } else if (retVal == gpuErrorLaunchFailure) {
-    printf("ERROR! - DetailedTask::checkGpuStreamDoneForThisTask(%d) - GPU "
-           "kernel execution failure on Task: %s\n",
-           device_id, getName().c_str());
-    SCI_THROW(InternalError("Detected GPU kernel execution failure on Task: " +
-                                getName(),
-                            __FILE__, __LINE__));
-    return false;
-  } else { // other error
-    printf("\nA GPU error occurred with error code %d.\n\nWaiting for 60 "
-           "seconds\n",
-           retVal);
-
-    int sleepTime = 60;
-
-    struct timespec ts;
-    ts.tv_sec = (int)sleepTime;
-    ts.tv_nsec = (int)(1.e9 * (sleepTime - ts.tv_sec));
-
-    nanosleep(&ts, &ts);
-
-    GPU_RT_SAFE_CALL(retVal);
-    return false;
-  }
-
-#elif defined(HAVE_SYCL)
-
-  taskGpuStream->wait();
-  return true;
-
-  // auto eventStat = (it->second)->ext_oneapi_submit_barrier();
-  // if (eventStat.get_info<sycl::info::event::command_execution_status>() ==
-  //     sycl::info::event_command_status::submitted) {
-  //   return true;
-  // } else {
-  //   return false;
-  // }
-#endif
-}
-
 //_____________________________________________________________________________
 //
+
 bool DetailedTask::checkAllGpuStreamsDoneForThisTask() const {
   // A task can have multiple streams (such as an output task pulling from
   // multiple GPUs). Check all streams to see if they are done.  If any one
   // stream isn't done, return false.  If nothing returned false, then they all
   // must be good to go.
-
-  bool retVal = false;
-
-  for (auto it = d_gpuStreams.cbegin(); it != d_gpuStreams.cend(); ++it) {
-    retVal = checkGpuStreamDoneForThisTask(it->first, it->second);
-    if (retVal == false) {
-      return retVal;
+#ifdef HAVE_SYCL
+  for (auto it = d_gpuEvents.cbegin(); it != d_gpuEvents.cend(); ++it) {
+    if (it->second.get_info<sycl::info::event::command_execution_status>() !=
+        sycl::info::event_command_status::completed) {
+      return false;
     }
   }
-
   return true;
+#else
+  for (auto it = d_gpuStreams.cbegin(); it != d_gpuStreams.cend(); ++it) {
+    OnDemandDataWarehouse::uintahSetGpuDevice(it->first);
+    gpuError_t retVal = gpuStreamQuery(*(it->second));
+    if (retVal != gpuSuccess) {
+      return false;
+    }
+  }
+  return true;
+#endif
 }
 
 //_____________________________________________________________________________

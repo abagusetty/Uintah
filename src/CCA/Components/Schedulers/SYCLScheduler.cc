@@ -153,35 +153,35 @@ void thread_fence() {
 
 //______________________________________________________________________
 // only called by main thread
-void init_threads(SYCLScheduler *sched, int num_threads) {
-  // we now need to refer to the total number of active threads (set in
-  // Uintah::Parallel, i.e., num_threads + 1)
-  g_num_threads = num_threads + 1;
+// void init_threads(SYCLScheduler *sched, int num_threads) {
+//   // we now need to refer to the total number of active threads (set in
+//   // Uintah::Parallel, i.e., num_threads + 1)
+//   g_num_threads = num_threads + 1;
 
-  for (int i = 0; i < g_num_threads; ++i) {
-    g_thread_states[i] = ThreadState::Active;
-    g_cpu_affinities[i] = i;
-  }
+//   for (int i = 0; i < g_num_threads; ++i) {
+//     g_thread_states[i] = ThreadState::Active;
+//     g_cpu_affinities[i] = i;
+//   }
 
-  // set main thread's affinity and tid, core-0 and tid-0, respectively
-  set_affinity(g_cpu_affinities[0]);
-  t_tid = 0;
+//   // set main thread's affinity and tid, core-0 and tid-0, respectively
+//   set_affinity(g_cpu_affinities[0]);
+//   t_tid = 0;
 
-  // TaskRunner threads start at g_runners[1], and std::threads start at
-  // g_threads[1]
-  for (int i = 1; i < g_num_threads; ++i) {
-    g_runners[i] = new SYCLSchedulerWorker(sched, i, g_cpu_affinities[i]);
-    Impl::g_threads.push_back(std::thread(thread_driver, i));
-  }
+//   // TaskRunner threads start at g_runners[1], and std::threads start at
+//   // g_threads[1]
+//   for (int i = 1; i < g_num_threads; ++i) {
+//     g_runners[i] = new SYCLSchedulerWorker(sched, i, g_cpu_affinities[i]);
+//     Impl::g_threads.push_back(std::thread(thread_driver, i));
+//   }
 
-  for (auto &t : Impl::g_threads) {
-    if (t.joinable()) {
-      t.detach();
-    }
-  }
+//   for (auto &t : Impl::g_threads) {
+//     if (t.joinable()) {
+//       t.detach();
+//     }
+//   }
 
-  thread_fence();
-}
+//   thread_fence();
+// }
 
 } // namespace
 } // namespace Impl
@@ -397,8 +397,8 @@ void SYCLScheduler::problemSetup(const ProblemSpecP &prob_spec,
     }
   }
 
-  // this spawns threads, sets affinity, etc
-  init_threads(this, num_threads);
+  // // this spawns threads, sets affinity, etc
+  // init_threads(this, num_threads);
 }
 
 //______________________________________________________________________
@@ -567,7 +567,6 @@ void SYCLScheduler::execute(int tgnum, int iteration) {
   }
 
   m_mpi_info.reset(0);
-  m_thread_info.reset(0);
 
   m_num_tasks_done = 0;
   m_abort = false;
@@ -1530,6 +1529,7 @@ void SYCLScheduler::turnIntoASuperPatch(
 // seen to have completed then they can get marked as being "allocated", "copied-in"
 // , or "copied-in with ghosts".
 
+// TODO:(To remove) It also manages concurrency so that no two threads could process the same task
 void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
 
   const Task *task = dtask->getTask();
@@ -1645,81 +1645,26 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
       } else {
         memSize = host_size.x() * host_size.y() * host_size.z() * elementDataSize;
       }
+    }
+    if (!patch) {
+      SCI_THROW( InternalError("SYCLScheduler::initiateD2H() patch not found.", __FILE__, __LINE__));
+    }
+    const int matlID = varIter->first.m_matlIndex;
+    int levelID = level->getID();
+    if (curDependency->m_var->typeDescription()->getType() == TypeDescription::ReductionVariable) {
+      levelID = -1;
+    }
 
-      // Set up/get status flags
-      // Start by checking if an entry doesn't exist in the GPU data warehouse.
-      // If so, create one.
-      gpudw->putUnallocatedIfNotExists(
-          curDependency->m_var->getName().c_str(), patchID, matlID, levelID,
-          false, make_int3(low.x(), low.y(), low.z()),
-          make_int3(host_size.x(), host_size.y(), host_size.z()));
+    const int deviceIndex = GpuUtilities::getGpuIndexForPatch(patch);
 
-      bool correctSize = false;
-      bool allocating = false;
-      bool allocated = false;
-      bool copyingIn = false;
-      bool validOnGPU = false;
-      bool gatheringGhostCells = false;
-      bool validWithGhostCellsOnGPU = false;
-      bool deallocating = false;
-      bool formingSuperPatch = false;
-      bool superPatch = false;
+    // For this dependency, get its CPU Data Warehouse and GPU Datawarehouse.
+    const int dwIndex = curDependency->mapDataWarehouse();
+    OnDemandDataWarehouseP dw = m_dws[dwIndex];
+    GPUDataWarehouse *gpudw = dw->getGPUDW(deviceIndex);
 
-      gpudw->getStatusFlagsForVariableOnGPU(
-          correctSize, allocating, allocated, copyingIn, validOnGPU,
-          gatheringGhostCells, validWithGhostCellsOnGPU, deallocating,
-          formingSuperPatch, superPatch,
-          curDependency->m_var->getName().c_str(), patchID, matlID, levelID,
-          make_int3(low.x(), low.y(), low.z()),
-          make_int3(host_size.x(), host_size.y(), host_size.z()));
-
-      if (curDependency->m_dep_type == Task::Requires) {
-
-        // For any variable, only ONE task should manage all ghost cells for it.
-        // It is a giant mess to try and have two tasks simultaneously managing
-        // ghost cells for a single var. So if ghost cells are required, attempt
-        // to claim that we're the ones going to manage ghost cells This changes
-        // a var's status to valid awaiting ghost data if this task claims
-        // ownership of managing ghost cells Otherwise the var's status is left
-        // alone (perhaps the ghost cells were already processed by another task
-        // a while ago)
-        bool gatherGhostCells = false;
-        if (curDependency->m_gtype != Ghost::None && curDependency->m_num_ghost_cells > 0) {
-
-          if (uses_SHRT_MAX) {
-            // Turn this into a superpatch if not already done so:
-            turnIntoASuperPatch(gpudw, level, low, high, curDependency->m_var,
-                                patch, matlID, levelID);
-
-            // At the moment superpatches are gathered together through an
-            // upcoming getRegionModifiable() call.  So we still need to mark it
-            // as AWAITING_GHOST_CELLS. It should trigger as one of the simpler
-            // scenarios below where it knows it can gather the ghost cells
-            // host-side before sending it into GPU memory.
-          }
-
-          // See if we get to be the lucky thread that processes all ghost cells
-          // for this simulation variable
-          gatherGhostCells = gpudw->compareAndSwapAwaitingGhostDataOnGPU(
-              curDependency->m_var->getName().c_str(), patchID, matlID,
-              levelID);
-        }
-
-        if ((allocating || allocated) && correctSize && (copyingIn || validOnGPU)) {
-          // This variable exists or soon will exist on the destination.  So the
-          // non-ghost cell part of this variable doesn't need any more work.
-
-          // Queue it to be added to this tasks's TaskDW.
-          // It's possible this variable data already was queued to be sent in
-          // due to this patch being a ghost cell region of another patch So
-          // just double check to prevent duplicates.
-          if (!dtask->getTaskVars().varAlreadyExists(
-                  curDependency->m_var, patch, matlID, levelID,
-                  curDependency->mapDataWarehouse())) {
-            dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
-                                                 elementDataSize, curDependency,
-                                                 deviceIndex);
-          }
+    // a fix for when INF ghost cells are requested such as in RMCRT e.g.
+    // tsk->requires(abskg_dw, d_abskgLabel, gac, SHRT_MAX);
+    bool uses_SHRT_MAX = (curDependency->m_num_ghost_cells == SHRT_MAX);
 
           if (gatherGhostCells) {
             // The variable's space exists or will soon exist on the GPU.  Now
@@ -2038,76 +1983,409 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
             // Also queue that this GPU DW var should also be found in this
             // tasks's Task DW.
 
-            dtask->getDeviceVars().add(
-                patch, matlID, levelID, false, host_size, memSize,
-                elementDataSize, low, curDependency, curDependency->m_gtype,
-                curDependency->m_num_ghost_cells, deviceIndex, nullptr,
-                GpuUtilities::sameDeviceSameMpiRank);
-            dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
-                                                 elementDataSize, curDependency,
-                                                 deviceIndex);
+      if ((allocating || allocated) && correctSize && (copyingIn || validOnGPU)) {
+	// This variable exists or soon will exist on the destination.  So the
+	// non-ghost cell part of this variable doesn't need any more work.
 
-            // Mark that when this variable is copied in, it will have its ghost
-            // cells ready too.
-            if (gatherGhostCells) {
-              dtask->getVarsToBeGhostReady().addVarToBeGhostReady(
-                  dtask->getName(), patch, matlID, levelID, curDependency,
-                  deviceIndex);
-            }
-          } else if (type == TypeDescription::PerPatch ||
-                     type == TypeDescription::ReductionVariable) {
-            if (type == TypeDescription::ReductionVariable) levelID = -1;
+	// Queue it to be added to this tasks's TaskDW.
+	// It's possible this variable data already was queued to be sent in
+	// due to this patch being a ghost cell region of another patch So
+	// just double check to prevent duplicates.
+	if (!dtask->getTaskVars().varAlreadyExists(
+						   curDependency->m_var, patch, matlID, levelID,
+						   curDependency->mapDataWarehouse())) {
+	  dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
+					       elementDataSize, curDependency,
+					       deviceIndex);
+	}
 
-            dtask->getDeviceVars().add(patch, matlID, levelID, elementDataSize,
-                                       elementDataSize, curDependency,
-                                       deviceIndex, nullptr,
-                                       GpuUtilities::sameDeviceSameMpiRank);
-            dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
-                                                 elementDataSize, curDependency,
-                                                 deviceIndex);
-          } else {
-            std::cerr << "SYCLScheduler::initiateH2D(), unsupported "
-                         "variable type for computes variable "
-                      << curDependency->m_var->getName() << std::endl;
-          }
-        }
-      } else if (curDependency->m_dep_type == Task::Computes) {
-        // compute the amount of space the host needs to reserve on the GPU for
-        // this variable.
+	if (gatherGhostCells) {
+	  // The variable's space exists or will soon exist on the GPU.  Now
+	  // copy in any ghost cells into the GPU and let the GPU handle the
+	  // ghost cell copying logic.
 
-        if (type == TypeDescription::PerPatch ||
-            type == TypeDescription::ReductionVariable) {
-          // For PerPatch, it's not a mesh of variables, it's just a single
-          // variable, so elementDataSize is the memSize.
+	  // Indicate to the scheduler later on that this variable can be
+	  // marked as valid with ghost cells.
+	  dtask->getVarsToBeGhostReady().addVarToBeGhostReady(
+							      dtask->getName(), patch, matlID, levelID, curDependency,
+							      deviceIndex);
 
-          // For ReductionVariable, it's not a mesh of variables, it's just a
-          // single variable, so elementDataSize is the memSize.
+	  std::vector<OnDemandDataWarehouse::ValidNeighbors> validNeighbors;
+	  dw->getValidNeighbors(
+				curDependency->m_var, matlID, patch, curDependency->m_gtype,
+				curDependency->m_num_ghost_cells, validNeighbors);
+	  for (auto iter : validNeighbors) {
 
-          dtask->getDeviceVars().add(
-            patch, matlID, levelID, memSize, elementDataSize, curDependency,
-            deviceIndex, nullptr, GpuUtilities::sameDeviceSameMpiRank);
-        } else if (type == TypeDescription::CCVariable ||
-                   type == TypeDescription::NCVariable ||
-                   type == TypeDescription::SFCXVariable ||
-                   type == TypeDescription::SFCYVariable ||
-                   type == TypeDescription::SFCZVariable) {
+	    const Patch *sourcePatch = nullptr;
+	    if (iter->neighborPatch->getID() >= 0) {
+	      sourcePatch = iter->neighborPatch;
+	    } else {
+	      // This occurs on virtual patches.  They can be "wrap around"
+	      // patches, meaning if you go to one end of a domain you will
+	      // show up on the other side.  Virtual patches have negative
+	      // patch IDs, but they know what real patch they are referring
+	      // to.
+	      sourcePatch = iter->neighborPatch->getRealPatch();
+	    }
 
-          dtask->getDeviceVars().add(
-            patch, matlID, levelID, false, host_size, memSize,
-            elementDataSize, low, curDependency, curDependency->m_gtype,
-            curDependency->m_num_ghost_cells, deviceIndex, nullptr,
-            GpuUtilities::sameDeviceSameMpiRank);
-        } else {
-          std::cerr << "SYCLScheduler::initiateH2D(), unsupported variable "
-            "type for computes variable "
-                    << curDependency->m_var->getName() << std::endl;
-        }
+	    IntVector ghost_host_low(0, 0, 0), ghost_host_high(0, 0, 0),
+	      ghost_host_size(0, 0, 0);
+	    IntVector ghost_host_offset(0, 0, 0), ghost_host_strides(0, 0, 0);
 
-        dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
-                                             elementDataSize, curDependency,
-                                             deviceIndex);
+	    IntVector virtualOffset = iter->neighborPatch->getVirtualOffset();
 
+	    int sourceDeviceNum = GpuUtilities::getGpuIndexForPatch(sourcePatch);
+	    int destDeviceNum = deviceIndex;
+
+	    // Find out who has our ghost cells.  Listed in priority...
+	    // It could be in the GPU as a staging/foreign var
+	    // Or in the GPU as a full variable
+	    // Or in the CPU as a foreign var
+	    // Or in the CPU as a regular variable
+	    bool useGpuStaging = false;
+	    bool useGpuGhostCells = false;
+	    bool useCpuForeign = false;
+	    bool useCpuGhostCells = false;
+
+	    // See if it's in the GPU as a staging/foreign var
+	    useGpuStaging = gpudw->stagingVarExists(
+						    curDependency->m_var->getName().c_str(), patchID, matlID,
+						    levelID,
+						    make_int3(iter->low.x(), iter->low.y(), iter->low.z()),
+						    make_int3(iter->high.x() - iter->low.x(),
+							      iter->high.y() - iter->low.y(),
+							      iter->high.z() - iter->low.z()));
+
+	    // See if we have the entire neighbor patch in the GPU (not just a
+	    // staging)
+	    useGpuGhostCells =
+	      gpudw->isValidOnGPU(curDependency->m_var->getName().c_str(),
+				  sourcePatch->getID(), matlID, levelID);
+
+	    // See if we have CPU foreign var data or just the plain CPU
+	    // variable we can use Note: We don't have a full system in place
+	    // to set valid all CPU variables.  Specifically foreign variables
+	    // are not set, and so the line below is commented out.  In the
+	    // meantime assume that if it's not on the GPU, it must be on the
+	    // CPU. if
+	    // (gpudw->isValidOnCPU(curDependency->m_var->getName().c_str(),
+	    // sourcePatch->getID(), matlID, levelID)) {
+	    if (iter->validNeighbor && iter->validNeighbor->isForeign()) {
+	      useCpuForeign = true;
+	    } else {
+	      useCpuGhostCells = true;
+	    }
+	    //}
+
+	    // get the sizes of the source variable
+	    if (useGpuStaging) {
+	      ghost_host_low = iter->low;
+	      ghost_host_high = iter->high;
+	      ghost_host_size = ghost_host_high - ghost_host_low;
+	    } else if (useGpuGhostCells) {
+	      GPUDataWarehouse::GhostType throwaway1;
+	      int throwaway2;
+	      sycl::int3 ghost_host_low3, ghost_host_high3, ghost_host_size3;
+
+	      gpudw->getSizes(ghost_host_low3, ghost_host_high3,
+			      ghost_host_size3, throwaway1, throwaway2,
+			      curDependency->m_var->getName().c_str(),
+			      patchID, matlID, levelID);
+
+	      ghost_host_low =
+		IntVector(ghost_host_low3.x(), ghost_host_low3.y(),
+			  ghost_host_low3.z());
+	      ghost_host_high =
+		IntVector(ghost_host_high3.x(), ghost_host_high3.y(),
+			  ghost_host_high3.z());
+	      ghost_host_size =
+		IntVector(ghost_host_size3.x(), ghost_host_size3.y(),
+			  ghost_host_size3.z());
+
+	    } else if (useCpuForeign || useCpuGhostCells) {
+	      iter->validNeighbor->getSizes(
+					    ghost_host_low, ghost_host_high, ghost_host_offset,
+					    ghost_host_size, ghost_host_strides);
+	    }
+	    const std::size_t ghost_mem_size =
+	      ghost_host_size.x() * ghost_host_size.y() *
+	      ghost_host_size.z() * elementDataSize;
+
+	    if (useGpuStaging) {
+
+	      // Make sure this task GPU DW knows about the staging var
+	      dtask->getTaskVars().addTaskGpuDWStagingVar(
+							  patch, matlID, levelID, iter->low, iter->high - iter->low,
+							  elementDataSize, curDependency, destDeviceNum);
+
+	      // Assume for now that the ghost cell region is also the exact
+	      // same size as the staging var.  (If in the future ghost cell
+	      // data is managed a bit better as it currently does on the CPU,
+	      // then some ghost cell regions will be found *within* an
+	      // existing staging var.  This is known to happen with Wasatch
+	      // computations involving periodic boundary scenarios.)
+	      dtask->getGhostVars().add(
+					curDependency->m_var, patch,
+					patch, /*We're merging the staging variable on in*/
+					matlID, levelID, true, false,
+					iter->low, /*Assuming ghost cell region is the variable size*/
+					IntVector(iter->high.x() - iter->low.x(),
+						  iter->high.y() - iter->low.y(),
+						  iter->high.z() - iter->low.z()),
+					iter->low, iter->high, elementDataSize,
+					curDependency->m_var->typeDescription()
+					->getSubType()
+					->getType(),
+					virtualOffset, destDeviceNum, destDeviceNum, -1,
+					-1, /* we're copying within a device, so destDeviceNum ->
+					       destDeviceNum */
+					(Task::WhichDW)curDependency->mapDataWarehouse(),
+					GpuUtilities::sameDeviceSameMpiRank);
+
+	    } else if (useGpuGhostCells) {
+	      // If this task doesn't own this source patch, then we need to
+	      // make sure the upcoming task data warehouse at least has
+	      // knowledge of this GPU variable that already exists in the
+	      // GPU.  So queue up to load the neighbor patch metadata into
+	      // the task datawarehouse.
+	      if (!patches->contains(sourcePatch)) {
+		if (!(dtask->getTaskVars().varAlreadyExists(
+							    curDependency->m_var, sourcePatch, matlID, levelID,
+							    (Task::WhichDW)curDependency->mapDataWarehouse()))) {
+		  dtask->getTaskVars().addTaskGpuDWVar(
+						       sourcePatch, matlID, levelID, elementDataSize,
+						       curDependency, sourceDeviceNum);
+		}
+	      }
+
+	      // Store the source and destination patch, and the range of the
+	      // ghost cells A GPU kernel will use this collection to do all
+	      // internal GPU ghost cell copies for that one specific GPU.
+	      dtask->getGhostVars().add(
+					curDependency->m_var, sourcePatch, patch, matlID, levelID,
+					false, false, ghost_host_low, ghost_host_size, iter->low,
+					iter->high, elementDataSize,
+					curDependency->m_var->typeDescription()
+					->getSubType()
+					->getType(),
+					virtualOffset, destDeviceNum, destDeviceNum, -1,
+					-1, /* we're copying within a device, so destDeviceNum ->
+					       destDeviceNum */
+					(Task::WhichDW)curDependency->mapDataWarehouse(),
+					GpuUtilities::sameDeviceSameMpiRank);
+	    } else if (useCpuForeign) {
+
+	      // Prepare to tell the host-side GPU DW to allocate space for
+	      // this variable. Since we already got the gridVariableBase
+	      // pointer to that foreign var, go ahead and add it in here.
+	      // (The OnDemandDataWarehouse is weird, it doesn't let you query
+	      // foreign vars, it will try to inflate a regular var and deep
+	      // copy the foreign var on in.  So for now, just pass in the
+	      // pointer.)
+	      dtask->getDeviceVars().add(
+					 sourcePatch, matlID, levelID, true, ghost_host_size,
+					 ghost_mem_size, elementDataSize, ghost_host_low,
+					 curDependency, Ghost::None, 0, destDeviceNum,
+					 iter->validNeighbor, GpuUtilities::sameDeviceSameMpiRank);
+
+	      // Let this Task GPU DW know about this staging array.  We may
+	      // end up not needed it if another thread processes it or it
+	      // became part of a superpatch.  We'll figure that out later
+	      // when we go actually add it.
+	      dtask->getTaskVars().addTaskGpuDWStagingVar(
+							  sourcePatch, matlID, levelID, ghost_host_low,
+							  ghost_host_size, elementDataSize, curDependency,
+							  sourceDeviceNum);
+
+	      dtask->getGhostVars().add(
+					curDependency->m_var, sourcePatch, patch, matlID, levelID,
+					true, false, ghost_host_low, ghost_host_size, iter->low,
+					iter->high, elementDataSize,
+					curDependency->m_var->typeDescription()
+					->getSubType()
+					->getType(),
+					virtualOffset, destDeviceNum, destDeviceNum, -1,
+					-1, /* we're copying within a device, so destDeviceNum ->
+					       destDeviceNum */
+					(Task::WhichDW)curDependency->mapDataWarehouse(),
+					GpuUtilities::sameDeviceSameMpiRank);
+
+	    } else if (useCpuGhostCells) {
+	      // This handles the scenario where the variable is in the GPU,
+	      // but the ghost cell data is only found in the neighboring
+	      // normal patch (non-foreign) in host memory.  Ghost cells
+	      // haven't been gathered in or started to be gathered in.
+
+	      // Check if we should copy this patch into the GPU.
+
+	      // TODO: Instead of copying the entire patch for a ghost cell,
+	      // we should just create a foreign var, copy a contiguous array
+	      // of ghost cell data into that foreign var, then copy in that
+	      // foreign var.  If it's a foreign var, then the foreign var
+	      // section above should handle it, not here.
+	      if (!dtask->getDeviceVars().varAlreadyExists(
+							   curDependency->m_var, sourcePatch, matlID, levelID,
+							   curDependency->mapDataWarehouse())) {
+		// Prepare to tell the host-side GPU DW to possibly allocate
+		// and/or copy this variable.
+		dtask->getDeviceVars().add(
+					   sourcePatch, matlID, levelID, false, ghost_host_size,
+					   ghost_mem_size, elementDataSize, ghost_host_low,
+					   curDependency, Ghost::None, 0, destDeviceNum, nullptr,
+					   GpuUtilities::sameDeviceSameMpiRank);
+
+		// Prepare this task GPU DW for knowing about this variable on
+		// the GPU.
+		dtask->getTaskVars().addTaskGpuDWVar(
+						     sourcePatch, matlID, levelID, elementDataSize,
+						     curDependency, destDeviceNum);
+
+	      } else { // else the variable is already in deviceVars
+	      }
+
+	      // Add in info to perform a GPU ghost cell copy.  (It will
+	      // ensure duplicates can't be entered.)
+	      dtask->getGhostVars().add(
+					curDependency->m_var, sourcePatch, patch, matlID, levelID,
+					false, false, ghost_host_low, ghost_host_size, iter->low,
+					iter->high, elementDataSize,
+					curDependency->m_var->typeDescription()
+					->getSubType()
+					->getType(),
+					virtualOffset, destDeviceNum, destDeviceNum, -1,
+					-1, /* we're copying within a device, so destDeviceNum ->
+					       destDeviceNum */
+					(Task::WhichDW)curDependency->mapDataWarehouse(),
+					GpuUtilities::sameDeviceSameMpiRank);
+	    } else {
+	      SCI_THROW(InternalError(
+				      "Needed ghost cell data not found on the CPU or a GPU\n",
+				      __FILE__, __LINE__));
+	    }
+	  } // end neighbors for loop
+	}   // end if(gatherGhostCells)
       }
+      else if ((allocated || allocating) && !correctSize) {
+	// At the moment this isn't allowed. So it does an exit(-1).  There
+	// are two reasons for this. First, the current CPU system always
+	// needs to "resize" variables when ghost cells are required.
+	// Essentially the variables weren't created with room for ghost
+	// cells, and so room  needs to be created. This step can be somewhat
+	// costly (I've seen a benchmark where it took 5% of the total
+	// computation time). And at the moment this hasn't been coded to
+	// resize on the GPU.  It would require an additional step and
+	// synchronization to make it work.
+	// The second reason is with concurrency.  Suppose a patch that CPU
+	// thread A own needs ghost cells from a patch that CPU thread B owns.
+	// A can recognize that B's data is valid on the GPU, and so it stores
+	// for the future to copy B's data on in.  Meanwhile B notices it
+	// needs to resize.  So A could start trying to copy in B's ghost cell
+	// data while B is resizing its own data. I believe both issues can be
+	// fixed with proper checkpoints.  But in reality we shouldn't be
+	// resizing variables on the GPU, so this event should never happen.
+	gpudw->remove(curDependency->m_var->getName().c_str(), patchID,
+		      matlID, levelID);
+	std::cerr
+	  << "Resizing of GPU grid vars not implemented at this time.  "
+	  << "For the GPU, computes need to be declared with scratch "
+	  "computes to have room for ghost cells."
+	  << "Requested var of size (" << host_size.x() << ", "
+	  << host_size.y() << ", " << host_size.z() << ") "
+	  << "with offset (" << low.x() << ", " << low.y() << ", "
+	  << low.z() << ")" << std::endl;
+	exit(-1);
+
+      } else if ((!allocated && !allocating) ||
+		 ((allocated || allocating) && correctSize && !validOnGPU &&
+		  !copyingIn)) {
+
+	// It's either not on the GPU, or space exists on the GPU for it but
+	// it is invalid. Either way, gather all ghost cells host side (if
+	// needed), then queue the data to be copied in H2D.  If the data
+	// doesn't exist in the GPU, then the upcoming allocateAndPut will
+	// allocate space for it.  Otherwise if it does exist on the GPU, the
+	// upcoming allocateAndPut will notice that and simply configure it to
+	// reuse the pointer.
+
+	if (type == TypeDescription::CCVariable ||
+	    type == TypeDescription::NCVariable ||
+	    type == TypeDescription::SFCXVariable ||
+	    type == TypeDescription::SFCYVariable ||
+	    type == TypeDescription::SFCZVariable) {
+
+	  // Queue this CPU var to go into the host-side GPU DW.
+	  // Also queue that this GPU DW var should also be found in this
+	  // tasks's Task DW.
+
+	  dtask->getDeviceVars().add(
+				     patch, matlID, levelID, false, host_size, memSize,
+				     elementDataSize, low, curDependency, curDependency->m_gtype,
+				     curDependency->m_num_ghost_cells, deviceIndex, nullptr,
+				     GpuUtilities::sameDeviceSameMpiRank);
+	  dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
+					       elementDataSize, curDependency,
+					       deviceIndex);
+
+	  // Mark that when this variable is copied in, it will have its ghost
+	  // cells ready too.
+	  if (gatherGhostCells) {
+	    dtask->getVarsToBeGhostReady().addVarToBeGhostReady(
+								dtask->getName(), patch, matlID, levelID, curDependency,
+								deviceIndex);
+	  }
+	} else if (type == TypeDescription::PerPatch ||
+		   type == TypeDescription::ReductionVariable) {
+	  if (type == TypeDescription::ReductionVariable) levelID = -1;
+
+	  dtask->getDeviceVars().add(patch, matlID, levelID, elementDataSize,
+				     elementDataSize, curDependency,
+				     deviceIndex, nullptr,
+				     GpuUtilities::sameDeviceSameMpiRank);
+	  dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
+					       elementDataSize, curDependency,
+					       deviceIndex);
+	} else {
+	  std::cerr << "SYCLScheduler::initiateH2D(), unsupported "
+	    "variable type for computes variable "
+		    << curDependency->m_var->getName() << std::endl;
+	}
+      }
+    } else if (curDependency->m_dep_type == Task::Computes) {
+      // compute the amount of space the host needs to reserve on the GPU for
+      // this variable.
+
+      if (type == TypeDescription::PerPatch ||
+	  type == TypeDescription::ReductionVariable) {
+	// For PerPatch, it's not a mesh of variables, it's just a single
+	// variable, so elementDataSize is the memSize.
+
+	// For ReductionVariable, it's not a mesh of variables, it's just a
+	// single variable, so elementDataSize is the memSize.
+
+	dtask->getDeviceVars().add(
+				   patch, matlID, levelID, memSize, elementDataSize, curDependency,
+				   deviceIndex, nullptr, GpuUtilities::sameDeviceSameMpiRank);
+      } else if (type == TypeDescription::CCVariable ||
+		 type == TypeDescription::NCVariable ||
+		 type == TypeDescription::SFCXVariable ||
+		 type == TypeDescription::SFCYVariable ||
+		 type == TypeDescription::SFCZVariable) {
+
+	dtask->getDeviceVars().add(
+				   patch, matlID, levelID, false, host_size, memSize,
+				   elementDataSize, low, curDependency, curDependency->m_gtype,
+				   curDependency->m_num_ghost_cells, deviceIndex, nullptr,
+				   GpuUtilities::sameDeviceSameMpiRank);
+      } else {
+	std::cerr << "SYCLScheduler::initiateH2D(), unsupported variable "
+	  "type for computes variable "
+		  << curDependency->m_var->getName() << std::endl;
+      }
+
+      dtask->getTaskVars().addTaskGpuDWVar(patch, matlID, levelID,
+					   elementDataSize, curDependency,
+					   deviceIndex);
+
     }
   }
 
@@ -3986,9 +4264,9 @@ std::string SYCLScheduler::myRankThread() {
   return out.str();
 }
 
-void SYCLScheduler::init_threads(SYCLScheduler *sched, int num_threads) {
-  Impl::init_threads(sched, num_threads);
-}
+// void SYCLScheduler::init_threads(SYCLScheduler *sched, int num_threads) {
+//   Impl::init_threads(sched, num_threads);
+// }
 
 SYCLSchedulerWorker::SYCLSchedulerWorker(SYCLScheduler *scheduler, int tid,
                                          int affinity)

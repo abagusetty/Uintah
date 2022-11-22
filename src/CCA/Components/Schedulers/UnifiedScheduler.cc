@@ -5004,13 +5004,13 @@ void UnifiedScheduler::assignDevicesAndStreams(DetailedTask *dtask) {
     const Patch *patch = dtask->getPatches()->get(patchID);
     int gpuID = GpuUtilities::getGpuIndexForPatch(patch);
 
-    // TODO ABB: check if gpuID can be negative and a exit is necessary ??
     if (gpuID >= 0) {
-      // ABB: 06/21/22 support for multi-stream per task is removed since it is
-      // being used by just RMCRT (e.g., tsk->usesDevice(true, 4))
-      if (dtask->getGpuStreamForThisTask(gpuID) == nullptr) {
-        dtask->setGpuStreamForThisTask(
-            gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
+      // multi-Streams per Task are being used by RMCRT task only by setting
+      // usesDevice(true, 4) in Ray.cc
+      for (int i = 0; i < dtask->getTask()->maxStreamsPerTask(); i++) {
+	if (dtask->getGpuStreamForThisTask(gpuID) == nullptr) {
+	  dtask->setGpuStreamForThisTask(gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
+	}
       }
     } else {
       exit(-1);

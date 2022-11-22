@@ -360,7 +360,7 @@ void Ray::rayTraceDataOnionGPU(
       computeExtents(level_0, fineLevel, finePatch, maxLevels, new_dw, ROI_Lo,
                      ROI_Hi, regionLo, regionHi);
 
-// move everything into GPU vars
+      // move everything into GPU vars
 #ifndef HAVE_SYCL
       GPUIntVector fineLevel_ROI_Lo = GPUIntVector( make_int3(ROI_Lo.x(), ROI_Lo.y(), ROI_Lo.z()) );
       GPUIntVector fineLevel_ROI_Hi = GPUIntVector( make_int3(ROI_Hi.x(), ROI_Hi.y(), ROI_Hi.z()) );
@@ -372,10 +372,8 @@ void Ray::rayTraceDataOnionGPU(
         levelP[l].regionHi = GPUIntVector(make_int3(rhi.x(), rhi.y(), rhi.z()));
       }
 #else
-      sycl::int3 fineLevel_ROI_Lo =
-          sycl::int3(ROI_Lo.x(), ROI_Lo.y(), ROI_Lo.z());
-      sycl::int3 fineLevel_ROI_Hi =
-          sycl::int3(ROI_Hi.x(), ROI_Hi.y(), ROI_Hi.z());
+      sycl::int3 fineLevel_ROI_Lo = sycl::int3(ROI_Lo.x(), ROI_Lo.y(), ROI_Lo.z());
+      sycl::int3 fineLevel_ROI_Hi = sycl::int3(ROI_Hi.x(), ROI_Hi.y(), ROI_Hi.z());
 
       for (int l = 0; l < maxLevels; ++l) {
         IntVector rlo = regionLo[l];
@@ -406,8 +404,7 @@ void Ray::rayTraceDataOnionGPU(
 
       patchP.ID = finePatch->getID();
 
-      const unsigned int numCells =
-          (hi.x() - lo.x()) * (hi.y() - lo.y()) * (hi.z() - lo.z());
+      const unsigned int numCells = (hi.x() - lo.x()) * (hi.y() - lo.y()) * (hi.z() - lo.z());
 
       // Another tuning parameter.  It is very useful for flexibility and big
       // performance gains in production runs. This supports splitting up a
@@ -501,13 +498,11 @@ void Ray::rayTraceDataOnionGPU(
       dim3 dimGrid(1, 1, 1);
 
       // The number of streams defines how many kernels per patch we run
-      //  ABB: given that only 1 kernel is  assigned per Task now
-      unsigned short numKernels = 1; // dtask->getTask()->maxStreamsPerTask();
+      dtask->getTask()->maxStreamsPerTask();
 
       for (int i = 0; i < numKernels; i++) {
         RT_flags.startCell = (i / static_cast<double>(numKernels)) * numCells;
-        RT_flags.endCell =
-            ((i + 1) / static_cast<double>(numKernels)) * numCells;
+        RT_flags.endCell = ((i + 1) / static_cast<double>(numKernels)) * numCells;
         launchRayTraceDataOnionKernel<T>(
             dtask, dimGrid, dimBlock, d_matl, patchP, gridP, levelP,
             fineLevel_ROI_Lo, fineLevel_ROI_Hi,

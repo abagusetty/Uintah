@@ -189,8 +189,6 @@ public:
 
   void setGpuStreamForThisTask(int deviceNum, gpuStream_t* s);
   void clearGpuStreamsForThisTask();
-  bool checkGpuStreamDoneForThisTask(int device_id,
-                                     gpuStream_t* taskGpuStream) const;
   bool checkAllGpuStreamsDoneForThisTask() const;
 
   void setTaskGpuDataWarehouse(int deviceNum, Task::WhichDW DW,
@@ -284,6 +282,10 @@ private:
   bool operator<(const DetailedTask &other);
 
 //-----------------------------------------------------------------------------
+#ifdef HAVE_SYCL
+  std::map<int, sycl::event> d_gpuEvents;
+#endif
+
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   // list of GPU-IDs this task is assigned to. For tasks where there are

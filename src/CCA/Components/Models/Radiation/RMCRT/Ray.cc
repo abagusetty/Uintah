@@ -956,10 +956,13 @@ void Ray::sched_rayTrace_dataOnion(const LevelP &level, SchedulerP &sched,
           scinew Task(taskname, this, &Ray::rayTraceDataOnionGPU<float>,
                       modifies_divQ, timeStep, NotUsed, sigma_dw, celltype_dw);
     }
-    // Allow it to use up to 1 GPU streams per patch.
-    //  ABB: 06/22/22 earlier it used to be tsk->usesDevice(true, 4); i.e., 4
-    //  streams
-    tsk->usesDevice(true);
+    // CUDA, HIP: Allow it to use up to 4 GPU streams per patch.
+    // SYCL: Since we use OOO-queues, we let the hardware decide the concurrency.
+    #ifdef HAVE_SYCL
+    tsk->usesDevice(true, 1);
+    #else
+    tsk->usesDevice(true, 4);
+    #endif
   } else { // C P U
     taskname = "Ray::rayTrace_dataOnion";
     if (RMCRTCommon::d_FLT_DBL == TypeDescription::double_type) {
