@@ -2666,19 +2666,15 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
 
                 if (host_ptr != nullptr && device_ptr != nullptr) {
                   // Perform the copy!
-                  gpuStream_t* stream =
-                      dtask->getGpuStreamForThisTask(whichGPU);
                   OnDemandDataWarehouse::uintahSetGpuDevice(whichGPU);
+                  gpuStream_t* stream = dtask->getGpuStreamForThisTask(whichGPU);
                   if (it.second.m_varMemSize == 0) {
                     SCI_THROW(InternalError("Attempting to copy zero bytes to "
                                             "the GPU.  That shouldn't happen.",
                                             __FILE__, __LINE__));
                   }
 
-                  // ABB 05/09/22: TODO: wait() needs to be removed for Async
-                  // behaviour
-                  stream->memcpy(device_ptr, host_ptr, it.second.m_varMemSize)
-                      .wait();
+                  d_task->d_gpuEvents.push_back( stream->memcpy(device_ptr, host_ptr, it.second.m_varMemSize) );
 
                   // Tell this task that we're managing the copies for this
                   // variable.
@@ -3252,122 +3248,108 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
           }
           const int levelID = level->getID();
 
-          const unsigned int deviceNum =
-              GpuUtilities::getGpuIndexForPatch(patch);
+          const unsigned int deviceNum = GpuUtilities::getGpuIndexForPatch(patch);
           GPUDataWarehouse *gpudw = dw->getGPUDW(deviceNum);
+          assert(gpudw != nullptr);
           OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
           gpuStream_t *stream = dtask->getGpuStreamForThisTask(deviceNum);
 
-          if (gpudw != nullptr) {
+          // It's not valid on the CPU but it is on the GPU.  Copy it on over.
+          if (!gpudw->isValidOnCPU(compVarName.c_str(), patchID, matlID, levelID)) {
+            const TypeDescription::Type type = comp->m_var->typeDescription()->getType();
+            const TypeDescription::Type datatype = comp->m_var->typeDescription()->getSubType()->getType();
+            switch (type) {
+            case TypeDescription::CCVariable:
+            case TypeDescription::NCVariable:
+            case TypeDescription::SFCXVariable:
+            case TypeDescription::SFCYVariable:
+            case TypeDescription::SFCZVariable: {
 
-            // It's not valid on the CPU but it is on the GPU.  Copy it on over.
-            if (!gpudw->isValidOnCPU(compVarName.c_str(), patchID, matlID,
-                                     levelID)) {
-              const TypeDescription::Type type =
-                  comp->m_var->typeDescription()->getType();
-              const TypeDescription::Type datatype =
-                  comp->m_var->typeDescription()->getSubType()->getType();
-              switch (type) {
-              case TypeDescription::CCVariable:
-              case TypeDescription::NCVariable:
-              case TypeDescription::SFCXVariable:
-              case TypeDescription::SFCYVariable:
-              case TypeDescription::SFCZVariable: {
+              bool performCopy = gpudw->compareAndSwapCopyingIntoCPU(                                   compVarName.c_str(), patchID, matlID, levelID);
+              if (performCopy) {
+                // size the host var to be able to fit all r::oom needed.
+                IntVector host_low, host_high, host_lowOffset,
+                  host_highOffset, host_offset, host_size, host_strides;
+                level->computeVariableExtents(type, host_low, host_high);
+                int dwIndex = comp->mapDataWarehouse();
+                OnDemandDataWarehouseP dw = m_dws[dwIndex];
 
-                bool performCopy = gpudw->compareAndSwapCopyingIntoCPU(
-                    compVarName.c_str(), patchID, matlID, levelID);
-                if (performCopy) {
-                  // size the host var to be able to fit all r::oom needed.
-                  IntVector host_low, host_high, host_lowOffset,
-                      host_highOffset, host_offset, host_size, host_strides;
-                  level->computeVariableExtents(type, host_low, host_high);
-                  int dwIndex = comp->mapDataWarehouse();
-                  OnDemandDataWarehouseP dw = m_dws[dwIndex];
+                // It's possible the computes data may contain ghost cells.
+                // But a task needing to get the data out of the GPU may not
+                // know this.  It may just want the var data. This creates a
+                // dilemma, as the GPU var is sized differently than the CPU
+                // var. So ask the GPU what size it has for the var.  Size the
+                // CPU var to match so it can copy all GPU data in. When the
+                // GPU->CPU copy is done, then we need to resize the CPU var
+                // if needed to match what the CPU is expecting it to be.
+                // GPUGridVariableBase* gpuGridVar;
 
-                  // It's possible the computes data may contain ghost cells.
-                  // But a task needing to get the data out of the GPU may not
-                  // know this.  It may just want the var data. This creates a
-                  // dilemma, as the GPU var is sized differently than the CPU
-                  // var. So ask the GPU what size it has for the var.  Size the
-                  // CPU var to match so it can copy all GPU data in. When the
-                  // GPU->CPU copy is done, then we need to resize the CPU var
-                  // if needed to match what the CPU is expecting it to be.
-                  // GPUGridVariableBase* gpuGridVar;
+                sycl::int3 low, high, size;
+                GPUDataWarehouse::GhostType tempgtype;
+                Ghost::GhostType gtype;
+                int numGhostCells;
+                gpudw->getSizes(low, high, size, tempgtype, numGhostCells,
+                                compVarName.c_str(), patchID, matlID,
+                                levelID);
 
-                  sycl::int3 low;
-                  sycl::int3 high;
-                  sycl::int3 size;
-                  GPUDataWarehouse::GhostType tempgtype;
-                  Ghost::GhostType gtype;
-                  int numGhostCells;
-                  gpudw->getSizes(low, high, size, tempgtype, numGhostCells,
-                                  compVarName.c_str(), patchID, matlID,
-                                  levelID);
+                gtype = (Ghost::GhostType)tempgtype;
 
-                  gtype = (Ghost::GhostType)tempgtype;
+                GridVariableBase *gridVar = dynamic_cast<GridVariableBase *>(
+                  comp->m_var->typeDescription()->createInstance());
 
-                  GridVariableBase *gridVar = dynamic_cast<GridVariableBase *>(
-                      comp->m_var->typeDescription()->createInstance());
-
-                  bool finalized = dw->isFinalized();
-                  if (finalized) {
-                    dw->unfinalize();
-                  }
-
-                  dw->allocateAndPut(*gridVar, comp->m_var, matlID, patch,
-                                     gtype, numGhostCells);
-                  if (finalized) {
-                    dw->refinalize();
-                  }
-
-                  gridVar->getSizes(host_low, host_high, host_offset, host_size,
-                                    host_strides);
-                  host_ptr = gridVar->getBasePointer();
-                  host_bytes = gridVar->getDataSize();
-
-                  sycl::int3 device_size{0, 0, 0};
-                  sycl::int3 device_offset{0, 0, 0};
-                  GPUGridVariableBase *device_var =
-                      OnDemandDataWarehouse::createGPUGridVariable(datatype);
-                  gpudw->get(*device_var, compVarName.c_str(), patchID, matlID,
-                             levelID);
-                  device_var->getArray3(device_offset, device_size, device_ptr);
-                  delete device_var;
-
-                  // if offset and size is equal to CPU DW, directly copy back
-                  // to CPU var memory;
-                  if (device_offset.x() == host_low.x() &&
-                      device_offset.y() == host_low.y() &&
-                      device_offset.z() == host_low.z() &&
-                      device_size.x() == host_size.x() &&
-                      device_size.y() == host_size.y() &&
-                      device_size.z() == host_size.z()) {
-
-                    stream->memcpy(host_ptr, device_ptr, host_bytes).wait();
-
-                    dtask->getVarsBeingCopiedByTask().add(
-                        patch, matlID, levelID, false,
-                        IntVector(device_size.x(), device_size.y(),
-                                  device_size.z()),
-                        host_strides.x(), host_bytes,
-                        IntVector(device_offset.x(), device_offset.y(),
-                                  device_offset.z()),
-                        comp, gtype, numGhostCells, deviceNum, gridVar,
-                        GpuUtilities::sameDeviceSameMpiRank);
-                  }
-                  delete gridVar;
+                bool finalized = dw->isFinalized();
+                if (finalized) {
+                  dw->unfinalize();
                 }
-                break;
+
+                dw->allocateAndPut(*gridVar, comp->m_var, matlID, patch,
+                                   gtype, numGhostCells);
+                if (finalized) {
+                  dw->refinalize();
+                }
+
+                gridVar->getSizes(host_low, host_high, host_offset, host_size, host_strides);
+                host_ptr = gridVar->getBasePointer();
+                host_bytes = gridVar->getDataSize();
+
+                sycl::int3 device_size, device_offset;
+                GPUGridVariableBase *device_var = OnDemandDataWarehouse::createGPUGridVariable(datatype);
+                gpudw->get(*device_var, compVarName.c_str(), patchID, matlID, levelID);
+                device_var->getArray3(device_offset, device_size, device_ptr);
+                delete device_var;
+
+                // if offset and size is equal to CPU DW, directly copy back
+                // to CPU var memory;
+                if (device_offset.x() == host_low.x() &&
+                    device_offset.y() == host_low.y() &&
+                    device_offset.z() == host_low.z() &&
+                    device_size.x() == host_size.x() &&
+                    device_size.y() == host_size.y() &&
+                    device_size.z() == host_size.z()) {
+
+                  d_task->d_gpuEvents.push_back( stream->memcpy(host_ptr, device_ptr, host_bytes) );
+
+                  dtask->getVarsBeingCopiedByTask().add(patch, matlID, levelID, false,
+                                                        IntVector(device_size.x(), device_size.y(),
+                                                                  device_size.z()),
+                                                        host_strides.x(), host_bytes,
+                                                        IntVector(device_offset.x(), device_offset.y(),
+                                                                  device_offset.z()),
+                                                        comp, gtype, numGhostCells, deviceNum, gridVar,
+                                                        GpuUtilities::sameDeviceSameMpiRank);
+                }
+                delete gridVar;
               }
-              default:
-                std::ostringstream warn;
-                warn << "  ERROR: "
-                        "SYCLScheduler::initiateD2HForHugeGhostCells ("
-                     << dtask->getName()
-                     << ") variable: " << comp->m_var->getName()
-                     << " not implemented " << std::endl;
-                SCI_THROW(InternalError(warn.str(), __FILE__, __LINE__));
-              }
+              break;
+            }
+            default:
+              std::ostringstream warn;
+              warn << "  ERROR: "
+                "SYCLScheduler::initiateD2HForHugeGhostCells ("
+                   << dtask->getName()
+                   << ") variable: " << comp->m_var->getName()
+                   << " not implemented " << std::endl;
+              SCI_THROW(InternalError(warn.str(), __FILE__, __LINE__));
             }
           }
         }
@@ -3423,10 +3405,8 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
 
   for (const Task::Dependency *dependantVar = task->getComputes();
        dependantVar != 0; dependantVar = dependantVar->m_next) {
-    constHandle<PatchSubset> patches =
-        dependantVar->getPatchesUnderDomain(dtask->getPatches());
-    constHandle<MaterialSubset> matls =
-        dependantVar->getMaterialsUnderDomain(dtask->getMaterials());
+    constHandle<PatchSubset> patches = dependantVar->getPatchesUnderDomain(dtask->getPatches());
+    constHandle<MaterialSubset> matls = dependantVar->getMaterialsUnderDomain(dtask->getMaterials());
     const int numPatches = patches->size();
     const int numMatls = matls->size();
     for (int i = 0; i < numPatches; i++) {
@@ -3525,8 +3505,7 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
         case TypeDescription::SFCXVariable:
         case TypeDescription::SFCYVariable:
         case TypeDescription::SFCZVariable: {
-          bool performCopy = gpudw->compareAndSwapCopyingIntoCPU(
-              varName.c_str(), patchID, matlID, levelID);
+          bool performCopy = gpudw->compareAndSwapCopyingIntoCPU(varName.c_str(), patchID, matlID, levelID);
           if (performCopy) {
 
             // It's possible the computes data may contain ghost cells.  But a
@@ -3688,7 +3667,7 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
               host_ptr = gridVar->getBasePointer();
               host_bytes = gridVar->getDataSize();
 
-              stream->memcpy(host_ptr, device_ptr, host_bytes);
+              dtask->d_gpuEvents.push_back( stream->memcpy(host_ptr, device_ptr, host_bytes) );
 
               dtask->getVarsBeingCopiedByTask().add(
                   patch, matlID, levelID, false,
@@ -3704,8 +3683,7 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
           break;
         }
         case TypeDescription::PerPatch: {
-          bool performCopy = gpudw->compareAndSwapCopyingIntoCPU(
-              varName.c_str(), patchID, matlID, levelID);
+          bool performCopy = gpudw->compareAndSwapCopyingIntoCPU(varName.c_str(), patchID, matlID, levelID);
           if (performCopy) {
 
             PerPatchBase *hostPerPatchVar = dynamic_cast<PerPatchBase *>(
@@ -3721,16 +3699,14 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
             host_ptr = hostPerPatchVar->getBasePointer();
             host_bytes = hostPerPatchVar->getDataSize();
 
-            GPUPerPatchBase *gpuPerPatchVar =
-                OnDemandDataWarehouse::createGPUPerPatch(datatype);
-            gpudw->get(*gpuPerPatchVar, varName.c_str(), patchID, matlID,
-                       levelID);
+            GPUPerPatchBase *gpuPerPatchVar = OnDemandDataWarehouse::createGPUPerPatch(datatype);
+            gpudw->get(*gpuPerPatchVar, varName.c_str(), patchID, matlID, levelID);
             device_ptr = gpuPerPatchVar->getVoidPointer();
             std::size_t device_bytes = gpuPerPatchVar->getMemSize();
             delete gpuPerPatchVar;
 
             if (host_bytes == device_bytes) {
-              stream->memcpy(host_ptr, device_ptr, host_bytes);
+              d_task->d_gpuEvents.push_back( stream->memcpy(host_ptr, device_ptr, host_bytes) );
               dtask->getVarsBeingCopiedByTask().add(
                 patch, matlID, levelID, host_bytes, host_bytes, dependantVar,
                 deviceNum, hostPerPatchVar,
@@ -3773,7 +3749,7 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
             delete gpuReductionVar;
 
             if (host_bytes == device_bytes) {
-              stream->memcpy(host_ptr, device_ptr, host_bytes);
+              d_task->d_gpuEvents.push_back( stream->memcpy(host_ptr, device_ptr, host_bytes) );
               dtask->getVarsBeingCopiedByTask().add(
                 patch, matlID, levelID, host_bytes, host_bytes, dependantVar,
                 deviceNum, hostReductionVar,
@@ -3852,7 +3828,7 @@ void SYCLScheduler::assignDevicesAndStreams(DetailedTask *dtask) {
   // variables work on multiple patches which can be on multiple devices.
   for (int patchID = 0; patchID < dtask->getPatches()->size(); patchID++) {
     const Patch *patch = dtask->getPatches()->get(patchID);
-    // Note: on a given device, there is just 1 GPU stream per device per task
+    // Note: on a given device, there is just 1 OOO-queue
     int gpuID = GpuUtilities::getGpuIndexForPatch(patch);
     dtask->setGpuStreamForThisTask(gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
   }
@@ -3999,72 +3975,75 @@ void SYCLScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
 //
 void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
 
-  // Iterate through the ghostVars, find all whose destination is another GPU
-  // same MPI-rank. Get the destination device, the size And do a straight GPU to
-  // GPU copy.
-  const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
-      &ghostVarMap = dtask->getGhostVars().getMap();
-  for (const auto it : ghostVarMap) {
-    if (it.second.m_dest == GpuUtilities::anotherDeviceSameMpiRank) {
-      // TODO: Needs a particle section
+  // ABB (11/22/22) : At the moment no P2P is setup. Each rank binds only to 1 GPU.
+  // So there is no `anotherDeviceSamMpiRank` case.
 
-      IntVector ghostLow = it.first.m_sharedLowCoordinates;
-      IntVector ghostHigh = it.first.m_sharedHighCoordinates;
-      IntVector ghostSize(ghostHigh.x() - ghostLow.x(),
-                          ghostHigh.y() - ghostLow.y(),
-                          ghostHigh.z() - ghostLow.z());
-      sycl::int3 device_source_offset;
-      sycl::int3 device_source_size;
+  // // Iterate through the ghostVars, find all whose destination is another GPU
+  // // same MPI-rank. Get the destination device, the size And do a straight GPU to
+  // // GPU copy.
+  // const std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo>
+  //     &ghostVarMap = dtask->getGhostVars().getMap();
+  // for (const auto it : ghostVarMap) {
+  //   if (it.second.m_dest == GpuUtilities::anotherDeviceSameMpiRank) {
+  //     // TODO: Needs a particle section
 
-      // get the source variable from the source GPU DW
-      void *device_source_ptr;
-      std::size_t elementDataSize = it.second.m_xstride;
-      std::size_t memSize =
-          ghostSize.x() * ghostSize.y() * ghostSize.z() * elementDataSize;
-      GPUGridVariableBase *device_source_var =
-          OnDemandDataWarehouse::createGPUGridVariable(it.second.m_datatype);
-      OnDemandDataWarehouseP dw = m_dws[it.first.m_dataWarehouse];
-      GPUDataWarehouse *gpudw = dw->getGPUDW(it.second.m_sourceDeviceNum);
-      gpudw->getStagingVar(
-          *device_source_var, it.first.m_label.c_str(),
-          it.second.m_sourcePatchPointer->getID(), it.first.m_matlIndx,
-          it.first.m_levelIndx,
-          make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
-          make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
-      device_source_var->getArray3(device_source_offset, device_source_size,
-                                   device_source_ptr);
+  //     IntVector ghostLow = it.first.m_sharedLowCoordinates;
+  //     IntVector ghostHigh = it.first.m_sharedHighCoordinates;
+  //     IntVector ghostSize(ghostHigh.x() - ghostLow.x(),
+  //                         ghostHigh.y() - ghostLow.y(),
+  //                         ghostHigh.z() - ghostLow.z());
+  //     sycl::int3 device_source_offset;
+  //     sycl::int3 device_source_size;
 
-      // Get the destination variable from the destination GPU DW
-      gpudw = dw->getGPUDW(it.second.m_destDeviceNum);
-      sycl::int3 device_dest_offset;
-      sycl::int3 device_dest_size;
-      void *device_dest_ptr;
-      GPUGridVariableBase *device_dest_var =
-          OnDemandDataWarehouse::createGPUGridVariable(it.second.m_datatype);
-      gpudw->getStagingVar(
-          *device_dest_var, it.first.m_label.c_str(),
-          it.second.m_destPatchPointer->getID(), it.first.m_matlIndx,
-          it.first.m_levelIndx,
-          make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
-          make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
-      device_dest_var->getArray3(device_dest_offset, device_dest_size,
-                                 device_dest_ptr);
+  //     // get the source variable from the source GPU DW
+  //     void *device_source_ptr;
+  //     std::size_t elementDataSize = it.second.m_xstride;
+  //     std::size_t memSize =
+  //         ghostSize.x() * ghostSize.y() * ghostSize.z() * elementDataSize;
+  //     GPUGridVariableBase *device_source_var =
+  //         OnDemandDataWarehouse::createGPUGridVariable(it.second.m_datatype);
+  //     OnDemandDataWarehouseP dw = m_dws[it.first.m_dataWarehouse];
+  //     GPUDataWarehouse *gpudw = dw->getGPUDW(it.second.m_sourceDeviceNum);
+  //     gpudw->getStagingVar(
+  //         *device_source_var, it.first.m_label.c_str(),
+  //         it.second.m_sourcePatchPointer->getID(), it.first.m_matlIndx,
+  //         it.first.m_levelIndx,
+  //         make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
+  //         make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
+  //     device_source_var->getArray3(device_source_offset, device_source_size,
+  //                                  device_source_ptr);
 
-      // We can run peer copies from the source or the device stream.  While
-      // running it from the device technically is said to be a bit slower, it's
-      // likely just to an extra event being created to manage blocking the
-      // destination stream. By putting it on the device we are able to not need
-      // a synchronize step after all the copies, because any upcoming API call
-      // will use the streams and be naturally queued anyway.  When a copy
-      // completes, anything placed in the destination stream can then process.
-      //   Note: If we move to UVA, then we could just do a straight memcpy
+  //     // Get the destination variable from the destination GPU DW
+  //     gpudw = dw->getGPUDW(it.second.m_destDeviceNum);
+  //     sycl::int3 device_dest_offset;
+  //     sycl::int3 device_dest_size;
+  //     void *device_dest_ptr;
+  //     GPUGridVariableBase *device_dest_var =
+  //         OnDemandDataWarehouse::createGPUGridVariable(it.second.m_datatype);
+  //     gpudw->getStagingVar(
+  //         *device_dest_var, it.first.m_label.c_str(),
+  //         it.second.m_destPatchPointer->getID(), it.first.m_matlIndx,
+  //         it.first.m_levelIndx,
+  //         make_int3(ghostLow.x(), ghostLow.y(), ghostLow.z()),
+  //         make_int3(ghostSize.x(), ghostSize.y(), ghostSize.z()));
+  //     device_dest_var->getArray3(device_dest_offset, device_dest_size,
+  //                                device_dest_ptr);
 
-      gpuStream_t* stream = dtask->getGpuStreamForThisTask(it.second.m_destDeviceNum);
-      OnDemandDataWarehouse::uintahSetGpuDevice(it.second.m_destDeviceNum);
+  //     // We can run peer copies from the source or the device stream.  While
+  //     // running it from the device technically is said to be a bit slower, it's
+  //     // likely just to an extra event being created to manage blocking the
+  //     // destination stream. By putting it on the device we are able to not need
+  //     // a synchronize step after all the copies, because any upcoming API call
+  //     // will use the streams and be naturally queued anyway.  When a copy
+  //     // completes, anything placed in the destination stream can then process.
+  //     //   Note: If we move to UVA, then we could just do a straight memcpy
 
-      auto gpuP2Pcopy = stream->memcpy(device_dest_ptr, device_source_ptr, memSize); // SYCL P2P memcpy
-    }
-  }
+  //     gpuStream_t* stream = dtask->getGpuStreamForThisTask(it.second.m_destDeviceNum);
+  //     OnDemandDataWarehouse::uintahSetGpuDevice(it.second.m_destDeviceNum);
+
+  //     auto gpuP2Pcopy = stream->memcpy(device_dest_ptr, device_source_ptr, memSize); // SYCL P2P memcpy
+  //   }
+  // }
 }
 
 //______________________________________________________________________
@@ -4074,7 +4053,7 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
   bool copiesExist = false;
 
   // If we put it in ghostVars, then we copied it to an array on the GPU (D2D).
-  // Go through the ones that indicate they are going to another MPI rank.  Copy
+  // Go through the ones that indicate they are going to another MPI rank. Copy
   // them out to the host (D2H).  To make the engine cleaner for now, we'll then
   // do a H2H copy step into the variable. In the future, to be more efficient,
   // we could skip the host to host copy and instead have sendMPI() send the
@@ -4138,11 +4117,10 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
           device_size.z() == host_size.z()) {
 
         // Since we know we need a stream, obtain one.
-        gpuStream_t *stream =
-            dtask->getGpuStreamForThisTask(it.second.m_sourceDeviceNum);
         OnDemandDataWarehouse::uintahSetGpuDevice(it.second.m_sourceDeviceNum);
+        gpuStream_t *stream = dtask->getGpuStreamForThisTask(it.second.m_sourceDeviceNum);
         // aysnc
-        stream->memcpy(host_ptr, device_ptr, host_bytes);
+        d_task->d_gpuEvents.push_back( stream->memcpy(host_ptr, device_ptr, host_bytes) );
 
         copiesExist = true;
       } else {

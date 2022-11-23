@@ -283,7 +283,7 @@ private:
 
 //-----------------------------------------------------------------------------
 #ifdef HAVE_SYCL
-  std::map<int, sycl::event> d_gpuEvents;
+  std::vector<sycl::event> d_gpuEvents;
 #endif
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)

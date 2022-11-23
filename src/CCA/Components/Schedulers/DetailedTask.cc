@@ -776,12 +776,12 @@ void DetailedTask::clearGpuStreamsForThisTask() { d_gpuStreams.clear(); }
 
 bool DetailedTask::checkAllGpuStreamsDoneForThisTask() const {
   // A task can have multiple streams (such as an output task pulling from
-  // multiple GPUs). Check all streams to see if they are done.  If any one
-  // stream isn't done, return false.  If nothing returned false, then they all
+  // multiple GPUs). Check all streams to see if they are done. If any one
+  // stream isn't done, return false.  If nothing returned true, then they all
   // must be good to go.
 #ifdef HAVE_SYCL
-  for (auto it = d_gpuEvents.cbegin(); it != d_gpuEvents.cend(); ++it) {
-    if (it->second.get_info<sycl::info::event::command_execution_status>() !=
+  for (auto & event : d_gpuEvents) {
+    if (event.get_info<sycl::info::event::command_execution_status>() !=
         sycl::info::event_command_status::completed) {
       return false;
     }
