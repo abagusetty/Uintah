@@ -177,6 +177,10 @@ public:
   double task_exec_time() const { return m_exec_timer().seconds(); }
 
 //-----------------------------------------------------------------------------
+#ifdef HAVE_SYCL
+  void pushbackGpuEvents(const sycl::event& dEvent) { d_gpuEvents.push_back(dEvent); }
+#endif
+
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 
   // Most tasks will only run on one device.

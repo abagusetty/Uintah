@@ -95,112 +95,6 @@ void GPUDataWarehouse::getLevel(const GPUGridVariableBase &var,
 }
 
 //______________________________________________________________________
-//
-
-// template<typename T, typename std::enable_if_t<
-//                        std::is_same_v<T, GPUGridVariableBase> ||
-//                        std::is_same_v<T, GPUReductionVariableBase> ||
-//                        std::is_same_v<T, GPUPerPatchBase>> >
-// void GPUDataWarehouse::get(const T &var, char const *label,
-//                            const int patchID, const int8_t matlIndx,
-//                            const int8_t levelIndx) {
-//   // host code
-//   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-//   auto it = varPointers->find(lpml);
-//   if (it != varPointers->end()) {
-//     allVarPointersInfo vp = it->second;
-//     if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
-//       var.setArray3(vp.var->device_offset, vp.var->device_size,
-//                     vp.var->device_ptr);
-//     }
-//     else {
-//       var.setData(vp.var->device_ptr);
-//     }
-//   }
-// }
-
-
-void GPUDataWarehouse::get(const GPUGridVariableBase &var, char const *label,
-                           const int patchID, const int8_t matlIndx,
-                           const int8_t levelIndx) {
-  // host code
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);
-  if (it != varPointers->end()) {
-    allVarPointersInfo vp = it->second;
-    var.setArray3(vp.var->device_offset, vp.var->device_size,
-                  vp.var->device_ptr);
-  }
-}
-
-void GPUDataWarehouse::get(const GPUReductionVariableBase &var,
-                           char const *label, const int patchID,
-                           const int8_t matlIndx, const int8_t levelIndx) {
-  // host code
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);
-  if (it != varPointers->end()) {
-    allVarPointersInfo vp = it->second;
-    var.setData(vp.var->device_ptr);
-  }
-}
-
-void GPUDataWarehouse::get(const GPUPerPatchBase &var, char const *label,
-                           const int patchID, const int8_t matlIndx,
-                           const int8_t levelIndx) {
-  // host code
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);
-  if (it != varPointers->end()) {
-    allVarPointersInfo vp = it->second;
-    var.setData(vp.var->device_ptr);
-  }
-}
-
-//______________________________________________________________________
-//
-
-void GPUDataWarehouse::getModifiable(GPUGridVariableBase &var,
-                                     char const *label, const int patchID,
-                                     const int8_t matlIndx,
-                                     const int8_t levelIndx) {
-  // host code
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);
-  if (it != varPointers->end()) {
-    var.setArray3(it->second.var->device_offset, it->second.var->device_size,
-                  it->second.var->device_ptr);
-  }
-}
-
-//______________________________________________________________________
-//
-
-void GPUDataWarehouse::getModifiable(GPUReductionVariableBase &var,
-                                     char const *label, const int patchID,
-                                     const int8_t matlIndx,
-                                     const int8_t levelIndx) {
-  // host code
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);
-  if (it != varPointers->end()) {
-    allVarPointersInfo vp = it->second;
-    var.setData(vp.var->device_ptr);
-  }
-}
-
-void GPUDataWarehouse::getModifiable(GPUPerPatchBase &var, char const *label,
-                                     const int patchID, const int8_t matlIndx,
-                                     const int8_t levelIndx) {
-  // host code
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  auto it = varPointers->find(lpml);
-  if (it != varPointers->end()) {
-    allVarPointersInfo vp = it->second;
-    var.setData(vp.var->device_ptr);
-  }
-}
-//______________________________________________________________________
 // This method assumes the base patch in a superpatch region has already been
 // allocated. This is a shallow copy.  It copies all datawarehouse metadata
 // entries (except the status) from that item into this patch's item in the GPU
@@ -259,7 +153,7 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
                            std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
                            int levelIndx, bool staging, GhostType gtype,
-                           int numGhostCells, void *host_ptr) {
+                           int numGhostCells) {
 
   sycl::int3 var_offset{0, 0, 0}; // offset
   sycl::int3 var_size{0, 0, 0};   // dimensions of GPUGridVariable
@@ -302,13 +196,11 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
     iter->second.var->sizeOfDataType = sizeOfDataType;
     iter->second.var->gtype = gtype;
     iter->second.var->numGhostCells = numGhostCells;
-    iter->second.var->host_contiguousArrayPtr = host_ptr;
     iter->second.var->atomicStatusInHostMemory = UNKNOWN;
 
   } else { // if (staging == true)
 
     staging_it->second.device_ptr = var_ptr;
-    staging_it->second.host_contiguousArrayPtr = host_ptr;
     staging_it->second.varDB_index = -1;
     staging_it->second.atomicStatusInHostMemory = UNKNOWN;
 
@@ -325,7 +217,7 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
 void GPUDataWarehouse::put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
                            int levelIndx, bool staging, GhostType gtype,
-                           int numGhostCells, void *host_ptr) {
+                           int numGhostCells) {
 
   sycl::int3 var_offset{0, 0, 0}; // offset
   sycl::int3 var_size{0, 0, 0};   // dimensions of GPUGridVariable
@@ -366,13 +258,11 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
     iter->second.var->sizeOfDataType = sizeOfDataType;
     iter->second.var->gtype = gtype;
     iter->second.var->numGhostCells = numGhostCells;
-    iter->second.var->host_contiguousArrayPtr = host_ptr;
     iter->second.var->atomicStatusInHostMemory = UNKNOWN;
 
   } else { // if (staging == true)
 
     staging_it->second.device_ptr = var_ptr;
-    staging_it->second.host_contiguousArrayPtr = host_ptr;
     staging_it->second.varDB_index = -1;
     staging_it->second.atomicStatusInHostMemory = UNKNOWN;
 
@@ -420,7 +310,6 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
     vp.var->device_ptr = nullptr;
     vp.var->atomicStatusInHostMemory = UNKNOWN;
     vp.var->atomicStatusInGpuMemory = UNALLOCATED;
-    vp.var->host_contiguousArrayPtr = nullptr;
     vp.var->sizeOfDataType = 0;
 
     std::pair<std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator, bool>
@@ -446,7 +335,6 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
       stagingVarInfo svi;
       svi.varDB_index = -1;
       svi.device_ptr = nullptr;
-      svi.host_contiguousArrayPtr = nullptr;
       svi.atomicStatusInHostMemory = UNKNOWN;
       svi.atomicStatusInGpuMemory = UNALLOCATED;
 
@@ -877,9 +765,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
     vp.varDB_index = d_varDB_index;
 
     // insert it in
-    varPointers->insert(
-        std::map<labelPatchMatlLevel, allVarPointersInfo>::value_type(lpml,
-                                                                      vp));
+    varPointers->insert(std::map<labelPatchMatlLevel, allVarPointersInfo>::value_type(lpml, vp));
 
     strncpy(d_varDB[i].label, label, MAX_NAME_LENGTH);
 
@@ -888,8 +774,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
     d_varDB[i].levelIndx = levelIndx;
     d_varDB[i].sizeOfDataType = hostSideGPUDW_iter->second.var->sizeOfDataType;
     d_varDB[i].varItem.gtype = hostSideGPUDW_iter->second.var->gtype;
-    d_varDB[i].varItem.numGhostCells =
-        hostSideGPUDW_iter->second.var->numGhostCells;
+    d_varDB[i].varItem.numGhostCells = hostSideGPUDW_iter->second.var->numGhostCells;
     d_varDB[i].varItem.staging = staging;
     d_varDB[i].ghostItem.dest_varDB_index =
         -1; // Signify that this d_varDB item is NOT meta data to copy a ghost
@@ -947,8 +832,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
     d_varDB[i].levelIndx = levelIndx;
     d_varDB[i].sizeOfDataType = hostSideGPUDW_iter->second.var->sizeOfDataType;
     d_varDB[i].varItem.gtype = hostSideGPUDW_iter->second.var->gtype;
-    d_varDB[i].varItem.numGhostCells =
-        hostSideGPUDW_iter->second.var->numGhostCells;
+    d_varDB[i].varItem.numGhostCells = hostSideGPUDW_iter->second.var->numGhostCells;
     d_varDB[i].varItem.staging = staging;
     d_varDB[i].ghostItem.dest_varDB_index =
         -1; // Signify that this d_varDB item is NOT meta data to copy a ghost
@@ -963,31 +847,16 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
 
 //______________________________________________________________________
 //
-void GPUDataWarehouse::putContiguous(
-    GPUGridVariableBase &var, const char *indexID, char const *label,
-    int patchID, int matlIndx, int levelIndx, bool staging, sycl::int3 low, sycl::int3 high,
-    std::size_t sizeOfDataType, GridVariableBase *gridVar, bool stageOnHost) {
-  // abb: NO-OP, implementation removed since not being used
-}
 
-//______________________________________________________________________
-//
 void GPUDataWarehouse::allocate(const char *indexID, std::size_t size) {
   // abb: NO-OP, implementation removed since not being used
 }
 
 //______________________________________________________________________
 //
-void GPUDataWarehouse::copyHostContiguousToHost(GPUGridVariableBase &device_var,
-                                                GridVariableBase *host_var,
-                                                char const *label, int patchID,
-                                                int matlIndx, int levelIndx) {}
-
-//______________________________________________________________________
-//
 void GPUDataWarehouse::put(GPUReductionVariableBase &var, std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
-                           int levelIndx, void *host_ptr) {
+                           int levelIndx) {
 
   void *var_ptr; // raw pointer to the memory
   var.getData(var_ptr);
@@ -1009,7 +878,6 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, std::size_t sizeOfData
   iter->second.var->sizeOfDataType = sizeOfDataType;
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
-  iter->second.var->host_contiguousArrayPtr = host_ptr;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
   sycl::int3 zeroValue{0};
   iter->second.var->device_offset = zeroValue;
@@ -1024,7 +892,7 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, std::size_t sizeOfData
 // SYCL varient: same for GPUReductionVariableBase & GPUPerPatchBase
 void GPUDataWarehouse::put(void* gpu_ptr, std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
-                           int levelIndx, void *host_ptr) {
+                           int levelIndx) {
 
   void *var_ptr{nullptr}; // raw pointer to the memory
   var_ptr = gpu_ptr;
@@ -1049,7 +917,6 @@ void GPUDataWarehouse::put(void* gpu_ptr, std::size_t sizeOfDataType,
   iter->second.var->sizeOfDataType = sizeOfDataType;
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
-  iter->second.var->host_contiguousArrayPtr = host_ptr;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
   sycl::int3 zeroValue{0};
   iter->second.var->device_offset = zeroValue;
@@ -1062,7 +929,7 @@ void GPUDataWarehouse::put(void* gpu_ptr, std::size_t sizeOfDataType,
 
 void GPUDataWarehouse::put(GPUPerPatchBase &var, std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
-                           int levelIndx, void *host_ptr) {
+                           int levelIndx) {
 
   void *var_ptr; // raw pointer to the memory
   var.getData(var_ptr);
@@ -1086,7 +953,6 @@ void GPUDataWarehouse::put(GPUPerPatchBase &var, std::size_t sizeOfDataType,
   iter->second.var->sizeOfDataType = sizeOfDataType;
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
-  iter->second.var->host_contiguousArrayPtr = host_ptr;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
   sycl::int3 zeroValue{0};
   iter->second.var->device_offset = zeroValue;
@@ -1408,25 +1274,19 @@ void GPUDataWarehouse::clear() {
   OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
 
   auto& memPool = GPUMemoryPool::getInstance();
+  auto& streamPool = GPUStreamPool<>::getInstance();
+  // sycl::free(d_device_copy, *(streamPool.getDefaultGpuStreamFromPool(d_device_id)));
+
   for (auto varIter : *varPointers) {
     // clear out all the staging vars, if any
     std::map<stagingVar, stagingVarInfo>::iterator stagingIter;
     for (auto stagingIter : varIter.second.var->stagingVars) {
-      if (compareAndSwapDeallocating(
-              stagingIter.second.atomicStatusInGpuMemory)) {
+      if (compareAndSwapDeallocating(stagingIter.second.atomicStatusInGpuMemory)) {
         // The counter hit zero, so lets deallocate the var.
 
-        if (memPool.freeGpuSpaceToPool(d_device_id, stagingIter.second.device_ptr, stagingIter.second.sizeInBytesDevicePtr)) {
-          stagingIter.second.device_ptr = nullptr;
-          stagingIter.second.device_ptr = nullptr;
-          compareAndSwapDeallocate(stagingIter.second.atomicStatusInGpuMemory);
-        } else {
-          printf("ERROR:\nGPUDataWarehouse::clear(), for a staging variable, "
-                 "couldn't find in the GPU memory pool the space starting at "
-                 "address %p\n",
-                 stagingIter.second.device_ptr);
-          exit(-1);
-        }
+        memPool.freeGpuSpaceToPool(d_device_id, stagingIter.second.device_ptr, stagingIter.second.sizeInBytesDevicePtr);
+        stagingIter.second.device_ptr = nullptr;
+
       }
     }
 
@@ -1437,22 +1297,9 @@ void GPUDataWarehouse::clear() {
     // See if it's a placeholder var for staging vars.  This happens if the
     // non-staging var had a device_ptr of nullptr, and it was only in the
     // varPointers map to only hold staging vars
-    if (compareAndSwapDeallocating(
-            varIter.second.var->atomicStatusInGpuMemory)) {
+    if (compareAndSwapDeallocating(varIter.second.var->atomicStatusInGpuMemory)) {
       if (varIter.second.var->device_ptr) {
-
-        if (memPool.freeGpuSpaceToPool(
-                d_device_id, varIter.second.var->device_ptr, varIter.second.var->sizeInBytesDevicePtr)) {
-          varIter.second.var->device_ptr = nullptr;
-          compareAndSwapDeallocate(
-              varIter.second.var->atomicStatusInGpuMemory);
-        } else {
-          printf("ERROR:\nGPUDataWarehouse::clear(), for a non-staging "
-                 "variable, couldn't find in the GPU memory pool the space "
-                 "starting at address %p\n",
-                 varIter.second.var->device_ptr);
-          exit(-1);
-        }
+        memPool.freeGpuSpaceToPool(d_device_id, varIter.second.var->device_ptr, varIter.second.var->sizeInBytesDevicePtr);
       }
     }
   }

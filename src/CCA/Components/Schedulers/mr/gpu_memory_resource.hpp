@@ -61,6 +61,7 @@ private:
 #elif defined(HAVE_SYCL)
     sycl::free(ptr, *stream);
 #endif
+    ptr = nullptr;
   }
 };
 } // namespace rmm::mr

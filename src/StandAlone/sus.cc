@@ -62,7 +62,7 @@
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
 #  include <CCA/Components/Schedulers/UnifiedScheduler.h>
 #elif defined(HAVE_SYCL)
-#  include <CCA/Components/Schedulers/SYCLScheduler.h>
+#  include <CCA/Components/Schedulers/SYCLScheduler.hpp>
 #endif
 
 #include <Core/Exceptions/Exception.h>

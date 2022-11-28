@@ -299,7 +299,7 @@ void GPUDataWarehouse::copySuperPatchInfo(char const *label,
 void GPUDataWarehouse::put(GPUGridVariableBase &var, size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
                            int levelIndx, bool staging, GhostType gtype,
-                           int numGhostCells, void *host_ptr) {
+                           int numGhostCells) {
 
   varLock->lock();
 
@@ -374,7 +374,6 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, size_t sizeOfDataType,
     iter->second.var->sizeOfDataType = sizeOfDataType;
     iter->second.var->gtype = gtype;
     iter->second.var->numGhostCells = numGhostCells;
-    iter->second.var->host_contiguousArrayPtr = host_ptr;
     iter->second.var->atomicStatusInHostMemory = UNKNOWN;
 
     if (gpu_stats.active()) {
@@ -402,7 +401,6 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, size_t sizeOfDataType,
   } else { // if (staging == true)
 
     staging_it->second.device_ptr = var_ptr;
-    staging_it->second.host_contiguousArrayPtr = host_ptr;
     staging_it->second.varDB_index = -1;
     staging_it->second.atomicStatusInHostMemory = UNKNOWN;
 
@@ -475,7 +473,6 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
     vp.var->device_ptr = nullptr;
     vp.var->atomicStatusInHostMemory = UNKNOWN;
     vp.var->atomicStatusInGpuMemory = UNALLOCATED;
-    vp.var->host_contiguousArrayPtr = nullptr;
     vp.var->sizeOfDataType = 0;
 
     std::pair<std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator, bool>
@@ -517,7 +514,6 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
       stagingVarInfo svi;
       svi.varDB_index = -1;
       svi.device_ptr = nullptr;
-      svi.host_contiguousArrayPtr = nullptr;
       svi.atomicStatusInHostMemory = UNKNOWN;
       svi.atomicStatusInGpuMemory = UNALLOCATED;
 
@@ -1059,115 +1055,6 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
 
 //______________________________________________________________________
 //
-void GPUDataWarehouse::putContiguous(
-    GPUGridVariableBase &var, const char *indexID, char const *label,
-    int patchID, int matlIndx, int levelIndx, bool staging, int3 low, int3 high,
-    size_t sizeOfDataType, GridVariableBase *gridVar, bool stageOnHost) {
-  /*
-  #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-    //Should not put from device side as all memory allocation should be done on
-  CPU side through CUDAMalloc() #else
-
-    varLock->lock();
-
-    //first check if this patch/var/matl is in the process of loading in.
-    labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-    if (varPointers->find(lpml) != varPointers->end()) {
-      //Space for this patch already exists.  Use that and return.
-      if (d_debug){
-        printf("GPUDataWarehouse::putContiguous( %s ). This gpudw database has a
-  variable for label %s patch %d matl %d level %d staging %s on device %d.
-  Reusing it.\n", label, label, patchID, matlIndx, levelIndx, staging ? "true" :
-  "false", d_device_id);
-
-      }
-      var.setArray3(varPointers->at(lpml).device_offset,
-  varPointers->at(lpml).device_size, varPointers->at(lpml).device_ptr);
-      varLock->unlock();
-      return;
-    }
-
-    int3 size=make_int3(high.x-low.x, high.y-low.y, high.z-low.z);
-    int3 offset=low;
-    void* device_ptr=nullptr;
-    var.setArray3(offset, size, device_ptr);
-    allocateLock->lock();
-    contiguousArrayInfo *ca = &(contiguousArrays->at(indexID));
-    allocateLock->unlock();
-    if ( (ca->allocatedDeviceMemory == nullptr
-         || ca->sizeOfAllocatedMemory - ca->assignedOffset < var.getMemSize())
-        && stageOnHost) {
-      printf("ERROR: No room left on device to be assigned address space\n");
-      if (ca->allocatedDeviceMemory != nullptr) {
-        printf("There was %lu bytes allocated, %lu has been assigned, and %lu
-  more bytes were attempted to be assigned for %s patch %d matl %d level %d
-  staging %s\n", ca->sizeOfAllocatedMemory, ca->assignedOffset,
-            var.getMemSize(), label, patchID, matlIndx, levelIndx, staging ?
-  "true" : "false");
-      }
-      varLock->unlock();
-      exit(-1);
-    } else {
-
-
-      //There is already pre-allocated contiguous memory chunks with room
-  available on
-      //both the device and the host.  Just assign pointers for both the device
-  and host contiguous arrays.
-
-
-      //This prepares the var with the offset and size.  The actual address will
-  come next.
-
-      void* host_contiguousArrayPtr = nullptr;
-
-      int varMemSize = var.getMemSize();
-
-      device_ptr = (void*)((uint8_t*)ca->allocatedDeviceMemory +
-  ca->assignedOffset); var.setArray3(offset, size, device_ptr);
-      host_contiguousArrayPtr = (void*)((uint8_t*)ca->allocatedHostMemory +
-  ca->assignedOffset);
-
-      //We ran into cuda misaligned errors previously when mixing different data
-  types.  We suspect the ints at 4 bytes
-      //were the issue.  So the engine previously computes buffer room for each
-  variable as a multiple of UnifiedScheduler::bufferPadding.
-      //So the contiguous array has been sized with extra padding.  (For
-  example, if a var holds 12 ints, then it would be 48 bytes in
-      //size.  But if UnifiedScheduler::bufferPadding = 32, then it should add
-  16 bytes for padding, for a total of 64 bytes). int memSizePlusPadding =
-  ((UnifiedScheduler::bufferPadding - varMemSize %
-  UnifiedScheduler::bufferPadding) % UnifiedScheduler::bufferPadding) +
-  varMemSize; ca->assignedOffset += memSizePlusPadding;
-
-
-      if (stageOnHost) {
-        //Some GPU grid variable data doesn't need to be copied from the host
-        //For example, computes vars are just uninitialized space.
-        //Others grid vars need to be copied.  This copies the data into a
-  contiguous
-        //array on the host so that copyDataHostToDevice() can copy the
-  contiguous
-        //host array to the device.
-
-        //Data listed as required.  Or compute data that was initialized as a
-  copy of something else. ca->copiedOffset += memSizePlusPadding;
-
-        memcpy(host_contiguousArrayPtr, gridVar->getBasePointer(), varMemSize);
-
-      }
-      varLock->unlock();
-
-      put(var, sizeOfDataType, label, patchID, matlIndx, levelIndx, staging,
-  None, 0, host_contiguousArrayPtr);
-    }
-
-  #endif
-  */
-}
-
-//______________________________________________________________________
-//
 void GPUDataWarehouse::allocate(const char *indexID, size_t size) {
   /*
   #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
@@ -1229,57 +1116,9 @@ void GPUDataWarehouse::allocate(const char *indexID, size_t size) {
 
 //______________________________________________________________________
 //
-void GPUDataWarehouse::copyHostContiguousToHost(GPUGridVariableBase &device_var,
-                                                GridVariableBase *host_var,
-                                                char const *label, int patchID,
-                                                int matlIndx, int levelIndx) {
-  /*
-  #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-    //Should not called from device side as all memory allocation should be done
-  on CPU side through CUDAMalloc() #else
-    //see if this datawarehouse has anything for this patchGroupID.
-    varLock->lock();
-    labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-    if (varPointers->find(lpml) != varPointers->end()) {
-      allVarPointersInfo info = varPointers->at(lpml);
-
-      device_var.setArray3(varPointers->at(lpml).device_offset,
-  varPointers->at(lpml).device_offset, info.device_ptr); varLock->unlock();
-     // size_t size = device_var.getMemSize();
-
-      //TODO: Instead of doing a memcpy, I bet the original host grid variable
-  could just have its pointers updated
-      //to work with what we were sent back.  This would take some considerable
-  work though to get all the details right
-      //TODO: This needs to be a memcpy async
-      memcpy(host_var->getBasePointer(), info.host_contiguousArrayPtr,
-  device_var.getMemSize());
-
-      //Since we've moved it back into the host, lets mark it as being used.
-      //It's possible in the future there could be a scenario where we want to
-  bring it
-      //back to the host but still retain it in the GPU.  One scenario is
-      //sending data to an output .ups file but not modifying it on the host.
-      remove(label, patchID, matlIndx, levelIndx);
-
-    } else {
-      varLock->unlock();
-      printf("ERROR: host copyHostContiguoustoHost unknown variable on
-  GPUDataWarehouse");
-      //for (std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator
-  it=varPointers->begin(); it!=varPointers->end(); ++it)
-      //  printf("%s %d %d => %d \n", it->first.label, it->first.patchID,
-  it->first.matlIndx, it->second.varDB_index); exit(-1);
-    }
-  #endif
-  */
-}
-
-//______________________________________________________________________
-//
 void GPUDataWarehouse::put(GPUReductionVariableBase &var, size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
-                           int levelIndx, void *host_ptr) {
+                           int levelIndx) {
 
   varLock->lock();
 
@@ -1303,7 +1142,6 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, size_t sizeOfDataType,
   iter->second.var->sizeOfDataType = sizeOfDataType;
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
-  iter->second.var->host_contiguousArrayPtr = host_ptr;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
   int3 zeroValue;
   zeroValue.x = 0;
@@ -1343,7 +1181,7 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, size_t sizeOfDataType,
 //
 void GPUDataWarehouse::put(GPUPerPatchBase &var, size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
-                           int levelIndx, void *host_ptr) {
+                           int levelIndx) {
 
   varLock->lock();
   void *var_ptr; // raw pointer to the memory
@@ -1368,7 +1206,6 @@ void GPUDataWarehouse::put(GPUPerPatchBase &var, size_t sizeOfDataType,
   iter->second.var->sizeOfDataType = sizeOfDataType;
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
-  iter->second.var->host_contiguousArrayPtr = host_ptr;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
   int3 zeroValue;
   zeroValue.x = 0;
