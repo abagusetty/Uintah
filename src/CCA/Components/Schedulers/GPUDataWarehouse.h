@@ -328,7 +328,7 @@ public:
 
   struct stagingVarInfo {
     void *device_ptr{nullptr}; // Where it is on the device
-    size_t sizeInBytesDevicePtr;
+    size_t sizeInBytesDevicePtr; // This is needed for GPU memPool
     int varDB_index;
     atomicDataStatus atomicStatusInHostMemory;
     atomicDataStatus atomicStatusInGpuMemory;
@@ -347,7 +347,7 @@ public:
       gtype = GhostType::None;
     }
     void *device_ptr{nullptr}; // Where it is on the device
-    size_t sizeInBytesDevicePtr;
+    size_t sizeInBytesDevicePtr; // This is needed for GPU memPool
     int3 device_offset{
         0, 0, 0}; // TODO, split this into a device_low and a device_offset.
                   // Device_low goes here but device_offset should NOT go here
@@ -544,8 +544,11 @@ public:
   void getLevel(const GPUGridVariableBase &var, char const *label,
                 const int8_t matlIndx, const int8_t levelIndx);
 
-  void put(void *GPUGridVariableBase_ptr, sycl::int3 &GPUGridVariableBase_size,
-           sycl::int3 &GPUGridVariableBase_offset, std::size_t sizeOfDataType,
+  void put(void *GPUGridVariableBase_ptr,
+           const sycl::int3 &GPUGridVariableBase_size,
+           const sycl::int3 &GPUGridVariableBase_offset,
+           const std::size_t allocMemSize,
+           std::size_t sizeOfDataType,
            char const *label, int patchID, int matlIndx, int levelIndx = 0,
            bool staging = false, GhostType gtype = None, int numGhostCells = 0);
   // SYCL varient: GPUReductionVariableBase, GPUPerPatchBase

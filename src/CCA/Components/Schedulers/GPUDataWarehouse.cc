@@ -148,21 +148,13 @@ void GPUDataWarehouse::copySuperPatchInfo(char const *label,
 //______________________________________________________________________
 //
 void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
-                           sycl::int3& GPUGridVariableBase_size,
-                           sycl::int3& GPUGridVariableBase_offset,
+                           const sycl::int3& GPUGridVariableBase_size,
+                           const sycl::int3& GPUGridVariableBase_offset,
+                           const std::size_t allocMemSize,
                            std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
                            int levelIndx, bool staging, GhostType gtype,
                            int numGhostCells) {
-
-  sycl::int3 var_offset{0, 0, 0}; // offset
-  sycl::int3 var_size{0, 0, 0};   // dimensions of GPUGridVariable
-  void *var_ptr{nullptr};   // raw pointer to the memory
-
-  var_offset = GPUGridVariableBase_offset;
-  var_size = GPUGridVariableBase_size;
-  var_ptr = GPUGridVariableBase_ptr;
-  //var.getArray3(var_offset, var_size, var_ptr);
 
   // See if it already exists.  Also see if we need to update this into d_varDB.
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
@@ -176,8 +168,8 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
     exit(-1);
   } else if (staging) {
     stagingVar sv;
-    sv.device_offset = var_offset;
-    sv.device_size = var_size;
+    sv.device_offset = GPUGridVariableBase_offset;
+    sv.device_size = GPUGridVariableBase_size;
     staging_it = iter->second.var->stagingVars.find(sv);
     if (staging_it == iter->second.var->stagingVars.end()) {
       printf("ERROR:\nGPUDataWarehouse::put()  Can't use put() for a "
@@ -190,9 +182,10 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
   if (staging == false) {
 
     iter->second.varDB_index = -1;
-    iter->second.var->device_ptr = var_ptr;
-    iter->second.var->device_offset = var_offset;
-    iter->second.var->device_size = var_size;
+    iter->second.var->device_ptr = GPUGridVariableBase_ptr;
+    iter->second.var->device_offset = GPUGridVariableBase_offset;
+    iter->second.var->device_size = GPUGridVariableBase_size;
+    iter->second.var->sizeInBytesDevicePtr = allocMemSize;
     iter->second.var->sizeOfDataType = sizeOfDataType;
     iter->second.var->gtype = gtype;
     iter->second.var->numGhostCells = numGhostCells;
@@ -200,7 +193,8 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
 
   } else { // if (staging == true)
 
-    staging_it->second.device_ptr = var_ptr;
+    staging_it->second.device_ptr = GPUGridVariableBase_ptr;
+    staging_it->second.sizeInBytesDevicePtr = allocMemSize;
     staging_it->second.varDB_index = -1;
     staging_it->second.atomicStatusInHostMemory = UNKNOWN;
 
@@ -432,8 +426,6 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
         GPUGridVariableBase_offset = it->second.var->device_offset;
         GPUGridVariableBase_size = it->second.var->device_size;
         GPUGridVariableBase_ptr = it->second.var->device_ptr;
-        // var.setArray3(it->second.var->device_offset,
-        //               it->second.var->device_size, it->second.var->device_ptr);
       } else if (it->second.var->device_offset.x() <= low.x() &&
                  it->second.var->device_offset.y() <= low.y() &&
                  it->second.var->device_offset.z() <= low.z() &&
@@ -445,8 +437,6 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
         GPUGridVariableBase_offset = it->second.var->device_offset;
         GPUGridVariableBase_size = it->second.var->device_size;
         GPUGridVariableBase_ptr = it->second.var->device_ptr;
-        // var.setArray3(it->second.var->device_offset,
-        //               it->second.var->device_size, it->second.var->device_ptr);
       } else {
         printf("ERROR:\nGPUDataWarehouse::allocateAndPut( %s )  Variable in "
                "database but of the wrong size.  This shouldn't ever happen. "
@@ -485,7 +475,6 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
         GPUGridVariableBase_offset = offset;
         GPUGridVariableBase_size = size;
         GPUGridVariableBase_ptr = staging_it->second.device_ptr;
-        //var.setArray3(offset, size, staging_it->second.device_ptr);
       }
     }
   }
@@ -523,10 +512,9 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
     GPUGridVariableBase_offset = offset;
     GPUGridVariableBase_size = size;
     GPUGridVariableBase_ptr = addr;
-    //var.setArray3(offset, size, addr);
 
     // Put all remaining information about the variable into the the database.
-    put(GPUGridVariableBase_ptr, GPUGridVariableBase_size, GPUGridVariableBase_offset,
+    put(GPUGridVariableBase_ptr, GPUGridVariableBase_size, GPUGridVariableBase_offset, memSize,
         sizeOfDataType, label, patchID, matlIndx, levelIndx, staging,
         gtype, numGhostCells);
 
