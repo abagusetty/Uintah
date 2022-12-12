@@ -144,28 +144,24 @@ void DetailedTask::doit(const ProcessorGroup *pg,
     // Run the GPU task  Technically the engine has structure to run one task on
     // multiple devices if that task had patches on multiple devices  So run the
     // task once per device. As often as possible, we want to design tasks so
-    // each task runs on only once device, instead of a one to many
+    // each task runs on only one device, instead of a one to many
     // relationship.
 
-    for (auto deviceNums_it = deviceNums_.cbegin();
-         deviceNums_it != deviceNums_.cend(); ++deviceNums_it) {
-      const auto currentDevice = *deviceNums_it;
-      OnDemandDataWarehouse::uintahSetGpuDevice(currentDevice);
-      GPUDataWarehouse *host_oldtaskdw =
-          getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
+    for (auto currentDeviceID : deviceNums_) {
+      OnDemandDataWarehouse::uintahSetGpuDevice(currentDeviceID);
+      GPUDataWarehouse *host_oldtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::OldDW);
       GPUDataWarehouse *device_oldtaskdw = nullptr;
       if (host_oldtaskdw) {
         device_oldtaskdw = host_oldtaskdw->getdevice_ptr();
       }
-      GPUDataWarehouse *host_newtaskdw =
-          getTaskGpuDataWarehouse(currentDevice, Task::NewDW);
+      GPUDataWarehouse *host_newtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::NewDW);
       GPUDataWarehouse *device_newtaskdw = nullptr;
       if (host_newtaskdw) {
         device_newtaskdw = host_newtaskdw->getdevice_ptr();
       }
       m_task->doit(this, event, pg, m_patches, m_matls, dws, device_oldtaskdw,
-                   device_newtaskdw, getGpuStreamForThisTask(currentDevice),
-                   currentDevice);
+                   device_newtaskdw, getGpuStreamForThisTask(currentDeviceID),
+                   currentDeviceID);
     }
 #endif
   } else {
@@ -769,7 +765,12 @@ void DetailedTask::setGpuStreamForThisTask(int device_id, gpuStream_t *stream) {
   }
 };
 
-void DetailedTask::clearGpuStreamsForThisTask() { d_gpuStreams.clear(); }
+void DetailedTask::clearGpuStreamsForThisTask() {
+  #ifdef HAVE_SYCL
+  d_gpuEvents.clear();
+  #endif
+  d_gpuStreams.clear();
+}
 
 //_____________________________________________________________________________
 //

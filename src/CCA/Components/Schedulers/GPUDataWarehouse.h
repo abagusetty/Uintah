@@ -596,6 +596,11 @@ public:
   HOST_DEVICE void get(const T &var, char const *label, const int patchID,
                        const int8_t matlIndx, const int8_t levelIndx = 0);
 
+  template <typename T>
+  HOST_DEVICE void getModifiable(T &var, char const *label, const int patchID,
+                                 const int8_t matlIndx,
+                                 const int8_t levelIndx = 0);
+
   // HOST_DEVICE void getLevel(const GPUGridVariableBase &var, char const *label,
   //                           const int8_t matlIndx, const int8_t levelIndx);
 
@@ -624,11 +629,6 @@ public:
 #endif
 
 
-
-  template <typename T>
-  HOST_DEVICE void getModifiable(T &var, char const *label, const int patchID,
-                                 const int8_t matlIndx,
-                                 const int8_t levelIndx = 0);
 
   void copySuperPatchInfo(char const *label, int superPatchBaseID,
                           int superPatchDestinationID, int matlIndx,
@@ -839,8 +839,7 @@ private:
   int d_numVarDBItems;
   int d_numMaterials;
   int numGhostCellCopiesNeeded;
-  GPUDataWarehouse
-      *d_device_copy; // The pointer to the copy of this object in the GPU.
+  GPUDataWarehouse *d_device_copy; // The pointer to the copy of this object in the GPU.
   bool d_dirty;       // if this changes, we have to recopy the GPUDW.
   int d_device_id;
   bool d_debug;

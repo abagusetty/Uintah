@@ -1217,10 +1217,8 @@ void GPUDataWarehouse::init_device(std::size_t objectSizeInBytes,
   this->objectSizeInBytes = objectSizeInBytes;
   this->d_maxdVarDBItems = d_maxdVarDBItems;
 
-  auto& streamPool = GPUStreamPool<>::getInstance();
-  //this->d_device_copy = sycl::malloc_device<GPUDataWarehouse>(1, *(streamPool.getDefaultGpuStreamFromPool(d_device_id)));
-  void* temp = sycl::malloc_device(objectSizeInBytes, *(streamPool.getDefaultGpuStreamFromPool(d_device_id)));
-  this->d_device_copy = (GPUDataWarehouse*)temp;
+  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+  this->d_device_copy = reinterpret_cast<GPUDataWarehouse*>(GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, objectSizeInBytes));
 
   d_dirty = true;
 }
@@ -1301,8 +1299,8 @@ void GPUDataWarehouse::clear() {
 void GPUDataWarehouse::deleteSelfOnDevice() {
   // Note: in SYCL no need to set the GPU active device before calling any SYCL APIs, unlike CUDA/HIP
   if (d_device_copy) {
-    auto& streamPool = GPUStreamPool<>::getInstance();
-    sycl::free(d_device_copy, *(streamPool.getDefaultGpuStreamFromPool(d_device_id)));
+    OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
+    GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id, d_device_copy, objectSizeInBytes);
     d_device_copy = nullptr;
   }
 }
