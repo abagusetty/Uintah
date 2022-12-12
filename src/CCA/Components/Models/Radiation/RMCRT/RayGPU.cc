@@ -497,8 +497,8 @@ void Ray::rayTraceDataOnionGPU(
       dim3 dimBlock(numThreadsPerGPUBlock, 1, 1);
       dim3 dimGrid(1, 1, 1);
 
-      // The number of streams defines how many kernels per patch we run
-      dtask->getTask()->maxStreamsPerTask();
+      //The number of streams defines how many kernels per patch we run
+      int numKernels = dtask->getTask()->maxStreamsPerTask();
 
       for (int i = 0; i < numKernels; i++) {
         RT_flags.startCell = (i / static_cast<double>(numKernels)) * numCells;

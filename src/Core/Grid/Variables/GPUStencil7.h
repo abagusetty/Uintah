@@ -40,7 +40,7 @@ namespace Uintah {
   typedef sycl::vec<double, 8> GPUStencil7;
   // Mapping: [w, e, s, n, b, t, p] --> [0, 1, 2, 3, 4, 5, 6, X]
 
-#elif defined(HAVE_CUDA)
+#elif defined(HAVE_CUDA) || defined(HAVE_HIP)
 
   struct GPUStencil7 {
 

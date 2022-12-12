@@ -1622,7 +1622,6 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
 
   randNumStates = (gpurandState *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(
       0, numStates * sizeof(gpurandState));
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, randNumStates);
 
   // Create a host array, load it with data, and send it over to the GPU
   int nRandNums = 512;
@@ -1630,7 +1629,6 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
   size_t randNumsByteSize = nRandNums * sizeof(double);
   d_debugRandNums =
       (double *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(0, randNumsByteSize);
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, d_debugRandNums);
 
   // Making sure we have kernel/mem copy overlapping
   double *h_debugRandNums = new double[nRandNums];
@@ -1647,6 +1645,8 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
   rayTraceKernel<T><<<dimGrid, dimBlock, 0, *stream>>>(
       dimGrid, dimBlock, matlIndx, level, patch, randNumStates, RT_flags,
       curTimeStep, abskg_gdw, sigmaT4_gdw, cellType_gdw, new_gdw);
+
+  // TODO: allocated 
 }
 
 //______________________________________________________________________
@@ -1671,16 +1671,11 @@ void launchRayTraceDataOnionKernel(
   dev_regionLo = (int3 *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(0, size);
   dev_regionHi = (int3 *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(0, size);
 
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, dev_regionLo);
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, dev_regionHi);
-
   // More GPU stuff to allow kernel/copy overlapping
   int3 *myLo = new int3[d_MAXLEVELS];
   int3 *myHi = new int3[d_MAXLEVELS];
   GPU_RT_SAFE_CALL(gpuHostRegister(myLo, sizeof(int3) * d_MAXLEVELS, gpuHostRegisterPortable));
   GPU_RT_SAFE_CALL(gpuHostRegister(myHi, sizeof(int3) * d_MAXLEVELS, gpuHostRegisterPortable));
-  dtask->addTempHostMemoryToBeFreedOnCompletion(myLo);
-  dtask->addTempHostMemoryToBeFreedOnCompletion(myHi);
 
   for (int l = 0; l < maxLevels; ++l) {
     myLo[l] =
@@ -1707,7 +1702,6 @@ void launchRayTraceDataOnionKernel(
   gpurandState *randNumStates;
   randNumStates = (gpurandState *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(
       0, numStates * sizeof(gpurandState));
-  dtask->addTempCudaMemoryToBeFreedOnCompletion(0, randNumStates);
 
   rayTraceDataOnionKernel<T><<<dimGrid, dimBlock, 0, *stream>>>(
       dimGrid, dimBlock, matlIndex, patch, gridP, fineLevel_ROI_Lo,
