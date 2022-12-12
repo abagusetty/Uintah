@@ -245,8 +245,6 @@ DESCRIPTION
 
     int  m_num_devices;
 
-    std::vector< std::string > m_material_names;
-
     struct labelPatchMatlDependency {
 
       labelPatchMatlDependency( const char          * label
