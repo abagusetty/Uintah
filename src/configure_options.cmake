@@ -80,31 +80,30 @@ if( ENABLE_HIP )
   # unsets previous CXX standard and sets CXX to std++17
   unset(CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_HIP_STANDARD 17)
 
   set(CMAKE_HIP_ARCHITECTURES "gfx90a" CACHE STRING "GPU targets to compile for")
-  set(GPU_TARGETS "gfx90a" CACHE STRING "GPU targets to compile for")
 
   if(DEFINED ENV{ROCM_PATH})
-    set(HIP_PATH "$ENV{ROCM_PATH}/include" CACHE PATH "Path to which HIP has been installed")
-    list(APPEND CMAKE_PREFIX_PATH ${HIP_PATH})
-    set(CMAKE_MODULE_PATH "$ENV{ROCM_PATH}/hip/cmake" ${CMAKE_MODULE_PATH})
+    set(HIP_PATH "$ENV{ROCM_PATH}" CACHE PATH "Path to which HIP has been installed")
+    set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
   endif()
 
-  #find_package(hip REQUIRED)
-  enable_language( HIP )
+  #enable_language( HIP )
+  find_package(hip)
   if(hip_FOUND)
      message(STATUS "Found HIP: ${HIP_VERSION}")
-     message(STATUS "         HIP: Runtime=${HIP_RUNTIME} , Compiler=${HIP_COMPILER} , Path=${HIP_PATH}")
+     message(STATUS "HIP: Runtime=${HIP_RUNTIME} Compiler=${HIP_COMPILER} Path=${HIP_PATH}")
+     include_directories(${HIP_PATH}/include)
+     add_compile_definitions(__HIP_PLATFORM_AMD__)
+  else()
+     message(FATAL_ERROR "Could not find HIP."
+        " Ensure that HIP is either installed in /opt/rocm/hip or the variable HIP_PATH is set to point to the right location.")
   endif()
-
-  find_package(rocrand REQUIRED)
 
   if( ENABLE_RCCL )
     find_dependency( rccl REQUIRED )
   endif( ENABLE_RCCL )
-
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_PLATFORM_AMD__=1")
-  link_libraries("-L$ENV{ROCM_PATH}/lib -lamdhip64")
 endif( ENABLE_HIP )
 
 if( ENABLE_SYCL )

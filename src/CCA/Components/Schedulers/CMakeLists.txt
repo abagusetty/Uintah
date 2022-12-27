@@ -66,7 +66,10 @@ if( ENABLE_CUDA )
     target_link_libraries( CCA_Components_Schedulers PRIVATE CUDA::cudart )
 endif( ENABLE_CUDA )
 if( ENABLE_HIP )
-    target_link_libraries( CCA_Components_Schedulers PRIVATE hip::host )
+    target_compile_options(CCA_Components_Schedulers PUBLIC
+          "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-mllvm;-amdgpu-early-inline-all=true;-mllvm;-amdgpu-function-calls=false>"
+       )
+    target_link_libraries( CCA_Components_Schedulers PRIVATE hip::device )
 endif( ENABLE_HIP )
 
 

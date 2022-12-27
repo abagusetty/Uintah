@@ -24,6 +24,8 @@ if( ENABLE_CUDA )
 endif( ENABLE_CUDA )
 
 if( ENABLE_HIP )
+    find_package(hiprand REQUIRED)
+
     set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CXX)
     set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES COMPILE_FLAGS "-D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=$ENV{ROCM_PATH} --offload-arch=gfx90a -x hip")
 endif( ENABLE_HIP )
@@ -52,10 +54,13 @@ endif()
 
 target_link_libraries( CCA_Components_Models PRIVATE ${LIB_DEPS} )
 if( ENABLE_CUDA )
-    target_link_libraries( CCA_Components_Models PRIVATE CUDA::cudart )
+    target_link_libraries( CCA_Components_Models PRIVATE CUDA::cudart CUDA::curand )
 endif( ENABLE_CUDA )
 if( ENABLE_HIP )
-    target_link_libraries( CCA_Components_Models PRIVATE hip::host )
+    target_compile_options(CCA_Components_Models PUBLIC
+          "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-mllvm;-amdgpu-early-inline-all=true;-mllvm;-amdgpu-function-calls=false>"
+       )
+    target_link_libraries( CCA_Components_Models PUBLIC hip::device hip::hiprand )
 endif( ENABLE_HIP )
 
 target_include_directories( CCA_Components_Models

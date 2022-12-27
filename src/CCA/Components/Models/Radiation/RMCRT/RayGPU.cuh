@@ -32,22 +32,13 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <sci_defs/gpu_defs.h>
+#include <math_functions.h> // needed for max()
 #endif
 
 #ifdef HAVE_HIP
-#include <hiprand/hiprand.h>
-#include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand.hpp>
 #include <sci_defs/gpu_defs.h>
 #endif
-
-//#define __CUDA_INTERNAL_COMPILATION__
-#if defined(HAVE_CUDA)
-#include <math_functions.h> // needed for max()
-#endif
-// #if defined(HAVE_HIP)
-// #include <hip/math_functions.h>
-// #endif
-//#undef __CUDA_INTERNAL_COMPILATION__
 
 namespace Uintah {
 

@@ -541,9 +541,6 @@ public:
     varLock->unlock();
   }
 
-  void getLevel(const GPUGridVariableBase &var, char const *label,
-                const int8_t matlIndx, const int8_t levelIndx);
-
   void put(void *GPUGridVariableBase_ptr,
            const sycl::int3 &GPUGridVariableBase_size,
            const sycl::int3 &GPUGridVariableBase_offset,
@@ -594,15 +591,69 @@ public:
 
   template <typename T>
   HOST_DEVICE void get(const T &var, char const *label, const int patchID,
-                       const int8_t matlIndx, const int8_t levelIndx = 0);
+                       const int8_t matlIndx, const int8_t levelIndx = 0) {
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+    // device code
+    GPUDataWarehouse::dataItem *item = getItem(label, patchID, matlIndx, levelIndx);
+    if (item) {
+      if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
+        var.setArray3(item->var_offset, item->var_size, item->var_ptr);
+      } else if constexpr (std::is_same_v<T, GPUReductionVariableBase> ||
+                           std::is_same_v<T, GPUPerPatchBase>) {
+        var.setData(item->var_ptr);
+      }
+    }
+#else
+    // host code
+    varLock->lock();
+    labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
+    if (varPointers->find(lpml) != varPointers->end()) {
+      allVarPointersInfo vp = varPointers->at(lpml);
+      if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
+        var.setArray3(vp.var->device_offset, vp.var->device_size,
+                      vp.var->device_ptr);
+      } else if constexpr (std::is_same_v<T, GPUReductionVariableBase> ||
+                           std::is_same_v<T, GPUPerPatchBase>) {
+        var.setData(vp.var->device_ptr);
+      }
+    }
+    varLock->unlock();
+#endif
+  }
 
   template <typename T>
   HOST_DEVICE void getModifiable(T &var, char const *label, const int patchID,
                                  const int8_t matlIndx,
-                                 const int8_t levelIndx = 0);
-
-  // HOST_DEVICE void getLevel(const GPUGridVariableBase &var, char const *label,
-  //                           const int8_t matlIndx, const int8_t levelIndx);
+                                 const int8_t levelIndx = 0) {
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+    // device code
+    GPUDataWarehouse::dataItem *item = getItem(label, patchID, matlIndx, levelIndx);
+    if (item) {
+      if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
+        var.setArray3(item->var_offset, item->var_size, item->var_ptr);
+      } else if constexpr (std::is_same_v<T, GPUReductionVariableBase> ||
+                           std::is_same_v<T, GPUPerPatchBase>) {
+        var.setData(item->var_ptr);
+      }
+    }
+#else
+    // host code
+    varLock->lock();
+    labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
+    std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
+      varPointers->find(lpml);
+    if (it != varPointers->end()) {
+      if constexpr (std::is_same_v<T, GPUGridVariableBase>) {
+        var.setArray3(it->second.var->device_offset, it->second.var->device_size,
+                      it->second.var->device_ptr);
+      } else if constexpr (std::is_same_v<T, GPUReductionVariableBase> ||
+                           std::is_same_v<T, GPUPerPatchBase>) {
+        var.setData(it->second.var->device_ptr);
+      }
+    }
+    varLock->unlock();
+#endif
+  }
 
   void put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
            char const *label, int patchID, int matlIndx, int levelIndx = 0,
@@ -629,6 +680,10 @@ public:
 #endif
 
 
+  HOST_DEVICE void getLevel(const GPUGridVariableBase &var, char const *label,
+                            const int8_t matlIndx, const int8_t levelIndx) {
+    get(var, label, -99999999, matlIndx, levelIndx);
+  }
 
   void copySuperPatchInfo(char const *label, int superPatchBaseID,
                           int superPatchDestinationID, int matlIndx,
@@ -822,7 +877,7 @@ private:
     sycl::group_barrier(work_grp);
     return &d_varDB[*index];
   }
-#else
+#else // CUDA, HIP
   __device__ dataItem *getItem(char const *label, const int patchID,
                                const int8_t matlIndx, const int8_t levelIndx);
 #endif

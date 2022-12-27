@@ -45,7 +45,7 @@
 #endif
 
 #ifdef HAVE_HIP
-#include <rocrand/rocrand.h>
+#include <hiprand/hiprand.h>
 #include <sci_defs/gpu_defs.h>
 #endif
 
