@@ -1837,16 +1837,6 @@ __device__ void GPUDataWarehouse::copyGpuGhostCellsToGpuVars() {
 
   // go through every ghost cell var we need
   for (int i = 0; i < d_numVarDBItems; i++) {
-    // if (threadID == 0) {
-    //   if (d_varDB[i].ghostItem.dest_varDB_index != -1) {
-    //     printf("d_varDB[%d].label is %s\n", i,
-    //     d_varDB[d_varDB[i].ghostItem.dest_varDB_index].label,
-    //     d_numVarDBItems);
-    //   } else {
-    //     printf("d_varDB[%d].label is %s\n", i, d_varDB[i].label,
-    //     d_numVarDBItems);
-    //   }
-    // }
     // some things in d_varDB are meta data for simulation variables
     // other things in d_varDB are meta data for how to copy ghost cells.
     // Make sure we're only dealing with ghost cells here
@@ -1908,71 +1898,11 @@ __device__ void GPUDataWarehouse::copyGpuGhostCellsToGpuVars() {
               d_varDB[destIndex].var_size.x *
                   (y_dest_real + z_dest_real * d_varDB[destIndex].var_size.y);
 
-          //         if (threadID == 0) {
-          //           printf("Going to copy, between (%d, %d, %d) from offset
-          //           %d to offset %d.  From starts at (%d, %d, %d) with size
-          //           (%d, %d, %d) at index %d pointer %p.  To starts at (%d,
-          //           %d, %d) with size (%d, %d, %d).\n",
-          //                  d_varDB[i].ghostItem.sharedLowCoordinates.x,
-          //                  d_varDB[i].ghostItem.sharedLowCoordinates.y,
-          //                  d_varDB[i].ghostItem.sharedLowCoordinates.z,
-          //                  sourceOffset,
-          //                  destOffset,
-          //                  d_varDB[i].var_offset.x, d_varDB[i].var_offset.y,
-          //                  d_varDB[i].var_offset.z, d_varDB[i].var_size.x,
-          //                  d_varDB[i].var_size.y, d_varDB[i].var_size.z, i,
-          //                  d_varDB[i].var_ptr,
-          //                  d_varDB[destIndex].var_offset.x,
-          //                  d_varDB[destIndex].var_offset.y,
-          //                  d_varDB[destIndex].var_offset.z,
-          //                  d_varDB[destIndex].var_size.x,
-          //                  d_varDB[destIndex].var_size.y,
-          //                  d_varDB[destIndex].var_size.z);
-          //         }
-
           // copy all 8 bytes of a double in one shot
           if (d_varDB[i].sizeOfDataType == sizeof(double)) {
             *((double *)(d_varDB[destIndex].var_ptr) + destOffset) =
                 *((double *)(d_varDB[i].var_ptr) + sourceOffset);
 
-            // Note: Every now and then I've seen this printf statement get
-            // confused, a line will print with the wrong variables/offset
-            // variables...
-            //           printf("Thread %d - %s At (%d, %d, %d), real: (%d, %d,
-            //           %d), copying within region between (%d, %d, %d) and
-            //           (%d, %d, %d).  Source d_varDB index (%d, %d, %d)
-            //           varSize (%d, %d, %d) virtualOffset(%d, %d, %d),
-            //           varOffset(%d, %d, %d), sourceOffset %d actual pointer
-            //           %p, value %e.   Dest d_varDB index %d ptr %p destOffset
-            //           %d actual pointer. %p\n",
-            //                  threadID, d_varDB[destIndex].label, x, y, z,
-            //                  x_source_real, y_source_real, z_source_real,
-            //                  d_varDB[i].ghostItem.sharedLowCoordinates.x,
-            //                  d_varDB[i].ghostItem.sharedLowCoordinates.y,
-            //                  d_varDB[i].ghostItem.sharedLowCoordinates.z,
-            //                  d_varDB[i].ghostItem.sharedHighCoordinates.x,
-            //                  d_varDB[i].ghostItem.sharedHighCoordinates.y,
-            //                  d_varDB[i].ghostItem.sharedHighCoordinates.z, x
-            //                  + d_varDB[i].ghostItem.sharedLowCoordinates.x -
-            //                  d_varDB[i].ghostItem.virtualOffset.x, y +
-            //                  d_varDB[i].ghostItem.sharedLowCoordinates.y -
-            //                  d_varDB[i].ghostItem.virtualOffset.y, z +
-            //                  d_varDB[i].ghostItem.sharedLowCoordinates.z -
-            //                  d_varDB[i].ghostItem.virtualOffset.z,
-            //                  d_varDB[i].var_size.x, d_varDB[i].var_size.y,
-            //                  d_varDB[i].var_size.z,
-            //                  d_varDB[i].ghostItem.virtualOffset.x,
-            //                  d_varDB[i].ghostItem.virtualOffset.y,
-            //                  d_varDB[i].ghostItem.virtualOffset.z,
-            //                  d_varDB[i].var_offset.x,
-            //                  d_varDB[i].var_offset.y,
-            //                  d_varDB[i].var_offset.z, sourceOffset,
-            //                  (double*)(d_varDB[i].var_ptr) + sourceOffset,
-            //                  *((double*)(d_varDB[i].var_ptr) + sourceOffset),
-            //                  destIndex, d_varDB[destIndex].var_ptr,
-            //                  destOffset,
-            //                  (double*)(d_varDB[destIndex].var_ptr) +
-            //                  destOffset);
           }
           // or copy all 4 bytes of an int in one shot.
           else if (d_varDB[i].sizeOfDataType == sizeof(int)) {
@@ -1996,9 +1926,9 @@ __device__ void GPUDataWarehouse::copyGpuGhostCellsToGpuVars() {
 
 //______________________________________________________________________
 //
-// __global__ void copyGpuGhostCellsToGpuVarsKernel( GPUDataWarehouse *gpudw) {
-//   gpudw->copyGpuGhostCellsToGpuVars();
-// }
+__global__ void copyGpuGhostCellsToGpuVarsKernel( GPUDataWarehouse *gpudw) {
+  gpudw->copyGpuGhostCellsToGpuVars();
+}
 
 //______________________________________________________________________
 //
@@ -2009,10 +1939,10 @@ void GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t *stream) {
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
 
     dim3 dimBlock(32, 16, 1);
-    dim3 dimGrid(1, 1,
-                 1); // Give each ghost copying kernel 32 * 16 = 512 threads to
-                     // copy (32x32 was too much for a smaller laptop GPU and
-                     //the Uintah build server in debug mode)
+    dim3 dimGrid(1, 1, 1);
+    // Give each ghost copying kernel 32 * 16 = 512 threads to
+    // copy (32x32 was too much for a smaller laptop GPU and
+    //the Uintah build server in debug mode)
     if (gpu_stats.active()) {
       cerrLock.lock();
       {
@@ -2025,14 +1955,9 @@ void GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t *stream) {
       }
       cerrLock.unlock();
     }
-#ifdef HAVE_CUDA
+
     copyGpuGhostCellsToGpuVarsKernel<<<dimGrid, dimBlock, 0, *stream>>>(
         this->d_device_copy);
-#elif defined(HAVE_HIP)
-    // hipLaunchKernelGGL(HIP_KERNEL_NAME(copyGpuGhostCellsToGpuVarsKernel),
-    // dimGrid, dimBlock,
-    //                    0, *stream, (this->d_device_copy));
-#endif
   }
 }
 

@@ -434,8 +434,7 @@ public:
       sycl::int3 &GPUGridVariableBase_offset, const char *label,
       const int patchID, const int8_t matlIndx, const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem =
-        getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       GPUGridVariableBase_ptr = static_cast<T *>(ditem->var_ptr);
       GPUGridVariableBase_size = ditem->var_size;
@@ -449,8 +448,7 @@ public:
       const char *label, const int patchID,
       const int8_t matlIndx, const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem =
-        getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       gpu_ptr = static_cast<T *>(ditem->var_ptr);
     }
@@ -466,8 +464,7 @@ public:
                 const int8_t matlIndx,
                 const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem =
-        getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       GPUGridVariableBase_ptr = static_cast<T *>(ditem->var_ptr);
       GPUGridVariableBase_size = ditem->var_size;
@@ -481,8 +478,7 @@ public:
                 char const *label, const int patchID, const int8_t matlIndx,
                 const int8_t levelIndx = 0) {
     // device code
-    GPUDataWarehouse::dataItem *ditem =
-        getItem(item, label, patchID, matlIndx, levelIndx);
+    GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
     if (ditem != nullptr) {
       gpu_ptr = static_cast<T *>(ditem->var_ptr);
     }

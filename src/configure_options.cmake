@@ -77,29 +77,47 @@ if( ENABLE_CUDA )
 endif( ENABLE_CUDA )
 
 if( ENABLE_HIP )
+  cmake_minimum_required(VERSION 3.21)
+
   # unsets previous CXX standard and sets CXX to std++17
   unset(CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
-  set(CMAKE_HIP_STANDARD 17)
-
-  set(CMAKE_HIP_ARCHITECTURES "gfx90a" CACHE STRING "GPU targets to compile for")
 
   if(DEFINED ENV{ROCM_PATH})
     set(HIP_PATH "$ENV{ROCM_PATH}" CACHE PATH "Path to which HIP has been installed")
     set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
+    include_directories(${HIP_PATH}/include)
   endif()
 
-  #enable_language( HIP )
-  find_package(hip)
-  if(hip_FOUND)
-     message(STATUS "Found HIP: ${HIP_VERSION}")
-     message(STATUS "HIP: Runtime=${HIP_RUNTIME} Compiler=${HIP_COMPILER} Path=${HIP_PATH}")
-     include_directories(${HIP_PATH}/include)
-     add_compile_definitions(__HIP_PLATFORM_AMD__)
+  set(CMAKE_HIP_ARCHITECTURES "gfx90a" CACHE STRING "")
+  set(AMDGPU_TARGETS "gfx90a" CACHE STRING "")
+  # Variable AMDGPU_TARGET must be a cached variable and must be specified before calling find_package(hip)
+  # This is because hip-config.cmake sets --offload-arch via AMDGPU_TARGET cached variable __after__ setting
+  # default cached variable AMDGPU_TARGET to "gfx900;gfx906;gfx908;gfx1100;gfx1101;gfx1102", where not all archs are compatible with MFMA instructions
+  #
+  # By rule, once cached variable is set, it cannot be overridden unless we use the FORCE option
+  if(AMDGPU_TARGETS)
+    set(AMDGPU_TARGETS "${AMDGPU_TARGETS}" CACHE STRING "List of specific machine types for library to target")
   else()
-     message(FATAL_ERROR "Could not find HIP."
-        " Ensure that HIP is either installed in /opt/rocm/hip or the variable HIP_PATH is set to point to the right location.")
+    set(AMDGPU_TARGETS "${DEFAULT_AMDGPU_TARGETS}" CACHE STRING "List of specific machine types for library to target")
   endif()
+  message( VERBOSE "AMDGPU_TARGETS=${AMDGPU_TARGETS}")
+
+  set(CMAKE_HIP_EXTENSIONS OFF)
+  find_package(HIP REQUIRED)
+  enable_language( HIP )
+
+  message(STATUS "Found HIP: ${HIP_VERSION}")
+  message(STATUS "HIP: Runtime=${HIP_RUNTIME} Compiler=${HIP_COMPILER} Path=${HIP_PATH}")
+
+  if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.21.0")
+    if (NOT DEFINED CMAKE_HIP_STANDARD)
+       set(CMAKE_HIP_STANDARD ${CMAKE_CXX_STANDARD})
+    endif()
+    message(STATUS "Standard C++${CMAKE_HIP_STANDARD} selected for HIP")
+  endif()
+
+  add_compile_definitions(__HIP_PLATFORM_AMD__)
 
   if( ENABLE_RCCL )
     find_dependency( rccl REQUIRED )

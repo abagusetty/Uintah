@@ -11,11 +11,14 @@ else()
     list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/Ray.cc )
 endif()
 
-# jcs need to sort out cuda stuff
-if( ENABLE_CUDA OR ENABLE_HIP )
+if( ENABLE_CUDA )
     list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cu )
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cu PROPERTIES LANGUAGE CUDA)
+elseif( ENABLE_HIP )
+    list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cu )
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cu PROPERTIES LANGUAGE HIP)
 elseif( ENABLE_SYCL )
     list( APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/RayGPUKernel.cc )
 endif( )
 
-set( MDL_RADIATION_SRC ${MDL_RADIATION_SRC} ${SRC} PARENT_SCOPE )
+set( MDL_RADIATION_SRC ${SRC} PARENT_SCOPE )

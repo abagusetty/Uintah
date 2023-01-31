@@ -32,8 +32,6 @@
 #include <Core/Grid/Variables/Stencil7.h>
 #include <Core/Util/GPU.h>
 
-#include <sci_defs/uintah_defs.h>
-
 #define DEBUG -9 // 1: divQ, 2: boundFlux, 3: scattering
 // #define FIXED_RANDOM_NUM        // also edit in
 // src/Core/Math/MersenneTwister.h to compare with Ray:CPU
@@ -87,11 +85,6 @@ rayTraceKernel(dim3 dimGrid, dim3 dimBlock, const int matl, levelParams level,
                GPUDataWarehouse *cellType_gdw,
                GPUDataWarehouse *new_gdw) {
 
-  // Not used right now
-  //  int blockID  = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y
-  //  * blockIdx.z; int threadID = threadIdx.x +  blockDim.x * threadIdx.y +
-  //  (blockDim.x * blockDim.y) * threadIdx.z;
-
   // calculate the thread indices
   int tidX = threadIdx.x + blockIdx.x * blockDim.x + patch.loEC.x;
   int tidY = threadIdx.y + blockIdx.y * blockDim.y + patch.loEC.y;
@@ -103,8 +96,6 @@ rayTraceKernel(dim3 dimGrid, dim3 dimBlock, const int matl, levelParams level,
   GPUGridVariable<double> divQ;
   GPUGridVariable<GPUStencil7> boundFlux;
   GPUGridVariable<double> radiationVolQ;
-
-  //  sigmaT4_gdw->print();
 
   sigmaT4_gdw->getLevel(sigmaT4OverPi, "sigmaT4", matl, level.index);
   cellType_gdw->getLevel(cellType, "cellType", matl, level.index);
@@ -404,8 +395,6 @@ __launch_bounds__(640, 1) // For 96 registers with 320 threads.  Allows two kern
   const GPUGridVariable<T> abskg[d_MAXLEVELS];
   const GPUGridVariable<T> sigmaT4OverPi[d_MAXLEVELS];
   const GPUGridVariable<int> cellType[d_MAXLEVELS];
-
-  //  new_gdw->print();
 
   //__________________________________
   // coarse level data for the entire level
@@ -1645,8 +1634,7 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
   rayTraceKernel<T><<<dimGrid, dimBlock, 0, *stream>>>(
       dimGrid, dimBlock, matlIndx, level, patch, randNumStates, RT_flags,
       curTimeStep, abskg_gdw, sigmaT4_gdw, cellType_gdw, new_gdw);
-
-  // TODO: allocated 
+  // TODO: allocated
 }
 
 //______________________________________________________________________

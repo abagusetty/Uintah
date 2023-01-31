@@ -20,14 +20,13 @@ add_subdirectory( SolidReactionModel )
 
 # abb: for now only Radiation/RMCRT is GPU enabled
 if( ENABLE_CUDA )
-    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CUDA)
+    find_package(curand REQUIRED)
+    include_directories( $ENV{MPI_HOME}/include )
 endif( ENABLE_CUDA )
 
 if( ENABLE_HIP )
     find_package(hiprand REQUIRED)
-
-    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CXX)
-    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES COMPILE_FLAGS "-D__HIP_ROCclr__ -D__HIP_ARCH_GFX90A__=1 --rocm-path=$ENV{ROCM_PATH} --offload-arch=gfx90a -x hip")
+    include_directories( $ENV{MPI_HOME}/include )
 endif( ENABLE_HIP )
 
 add_library( CCA_Components_Models
@@ -57,10 +56,7 @@ if( ENABLE_CUDA )
     target_link_libraries( CCA_Components_Models PRIVATE CUDA::cudart CUDA::curand )
 endif( ENABLE_CUDA )
 if( ENABLE_HIP )
-    target_compile_options(CCA_Components_Models PUBLIC
-          "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-mllvm;-amdgpu-early-inline-all=true;-mllvm;-amdgpu-function-calls=false>"
-       )
-    target_link_libraries( CCA_Components_Models PUBLIC hip::device hip::hiprand )
+    target_link_libraries( CCA_Components_Models PRIVATE hip::device hip::hiprand )
 endif( ENABLE_HIP )
 
 target_include_directories( CCA_Components_Models
