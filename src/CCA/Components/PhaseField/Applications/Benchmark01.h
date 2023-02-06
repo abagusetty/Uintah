@@ -507,7 +507,7 @@ Benchmark01<VAR, STN>::scheduleTimeAdvance_solution (
 )
 {
     Task * task = scinew Task ( "Benchmark01::task_time_advance_solution", this, &Benchmark01<VAR, STN>::task_time_advance_solution );
-    task->requires ( Task::OldDW, u_label, GT, GN );
+    task->requires ( Task::WhichDW::OldDW, u_label, GT, GN );
     task->computes ( u_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -519,7 +519,7 @@ void Benchmark01<VAR, STN>::scheduleTimeAdvance_postprocess (
 )
 {
     Task * task = scinew Task ( "Benchmark01::task_time_advance_postprocess", this, &Benchmark01<VAR, STN>::task_time_advance_postprocess );
-    task->requires ( Task::NewDW, u_label, GT, GN );
+    task->requires ( Task::WhichDW::NewDW, u_label, GT, GN );
     task->computes ( u0_label );
     task->computes ( energy_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );

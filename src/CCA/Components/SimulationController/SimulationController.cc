@@ -564,12 +564,12 @@ SimulationController::ScheduleReportStats( bool header )
 {
   Task* task = scinew Task("SimulationController::ReportStats", this, &SimulationController::ReportStats, header);
   
-  task->setType(Task::OncePerProc);
+  task->setType(Task::TaskType::OncePerProc);
 
   // Require delta T so that the task gets scheduled
   // correctly. Otherwise the scheduler/taskgraph will toss an error :
   // Caught std exception: map::at: key not found
-  task->requires(Task::NewDW, m_application->getDelTLabel() );
+  task->requires(Task::WhichDW::NewDW, m_application->getDelTLabel() );
 
   m_scheduler->addTask(task,
                        m_loadBalancer->getPerProcessorPatchSet(m_current_gridP),
@@ -974,12 +974,12 @@ SimulationController::ScheduleCheckInSitu( bool first )
     Task* task = scinew Task("SimulationController::CheckInSitu",
                              this, &SimulationController::CheckInSitu, first);
     
-    task->setType(Task::OncePerProc);
+    task->setType(Task::TaskType::OncePerProc);
 
     // Require delta T so that the task gets scheduled
     // correctly. Otherwise the scheduler/taskgraph will toss an error
     // : Caught std exception: map::at: key not found
-    task->requires(Task::NewDW, m_application->getDelTLabel() );
+    task->requires(Task::WhichDW::NewDW, m_application->getDelTLabel() );
 
     m_scheduler->addTask(task,
                          m_loadBalancer->getPerProcessorPatchSet(m_current_gridP),

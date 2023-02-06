@@ -149,7 +149,7 @@ CNHPDamage::addComputesAndRequires(Task* task,
 
   const MaterialSubset* matlset = matl->thisMaterial();
   Ghost::GhostType  gnone = Ghost::None;
-  task->requires(Task::OldDW, pPlasticStrainLabel, matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel, matlset, gnone);
   task->computes(pPlasticStrainLabel_preReloc,     matlset);
 }
 
@@ -608,9 +608,9 @@ CNHPDamage::addComputesAndRequires(Task* task,
   const MaterialSubset* matlset = matl->thisMaterial();
   Ghost::GhostType  gnone = Ghost::None;
   if(SchedParent){
-    task->requires(Task::ParentOldDW, pPlasticStrainLabel, matlset, gnone);
+    task->requires(Task::WhichDW::ParentOldDW, pPlasticStrainLabel, matlset, gnone);
   }else{
-    task->requires(Task::OldDW, pPlasticStrainLabel, matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel, matlset, gnone);
   }
 }
 
@@ -637,7 +637,7 @@ CNHPDamage::computeStressTensor(const PatchSubset* patches,
 
   int dwi = matl->getDWIndex();
   DataWarehouse* parent_old_dw = 
-    new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
 
   // Particle and grid data
   constParticleVariable<double>  pVol, pPlasticStrain, pmass;
@@ -975,7 +975,7 @@ CNHPDamage::allocateCMDataAddRequires(Task* task,
 
   // Add requires local to this model
   const MaterialSubset* matlset = matl->thisMaterial();
-  task->requires(Task::NewDW, pPlasticStrainLabel_preReloc, matlset, 
+  task->requires(Task::WhichDW::NewDW, pPlasticStrainLabel_preReloc, matlset, 
                  Ghost::None);
 }
 

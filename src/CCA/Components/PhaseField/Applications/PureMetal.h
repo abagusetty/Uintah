@@ -1344,8 +1344,8 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleInitialize_grad_psi (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_initialize_grad_psi", this, &PureMetal::task_initialize_grad_psi );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, psi_label, FGT, FGN );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, psi_label, FGT, FGN );
     task->computes ( grad_psi_norm2_label );
     for ( size_t d = 0; d < DIM; ++d )
         task->computes ( grad_psi_label[d] );
@@ -1429,7 +1429,7 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleTimeAdvance_subproblems (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_time_advance_subproblems", this, &PureMetal::task_time_advance_subproblems );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
     task->computes ( subproblems_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -1458,8 +1458,8 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleTimeAdvance_grad_psi (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_time_advance_grad_psi", this, &PureMetal::task_time_advance_grad_psi );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, psi_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, psi_label, FGT, FGN );
     task->computes ( grad_psi_norm2_label );
     for ( size_t d = 0; d < DIM; ++d )
         task->computes ( grad_psi_label[d] );
@@ -1484,9 +1484,9 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleTimeAdvance_anisotropy_terms (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_time_advance_anisotropy_terms", this, &PureMetal::task_time_advance_anisotropy_terms );
-    task->requires ( Task::OldDW, grad_psi_norm2_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, grad_psi_norm2_label, Ghost::None, 0 );
     for ( size_t d = 0; d < DIM; ++d )
-        task->requires ( Task::OldDW, grad_psi_label[d], Ghost::None, 0 );
+        task->requires ( Task::WhichDW::OldDW, grad_psi_label[d], Ghost::None, 0 );
     task->computes ( a_label );
     task->computes ( a2_label );
     for ( size_t d = 0; d < BSZ; ++d )
@@ -1503,15 +1503,15 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_time_advance_solution", this, &PureMetal::task_time_advance_solution );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, psi_label, FGT, FGN );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, psi_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
     for ( size_t d = 0; d < DIM; ++d )
-        task->requires ( Task::OldDW, grad_psi_label[d], Ghost::None, 0 );
-    task->requires ( Task::NewDW, a_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, a2_label, FGT, FGN );
+        task->requires ( Task::WhichDW::OldDW, grad_psi_label[d], Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, a_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, a2_label, FGT, FGN );
     for ( size_t d = 0; d < BSZ; ++d )
-        task->requires ( Task::NewDW, b_label[d], FGT, FGN );
+        task->requires ( Task::WhichDW::NewDW, b_label[d], FGT, FGN );
     task->computes ( psi_label );
     task->computes ( u_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
@@ -1529,22 +1529,22 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution (
     else
     {
         Task * task = scinew Task ( "PureMetal::task_time_advance_solution", this, &PureMetal::task_time_advance_solution );
-        task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-        task->requires ( Task::OldDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::OldDW, psi_label, FGT, FGN );
-        task->requires ( Task::OldDW, psi_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::OldDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, psi_label, FGT, FGN );
+        task->requires ( Task::WhichDW::OldDW, psi_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         for ( size_t d = 0; d < DIM; ++d )
-            task->requires ( Task::OldDW, grad_psi_label[d], Ghost::None, 0 );
-        task->requires ( Task::OldDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::OldDW, u_label, FGT, FGN );
-        task->requires ( Task::OldDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::NewDW, a_label, Ghost::None, 0 );
-        task->requires ( Task::NewDW, a2_label, FGT, FGN );
-        task->requires ( Task::NewDW, a2_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+            task->requires ( Task::WhichDW::OldDW, grad_psi_label[d], Ghost::None, 0 );
+        task->requires ( Task::WhichDW::OldDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+        task->requires ( Task::WhichDW::OldDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::NewDW, a_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::NewDW, a2_label, FGT, FGN );
+        task->requires ( Task::WhichDW::NewDW, a2_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         for ( size_t d = 0; d < BSZ; ++d )
         {
-            task->requires ( Task::NewDW, b_label[d], FGT, FGN );
-            task->requires ( Task::NewDW, b_label[d], nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+            task->requires ( Task::WhichDW::NewDW, b_label[d], FGT, FGN );
+            task->requires ( Task::WhichDW::NewDW, b_label[d], nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         }
         task->computes ( psi_label );
         task->computes ( u_label );
@@ -1618,10 +1618,10 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleRefine_solution (
     cout_pure_metal_scheduling << "scheduleRefine_solution on: " << *patches << std::endl;
 
     Task * task = scinew Task ( "PureMetal::task_refine_solution", this, &PureMetal::task_refine_solution );
-    task->requires ( Task::NewDW, psi_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::NewDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::NewDW, psi_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
     task->computes ( psi_label );
     task->computes ( u_label );
     sched->addTask ( task, patches, this->m_materialManager->allMaterials() );
@@ -1637,8 +1637,8 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleRefine_grad_psi (
     cout_pure_metal_scheduling << "scheduleRefine_grad_psi on: " << *patches << std::endl;
 
     Task * task = scinew Task ( "PureMetal::task_refine_grad_psi", this, &PureMetal::task_refine_grad_psi );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, psi_label, nullptr, Task::ThisLevel, nullptr, Task::NormalDomain, FGT, FGN );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, psi_label, nullptr, Task::ThisLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, FGT, FGN );
     task->computes ( grad_psi_norm2_label );
     for ( size_t d = 0; d < DIM; ++d )
         task->computes ( grad_psi_label[d] );
@@ -1674,10 +1674,10 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleCoarsen_solution (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_coarsen_solution", this, &PureMetal::task_coarsen_solution );
-    task->requires ( Task::NewDW, psi_label, nullptr, Task::FineLevel, nullptr, Task::NormalDomain, Ghost::None, 0 );
-    task->requires ( Task::NewDW, u_label, nullptr, Task::FineLevel, nullptr, Task::NormalDomain, Ghost::None, 0 );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, subproblems_label, nullptr, Task::FineLevel, nullptr, Task::NormalDomain, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, psi_label, nullptr, Task::PatchDomainSpec::FineLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::FineLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::FineLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0 );
     task->modifies ( psi_label );
     task->modifies ( u_label );
     sched->addTask ( task, level_coarse->eachPatch(), this->m_materialManager->allMaterials() );
@@ -1703,8 +1703,8 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleErrorEstimate_grad_psi (
 )
 {
     Task * task = scinew Task ( "PureMetal::task_error_estimate_grad_psi", this, &PureMetal::task_error_estimate_grad_psi );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, psi_label, FGT, FGN );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, psi_label, FGT, FGN );
     task->modifies ( this->m_regridder->getRefineFlagLabel(), this->m_regridder->refineFlagMaterials() );
     task->modifies ( this->m_regridder->getRefinePatchFlagLabel(), this->m_regridder->refineFlagMaterials() );
     task->computes ( grad_psi_norm2_label );
@@ -1725,10 +1725,10 @@ PureMetal<VAR, DIM, STN, AMR>::scheduleErrorEstimate_grad_psi (
     else
     {
         Task * task = scinew Task ( "PureMetal::task_error_estimate_grad_psi", this, &PureMetal::task_error_estimate_grad_psi );
-        task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-        task->requires ( Task::NewDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::NewDW, psi_label, FGT, FGN );
-        task->requires ( Task::NewDW, psi_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::NewDW, psi_label, FGT, FGN );
+        task->requires ( Task::WhichDW::NewDW, psi_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         task->modifies ( this->m_regridder->getRefineFlagLabel(), this->m_regridder->refineFlagMaterials() );
         task->modifies ( this->m_regridder->getRefinePatchFlagLabel(), this->m_regridder->refineFlagMaterials() );
         task->computes ( grad_psi_norm2_label );

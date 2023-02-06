@@ -396,8 +396,8 @@ RMCRT_Radiation::sched_computeSource( const LevelP& level,
   //______________________________________________________________________
   //   D A T A   O N I O N   A P P R O A C H
   if ( m_whichAlgo == dataOnion ) {
-    Task::WhichDW celltype_dw   = Task::NewDW;
-    Task::WhichDW sigmaT4_dw    = Task::NewDW;
+    Task::WhichDW celltype_dw   = Task::WhichDW::NewDW;
+    Task::WhichDW sigmaT4_dw    = Task::WhichDW::NewDW;
     const bool backoutTemp      = true;
     const bool modifies_abskg   = false;
     const bool modifies_sigmaT4 = false;
@@ -405,7 +405,7 @@ RMCRT_Radiation::sched_computeSource( const LevelP& level,
     const LevelP& fineLevel = grid->getLevel(m_archesLevelIndex);
 
     // define per level which abskg dw
-    m_RMCRT->set_abskg_dw_perLevel( fineLevel, Task::NewDW );
+    m_RMCRT->set_abskg_dw_perLevel( fineLevel, Task::WhichDW::NewDW );
 
     // compute sigmaT4, sumAbsk on the finest level
     sched_sigmaT4( fineLevel, sched );
@@ -449,9 +449,9 @@ RMCRT_Radiation::sched_computeSource( const LevelP& level,
   //  and the results are interpolated to the fine (arches) level
   if ( m_whichAlgo == coarseLevel ) {
 
-    Task::WhichDW temp_dw       = Task::OldDW;
-    Task::WhichDW sigmaT4_dw    = Task::NewDW;
-    Task::WhichDW celltype_dw   = Task::NewDW;
+    Task::WhichDW temp_dw       = Task::WhichDW::OldDW;
+    Task::WhichDW sigmaT4_dw    = Task::WhichDW::NewDW;
+    Task::WhichDW celltype_dw   = Task::WhichDW::NewDW;
     const bool modifies_abskg   = false;
     const bool modifies_sigmaT4 = false;
     const bool backoutTemp      = true;
@@ -464,7 +464,7 @@ RMCRT_Radiation::sched_computeSource( const LevelP& level,
 
     const LevelP& fineLevel = grid->getLevel( m_archesLevelIndex );
 
-    m_RMCRT->set_abskg_dw_perLevel ( fineLevel, Task::NewDW );
+    m_RMCRT->set_abskg_dw_perLevel ( fineLevel, Task::WhichDW::NewDW );
 
     // compute sigmaT4, sumAbsk on the finest level
     sched_sigmaT4( fineLevel, sched );
@@ -501,12 +501,12 @@ RMCRT_Radiation::sched_computeSource( const LevelP& level,
   //   1 - L E V E L   A P P R O A C H
   //  RMCRT is performed on the same level as CFD
   if ( m_whichAlgo == singleLevel ) {
-    Task::WhichDW sigmaT4_dw  = Task::NewDW;
-    Task::WhichDW celltype_dw = Task::NewDW;
+    Task::WhichDW sigmaT4_dw  = Task::WhichDW::NewDW;
+    Task::WhichDW celltype_dw = Task::WhichDW::NewDW;
 
     const LevelP& level = grid->getLevel( m_archesLevelIndex );
 
-    m_RMCRT->set_abskg_dw_perLevel( level, Task::NewDW );
+    m_RMCRT->set_abskg_dw_perLevel( level, Task::WhichDW::NewDW );
 
     m_RMCRT->sched_carryForward_VarLabels( level, sched, fineLevelVarLabels );
 
@@ -526,12 +526,12 @@ RMCRT_Radiation::sched_computeSource( const LevelP& level,
   //  No other calculations
   if ( m_whichAlgo == radiometerOnly ) {
     Radiometer* radiometer    = m_RMCRT->getRadiometer();
-    Task::WhichDW sigmaT4_dw  = Task::NewDW;
-    Task::WhichDW celltype_dw = Task::NewDW;
+    Task::WhichDW sigmaT4_dw  = Task::WhichDW::NewDW;
+    Task::WhichDW celltype_dw = Task::WhichDW::NewDW;
 
     const LevelP& level = grid->getLevel( m_archesLevelIndex );
 
-    m_RMCRT->set_abskg_dw_perLevel ( level, Task::NewDW );
+    m_RMCRT->set_abskg_dw_perLevel ( level, Task::WhichDW::NewDW );
 
     VarLabelVec varLabels = { m_RMCRT->d_abskgLabel,
                               m_RMCRT->d_sigmaT4Label,
@@ -887,9 +887,9 @@ RMCRT_Radiation::sched_sigmaT4( const LevelP & level,
   Task* tsk = nullptr;
   std::string type = "null";
 
-  Task::WhichDW oldNew_dw = Task::OldDW;
+  Task::WhichDW oldNew_dw = Task::WhichDW::OldDW;
   if ( sched->isRestartInitTimestep() ){
-    oldNew_dw = Task::NewDW;
+    oldNew_dw = Task::WhichDW::NewDW;
   }
 
   if ( m_FLT_DBL == TypeDescription::double_type ) {
@@ -1010,9 +1010,9 @@ RMCRT_Radiation::sched_sumAbsk( const LevelP & level,
   Task* tsk = nullptr;
   std::string type = "null";
 
-  Task::WhichDW oldNew_dw = Task::OldDW;
+  Task::WhichDW oldNew_dw = Task::WhichDW::OldDW;
   if ( sched->isRestartInitTimestep() ){
-    oldNew_dw = Task::NewDW;
+    oldNew_dw = Task::WhichDW::NewDW;
   }
 
   if ( m_FLT_DBL == TypeDescription::double_type ) {
@@ -1350,7 +1350,7 @@ RMCRT_Radiation::sched_stencilToDBLs( const LevelP& level,
     printSchedule( level, dbg, "RMCRT_Radiation::sched_stencilToDBLs" );
 
     //  only schedule task on arches level
-    tsk->requires(Task::NewDW, VarLabel::find("RMCRTboundFlux"), m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, VarLabel::find("RMCRTboundFlux"), m_gn, 0);
 
     tsk->computes( m_radFluxE_Label );
     tsk->computes( m_radFluxW_Label );
@@ -1421,12 +1421,12 @@ RMCRT_Radiation::sched_DBLsToStencil( const LevelP& level,
     printSchedule( level, dbg, "RMCRT_Radiation::sched_DBLsToStencil" );
 
     //  only schedule task on arches level
-    tsk->requires(Task::NewDW, m_radFluxE_Label, m_gn, 0);
-    tsk->requires(Task::NewDW, m_radFluxW_Label, m_gn, 0);
-    tsk->requires(Task::NewDW, m_radFluxN_Label, m_gn, 0);
-    tsk->requires(Task::NewDW, m_radFluxS_Label, m_gn, 0);
-    tsk->requires(Task::NewDW, m_radFluxT_Label, m_gn, 0);
-    tsk->requires(Task::NewDW, m_radFluxB_Label, m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, m_radFluxE_Label, m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, m_radFluxW_Label, m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, m_radFluxN_Label, m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, m_radFluxS_Label, m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, m_radFluxT_Label, m_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, m_radFluxB_Label, m_gn, 0);
 
     tsk->computes( m_RMCRT->d_boundFluxLabel );
 

@@ -198,22 +198,22 @@ void LightTime::scheduleComputeModelSources(SchedulerP& sched,
   const MaterialSubset* react_matl = matl0->thisMaterial();
   const MaterialSubset* prod_matl  = matl1->thisMaterial();
   
-  t->requires( Task::OldDW, Ilb->timeStepLabel );
-  t->requires( Task::OldDW, Ilb->simulationTimeLabel );
-  t->requires( Task::OldDW, Ilb->delTLabel,        level.get_rep());
+  t->requires( Task::WhichDW::OldDW, Ilb->timeStepLabel );
+  t->requires( Task::WhichDW::OldDW, Ilb->simulationTimeLabel );
+  t->requires( Task::WhichDW::OldDW, Ilb->delTLabel,        level.get_rep());
   //__________________________________
   // Products
-  t->requires(Task::NewDW,  Ilb->rho_CCLabel,      prod_matl, gn);
-  t->requires(Task::NewDW,  Ilb->vol_frac_CCLabel, prod_matl, gn);
+  t->requires(Task::WhichDW::NewDW,  Ilb->rho_CCLabel,      prod_matl, gn);
+  t->requires(Task::WhichDW::NewDW,  Ilb->vol_frac_CCLabel, prod_matl, gn);
 
   //__________________________________
   // Reactants
-  t->requires(Task::NewDW, Ilb->vol_frac_CCLabel,  react_matl, gn);
-  t->requires(Task::NewDW, Ilb->sp_vol_CCLabel,    react_matl, gn);
-  t->requires(Task::OldDW, Ilb->vel_CCLabel,       react_matl, gn);
-  t->requires(Task::OldDW, Ilb->temp_CCLabel,      react_matl, gn);
-  t->requires(Task::NewDW, Ilb->rho_CCLabel,       react_matl, gn);
-  t->requires(Task::NewDW, Ilb->specific_heatLabel,react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, Ilb->vol_frac_CCLabel,  react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, Ilb->sp_vol_CCLabel,    react_matl, gn);
+  t->requires(Task::WhichDW::OldDW, Ilb->vel_CCLabel,       react_matl, gn);
+  t->requires(Task::WhichDW::OldDW, Ilb->temp_CCLabel,      react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, Ilb->rho_CCLabel,       react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, Ilb->specific_heatLabel,react_matl, gn);
 
   t->computes(reactedFractionLabel, react_matl);
   t->computes(delFLabel,            react_matl);
@@ -397,7 +397,7 @@ void LightTime::scheduleErrorEstimate(const LevelP& coarseLevel,
   Ghost::GhostType  gac  = Ghost::AroundCells; 
   const MaterialSubset* react_matl = matl0->thisMaterial();
   
-  t->requires(Task::NewDW, reactedFractionLabel,   react_matl, gac, 1);
+  t->requires(Task::WhichDW::NewDW, reactedFractionLabel,   react_matl, gac, 1);
   
   t->computes(mag_grad_Fr_Label, react_matl);
   t->modifies(m_regridder->getRefineFlagLabel(),      m_regridder->refineFlagMaterials());

@@ -1970,7 +1970,7 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_subproblems (
     cout_heat_scheduling << "scheduleTimeAdvance_subproblems" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_subproblems", this, &Heat::task_time_advance_subproblems );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
     task->computes ( subproblems_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -2004,8 +2004,8 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_dbg_derivatives (
     cout_heat_scheduling << "scheduleTimeAdvance_dbg_derivatives" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_dbg_derivatives", this, &Heat::task_time_advance_dbg_derivatives );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
     for ( size_t D = 0; D < DIM; ++D )
     {
         task->computes ( du_label[D] );
@@ -2028,10 +2028,10 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_dbg_derivatives (
     else
     {
         Task * task = scinew Task ( "Heat::task_time_advance_dbg_derivatives", this, &Heat::task_time_advance_dbg_derivatives );
-        task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-        task->requires ( Task::OldDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::OldDW, u_label, FGT, FGN );
-        task->requires ( Task::OldDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::OldDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+        task->requires ( Task::WhichDW::OldDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         for ( size_t D = 0; D < DIM; ++D )
         {
             task->computes ( du_label[D] );
@@ -2052,11 +2052,11 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_dbg_derivatives_error (
     cout_heat_scheduling << "scheduleTimeAdvance_dbg_derivatives_error" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_dbg_derivatives_error", this, &Heat::task_time_advance_dbg_derivatives_error );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
     for ( size_t D = 0; D < DIM; ++D )
     {
-        task->requires ( Task::NewDW, du_label[D], Ghost::None, 0 );
-        task->requires ( Task::NewDW, ddu_label[D], Ghost::None, 0 );
+        task->requires ( Task::WhichDW::NewDW, du_label[D], Ghost::None, 0 );
+        task->requires ( Task::WhichDW::NewDW, ddu_label[D], Ghost::None, 0 );
         task->computes ( error_du_label[D] );
         task->computes ( error_ddu_label[D] );
     }
@@ -2081,12 +2081,12 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_dbg_derivatives_error (
     else
     {
         Task * task = scinew Task ( "Heat::task_time_advance_dbg_derivatives_error", this, &Heat::task_time_advance_dbg_derivatives_error );
-        task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-        task->requires ( Task::NewDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         for ( size_t D = 0; D < DIM; ++D )
         {
-            task->requires ( Task::NewDW, du_label[D], Ghost::None, 0 );
-            task->requires ( Task::NewDW, ddu_label[D], Ghost::None, 0 );
+            task->requires ( Task::WhichDW::NewDW, du_label[D], Ghost::None, 0 );
+            task->requires ( Task::WhichDW::NewDW, ddu_label[D], Ghost::None, 0 );
             task->computes ( error_du_label[D] );
             task->computes ( error_ddu_label[D] );
         }
@@ -2147,8 +2147,8 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_forward_euler (
     cout_heat_scheduling << "scheduleTimeAdvance_solution_forward_euler " << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_solution_forward_euler", this, &Heat::task_time_advance_solution_forward_euler );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
     task->computes ( u_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -2167,10 +2167,10 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_forward_euler (
     else
     {
         Task * task = scinew Task ( "Heat::task_time_advance_solution_forward_euler", this, &Heat::task_time_advance_solution_forward_euler );
-        task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-        task->requires ( Task::OldDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::OldDW, u_label, FGT, FGN );
-        task->requires ( Task::OldDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::OldDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+        task->requires ( Task::WhichDW::OldDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         task->computes ( u_label );
         sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
     }
@@ -2229,9 +2229,9 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_backward_euler_assemble_h
     cout_heat_scheduling << "scheduleTimeAdvance_solution_backward_euler_assemble_hypre" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_solution_backward_euler_assemble_hypre", this, &Heat::task_time_advance_solution_backward_euler_assemble_hypre );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
-    task->requires ( Task::OldDW, matrix_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, matrix_label, Ghost::None, 0 );
     task->computes ( matrix_label );
     task->computes ( rhs_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
@@ -2249,11 +2249,11 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_backward_euler_assemble_h
     cout_heat_scheduling << "scheduleTimeAdvance_solution_backward_euler_assemble_hypre" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_solution_backward_euler_assemble_hypre", this, &Heat::task_time_advance_solution_backward_euler_assemble_hypre );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
-    task->requires ( Task::NewDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::OldDW, matrix_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::OldDW, matrix_label, Ghost::None, 0 );
     task->computes ( matrix_label );
     task->computes ( rhs_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
@@ -2311,9 +2311,9 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_crank_nicolson_assemble_h
     cout_heat_scheduling << "scheduleTimeAdvance_solution_crank_nicolson_assemble_hypre" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_solution_crank_nicolson_assemble_hypre", this, &Heat::task_time_advance_solution_crank_nicolson_assemble_hypre );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
-    task->requires ( Task::OldDW, matrix_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::OldDW, matrix_label, Ghost::None, 0 );
     task->computes ( matrix_label );
     task->computes ( rhs_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
@@ -2331,11 +2331,11 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_crank_nicolson_assemble_h
     cout_heat_scheduling << "scheduleTimeAdvance_solution_crank_nicolson_assemble_hypre" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_solution_crank_nicolson_assemble_hypre", this, &Heat::task_time_advance_solution_crank_nicolson_assemble_hypre );
-    task->requires ( Task::OldDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::OldDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::OldDW, u_label, FGT, FGN );
-    task->requires ( Task::NewDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::OldDW, matrix_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::OldDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::OldDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::OldDW, matrix_label, Ghost::None, 0 );
     task->computes ( matrix_label );
     task->computes ( rhs_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
@@ -2350,10 +2350,10 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solve
 )
 {
     solver->scheduleSolve ( level, sched, this->m_materialManager->allMaterials(),
-                            matrix_label, Task::NewDW, // A
+                            matrix_label, Task::WhichDW::NewDW, // A
                             u_label, false,            // x
-                            rhs_label, Task::NewDW,    // b
-                            u_label, Task::OldDW );    // guess
+                            rhs_label, Task::WhichDW::NewDW,    // b
+                            u_label, Task::WhichDW::OldDW );    // guess
 }
 
 #   ifdef PhaseField_Heat_DBG_MATRIX
@@ -2367,8 +2367,8 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_update_dbg_matrix
 {
     Task * task = scinew Task ( "Heat::task_time_advance_update_dbg_matrix", this, &Heat::task_time_advance_update_dbg_matrix );
     // force update after solve
-    task->requires ( Task::NewDW, u_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, matrix_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, u_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, matrix_label, Ghost::None, 0 );
     task->computes ( Ap_label );
     task->computes ( Aw_label );
     task->computes ( Ae_label );
@@ -2391,7 +2391,7 @@ Heat<VAR, DIM, STN, AMR>::scheduleTimeAdvance_solution_error (
     cout_heat_scheduling << "scheduleTimeAdvance_solution_error" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_time_advance_solution_error", this, &Heat::task_time_advance_solution_error );
-    task->requires ( Task::NewDW, u_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, u_label, Ghost::None, 0 );
     task->computes ( delta_u_label );
     task->computes ( error_u_label );
     task->computes ( u_normL2_label );
@@ -2461,9 +2461,9 @@ Heat<VAR, DIM, STN, AMR>::scheduleRefine_solution (
     cout_heat_scheduling << "scheduleRefine_solution" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_refine_solution", this, &Heat::task_refine_solution );
-    task->requires ( Task::NewDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
     task->computes ( u_label );
 
 #ifdef HAVE_HYPRE
@@ -2509,9 +2509,9 @@ Heat<VAR, DIM, STN, AMR>::scheduleCoarsen_solution (
     cout_heat_scheduling << "scheduleCoarsen" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_coarsen_solution", this, &Heat::task_coarsen_solution );
-    task->requires ( Task::NewDW, u_label, nullptr, Task::FineLevel, nullptr, Task::NormalDomain, Ghost::None, 0 );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, subproblems_label, nullptr, Task::FineLevel, nullptr, Task::NormalDomain, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::FineLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::FineLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0 );
     task->modifies ( u_label );
     sched->addTask ( task, level_coarse->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -2540,8 +2540,8 @@ Heat<VAR, DIM, STN, AMR>::scheduleErrorEstimate_solution (
     cout_heat_scheduling << "scheduleErrorEstimate_solution" << std::endl;
 
     Task * task = scinew Task ( "Heat::task_error_estimate_solution", this, &Heat::task_error_estimate_solution );
-    task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, u_label, FGT, FGN );
+    task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, u_label, FGT, FGN );
     task->modifies ( this->m_regridder->getRefineFlagLabel(), this->m_regridder->refineFlagMaterials() );
     task->modifies ( this->m_regridder->getRefinePatchFlagLabel(), this->m_regridder->refineFlagMaterials() );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
@@ -2561,10 +2561,10 @@ Heat<VAR, DIM, STN, AMR>::scheduleErrorEstimate_solution (
     else
     {
         Task * task = scinew Task ( "Heat::task_error_estimate_solution", this, &Heat::task_error_estimate_solution );
-        task->requires ( Task::NewDW, subproblems_label, Ghost::None, 0 );
-        task->requires ( Task::NewDW, subproblems_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
-        task->requires ( Task::NewDW, u_label, FGT, FGN );
-        task->requires ( Task::NewDW, u_label, nullptr, Task::CoarseLevel, nullptr, Task::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::NewDW, subproblems_label, Ghost::None, 0 );
+        task->requires ( Task::WhichDW::NewDW, subproblems_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
+        task->requires ( Task::WhichDW::NewDW, u_label, FGT, FGN );
+        task->requires ( Task::WhichDW::NewDW, u_label, nullptr, Task::PatchDomainSpec::CoarseLevel, nullptr, Task::MaterialDomainSpec::NormalDomain, CGT, CGN );
         task->modifies ( this->m_regridder->getRefineFlagLabel(), this->m_regridder->refineFlagMaterials() );
         task->modifies ( this->m_regridder->getRefinePatchFlagLabel(), this->m_regridder->refineFlagMaterials() );
         sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );

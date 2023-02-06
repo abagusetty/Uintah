@@ -59,10 +59,10 @@ void ScalarDissipation::sched_computeProp( const LevelP& level, SchedulerP& sche
   tsk->modifies( _prop_label );
   if ( time_substep == 0 ){ 
     
-    tsk->requires( Task::OldDW, _gradmf2_label, Ghost::None, 0 ); 
+    tsk->requires( Task::WhichDW::OldDW, _gradmf2_label, Ghost::None, 0 ); 
   } else { 
     
-    tsk->requires( Task::NewDW, _gradmf2_label, Ghost::None, 0 ); 
+    tsk->requires( Task::WhichDW::NewDW, _gradmf2_label, Ghost::None, 0 ); 
   } 
   
   sched->addTask( tsk, level->eachPatch(), _materialManager->allMaterials( "Arches" ) ); 

@@ -197,11 +197,11 @@ namespace WasatchCore {
   {
     if( rkStage != 1 ) return;
     solver_.scheduleSolve( level, sched, materials, matrixLabel_,
-                           Uintah::Task::NewDW,
+                           Uintah::Task::WhichDW::NewDW,
                            intensityLabel_,
                            true,
-                           rhsLabel_, Uintah::Task::NewDW,
-                           intensityLabel_, Uintah::Task::NewDW,
+                           rhsLabel_, Uintah::Task::WhichDW::NewDW,
+                           intensityLabel_, Uintah::Task::WhichDW::NewDW,
                            (rkStage == 1) );
   }
 
@@ -213,8 +213,8 @@ namespace WasatchCore {
                                     const Uintah::MaterialSubset* const materials,
                                     const int rkStage )
   {
-  if( rkStage == 1 ) task.computes( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::NormalDomain );
-  else               task.modifies( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::NormalDomain );
+  if( rkStage == 1 ) task.computes( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::MaterialDomainSpec::NormalDomain );
+  else               task.modifies( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::MaterialDomainSpec::NormalDomain );
   }
 
   //--------------------------------------------------------------------

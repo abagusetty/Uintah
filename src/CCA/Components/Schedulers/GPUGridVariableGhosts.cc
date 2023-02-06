@@ -116,14 +116,14 @@ DeviceGhostCells::add( const VarLabel              * label
       // initialize the array for number of copies per GPU datawarehouse.
       DatawarehouseIds item;
 
-      for (int i = 0; i < Task::TotalDWs; i++) {
+      for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
         item.DwIds[i] = 0;
       }
-      item.DwIds[dwIndex] = 1;
+      item.DwIds[static_cast<int>(dwIndex)] = 1;
       totalGhostCellCopies.insert(std::pair<unsigned int, DatawarehouseIds>(sourceDeviceNum, item));
     }
     else {
-      totalGhostCellCopies[sourceDeviceNum].DwIds[dwIndex] += 1;
+      totalGhostCellCopies[sourceDeviceNum].DwIds[static_cast<int>(dwIndex)] += 1;
     }
 
     int deviceID = GpuUtilities::getGpuIndexForPatch(destPatchPointer);

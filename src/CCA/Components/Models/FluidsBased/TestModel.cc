@@ -154,12 +154,12 @@ void TestModel::scheduleComputeModelSources(SchedulerP& sched,
   Ghost::GhostType  gn  = Ghost::None;
   
   Task::WhichDW DW;
-  Task::WhichDW NDW =Task::NewDW;   
+  Task::WhichDW NDW =Task::WhichDW::NewDW;   
   if(d_is_mpm_matl){              // MPM (pull data from newDW)
-    DW = Task::NewDW;
+    DW = Task::WhichDW::NewDW;
     t->requires( DW, MIlb->cMassLabel,     matl0->thisMaterial(), gn);
   } else { 
-    DW = Task::OldDW;             // ICE (pull data from old DW)
+    DW = Task::WhichDW::OldDW;             // ICE (pull data from old DW)
     t->requires( DW, Ilb->rho_CCLabel,        matl0->thisMaterial(), gn);
     t->requires( NDW,Ilb->specific_heatLabel, matl0->thisMaterial(), gn);
   } 
@@ -171,8 +171,8 @@ void TestModel::scheduleComputeModelSources(SchedulerP& sched,
   t->computes(TestModel::totalMassXLabel);
   t->computes(TestModel::totalIntEngXLabel);
   
-  t->requires( Task::OldDW, Ilb->delTLabel, level.get_rep());
-  t->requires( Task::OldDW, Ilb->simulationTimeLabel );
+  t->requires( Task::WhichDW::OldDW, Ilb->delTLabel, level.get_rep());
+  t->requires( Task::WhichDW::OldDW, Ilb->simulationTimeLabel );
   sched->addTask(t, level->eachPatch(), mymatls);
 }
 

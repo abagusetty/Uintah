@@ -302,8 +302,8 @@ void Water::addComputesAndRequires(Task* task,
   addSharedCRForExplicit(task, matlset, patches);
 
   Ghost::GhostType  gnone = Ghost::None;
-  task->requires(Task::OldDW, lb->pLocalizedMPMLabel, matlset, gnone);
-  task->requires(Task::OldDW, lb->pParticleIDLabel,   matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pLocalizedMPMLabel, matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel,   matlset, gnone);
   task->computes(lb->pLocalizedMPMLabel_preReloc,     matlset);
 }
 

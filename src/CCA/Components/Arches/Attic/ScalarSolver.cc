@@ -235,9 +235,9 @@ ScalarSolver::sched_buildLinearMatrix(SchedulerP& sched,
 
   Task::WhichDW parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = Task::ParentOldDW;
+    parent_old_dw = Task::WhichDW::ParentOldDW;
   }else{
-    parent_old_dw = Task::OldDW;
+    parent_old_dw = Task::WhichDW::OldDW;
   }
   
   tsk->requires(parent_old_dw, d_lab->d_delTLabel);
@@ -250,36 +250,36 @@ ScalarSolver::sched_buildLinearMatrix(SchedulerP& sched,
   Ghost::GhostType  gn = Ghost::None;  
   Task::MaterialDomainSpec oams = Task::OutOfDomain;  //outside of arches matlSet.
   
-  tsk->requires(Task::NewDW, d_lab->d_cellTypeLabel,  gac, 1);
-  tsk->requires(Task::NewDW, d_lab->d_scalarSPLabel,  gac, 2);
-  tsk->requires(Task::NewDW, d_lab->d_densityCPLabel, gac, 2);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellTypeLabel,  gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalarSPLabel,  gac, 2);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_densityCPLabel, gac, 2);
 
   Task::WhichDW old_values_dw;
   if (timelabels->use_old_values){
     old_values_dw = parent_old_dw;
   }else{ 
-    old_values_dw = Task::NewDW;
+    old_values_dw = Task::WhichDW::NewDW;
   }
   tsk->requires(old_values_dw, d_lab->d_scalarSPLabel,  gn, 0);
   tsk->requires(old_values_dw, d_lab->d_densityCPLabel, gn, 0);
   
-  tsk->requires(Task::NewDW, d_lab->d_cellInfoLabel, gn);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellInfoLabel, gn);
   
   if (d_dynScalarModel){
-    tsk->requires(Task::NewDW, d_lab->d_scalarDiffusivityLabel,gac, 2);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalarDiffusivityLabel,gac, 2);
   }else{
-    tsk->requires(Task::NewDW, d_lab->d_viscosityCTSLabel,     gac, 2);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_viscosityCTSLabel,     gac, 2);
   }
-  tsk->requires(Task::NewDW, d_lab->d_uVelocitySPBCLabel, gaf, 1);
-  tsk->requires(Task::NewDW, d_lab->d_vVelocitySPBCLabel, gaf, 1);
-  tsk->requires(Task::NewDW, d_lab->d_wVelocitySPBCLabel, gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_uVelocitySPBCLabel, gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_vVelocitySPBCLabel, gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_wVelocitySPBCLabel, gaf, 1);
 
   if (dynamic_cast<const ScaleSimilarityModel*>(d_turbModel)) {
     if (timelabels->integrator_step_number == TimeIntegratorStepNumber::First){
-      tsk->requires(Task::OldDW, d_lab->d_scalarFluxCompLabel,
+      tsk->requires(Task::WhichDW::OldDW, d_lab->d_scalarFluxCompLabel,
           d_lab->d_vectorMatl, oams, gac, 1);
     }else{
-      tsk->requires(Task::NewDW, d_lab->d_scalarFluxCompLabel,
+      tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalarFluxCompLabel,
           d_lab->d_vectorMatl, oams,gac, 1);
     }
   }
@@ -307,7 +307,7 @@ ScalarSolver::sched_buildLinearMatrix(SchedulerP& sched,
 
       SourceTermBase& src = factory.retrieve_source_term( *iter ); 
       const VarLabel* srcLabel = src.getSrcLabel(); 
-      tsk->requires(Task::OldDW, srcLabel, gn, 0); 
+      tsk->requires(Task::WhichDW::OldDW, srcLabel, gn, 0); 
 
     }
   }else {
@@ -332,7 +332,7 @@ ScalarSolver::sched_buildLinearMatrix(SchedulerP& sched,
 
       SourceTermBase& src = factory.retrieve_source_term( *iter ); 
       const VarLabel* srcLabel = src.getSrcLabel(); 
-      tsk->requires(Task::NewDW, srcLabel, gn, 0); 
+      tsk->requires(Task::WhichDW::NewDW, srcLabel, gn, 0); 
 
     }
   }       
@@ -353,7 +353,7 @@ void ScalarSolver::buildLinearMatrix(const ProcessorGroup* pc,
 
   DataWarehouse* parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   }else{
     parent_old_dw = old_dw;
   }
@@ -632,9 +632,9 @@ ScalarSolver::sched_scalarLinearSolve(SchedulerP& sched,
   
   Task::WhichDW parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = Task::ParentOldDW;
+    parent_old_dw = Task::WhichDW::ParentOldDW;
   }else{ 
-    parent_old_dw = Task::OldDW;
+    parent_old_dw = Task::WhichDW::OldDW;
   }
   
   Ghost::GhostType  gac = Ghost::AroundCells;
@@ -642,26 +642,26 @@ ScalarSolver::sched_scalarLinearSolve(SchedulerP& sched,
   Task::MaterialDomainSpec oams = Task::OutOfDomain;  //outside of arches matlSet.
   
   tsk->requires(parent_old_dw, d_lab->d_delTLabel);
-  tsk->requires(Task::NewDW, d_lab->d_cellTypeLabel,     gac, 1);
-  tsk->requires(Task::NewDW, d_lab->d_densityGuessLabel, gn,  0);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellTypeLabel,     gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_densityGuessLabel, gn,  0);
   
-  tsk->requires(Task::NewDW, d_lab->d_cellInfoLabel, gn);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellInfoLabel, gn);
   
   if (timelabels->multiple_steps){
-    tsk->requires(Task::NewDW, d_lab->d_scalarTempLabel, gac, 1);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalarTempLabel, gac, 1);
   }else{
-    tsk->requires(Task::OldDW, d_lab->d_scalarSPLabel,   gac, 1);
+    tsk->requires(Task::WhichDW::OldDW, d_lab->d_scalarSPLabel,   gac, 1);
   }
-  tsk->requires(Task::NewDW, d_lab->d_scalCoefSBLMLabel,  
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalCoefSBLMLabel,  
                              d_lab->d_stencilMatl, oams, gn, 0);
                              
-  tsk->requires(Task::NewDW, d_lab->d_scalNonLinSrcSBLMLabel, gn, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalNonLinSrcSBLMLabel, gn, 0);
 
-  tsk->requires(Task::NewDW, d_lab->d_scalarTotCoefLabel, gn, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_scalarTotCoefLabel, gn, 0);
   //tsk->modifies(d_lab->d_scalarTotCoefLabel);
 
   if (d_MAlab) {
-    tsk->requires(Task::NewDW, d_lab->d_mmgasVolFracLabel, gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_mmgasVolFracLabel, gn, 0);
   }    
  
   tsk->modifies(d_lab->d_scalarSPLabel);
@@ -685,7 +685,7 @@ ScalarSolver::scalarLinearSolve(const ProcessorGroup* pc,
 {
   DataWarehouse* parent_old_dw;
   if (timelabels->recursion){ 
-    parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   }else{ 
     parent_old_dw = old_dw;
   }

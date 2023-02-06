@@ -134,7 +134,7 @@ ConstitutiveModel::addSharedCRForHypoExplicit(Task* task,
 {
   Ghost::GhostType  gnone = Ghost::None;
   addSharedCRForExplicit(task, matlset, p);
-  task->requires(Task::OldDW, lb->pStressLabel,             matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pStressLabel,             matlset, gnone);
 }
 
 void 
@@ -145,17 +145,17 @@ ConstitutiveModel::addSharedCRForExplicit(Task* task,
   Ghost::GhostType  gnone = Ghost::None;
   Ghost::GhostType  gac   = Ghost::AroundCells;
 
-  task->requires(Task::OldDW, lb->delTLabel);
-  task->requires(Task::OldDW, lb->pXLabel,                  matlset, gnone);
-  task->requires(Task::OldDW, lb->pMassLabel,               matlset, gnone);
-  task->requires(Task::OldDW, lb->pVolumeLabel,             matlset, gnone);
-  task->requires(Task::OldDW, lb->pTemperatureLabel,        matlset, gnone);
-  task->requires(Task::OldDW, lb->pVelocityLabel,           matlset, gnone);
-  task->requires(Task::OldDW, lb->pDeformationMeasureLabel, matlset, gnone);
-  task->requires(Task::NewDW, lb->pVolumeLabel_preReloc,    matlset, gnone);
-  task->requires(Task::NewDW, lb->pDeformationMeasureLabel_preReloc, 
+  task->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  task->requires(Task::WhichDW::OldDW, lb->pXLabel,                  matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pMassLabel,               matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pVolumeLabel,             matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pTemperatureLabel,        matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pVelocityLabel,           matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pDeformationMeasureLabel, matlset, gnone);
+  task->requires(Task::WhichDW::NewDW, lb->pVolumeLabel_preReloc,    matlset, gnone);
+  task->requires(Task::WhichDW::NewDW, lb->pDeformationMeasureLabel_preReloc, 
                                                             matlset, gnone);
-  task->requires(Task::NewDW, lb->pVelGradLabel_preReloc,   matlset, gnone);
+  task->requires(Task::WhichDW::NewDW, lb->pVelGradLabel_preReloc,   matlset, gnone);
 
   task->computes(lb->pStressLabel_preReloc,             matlset);
   task->computes(lb->pdTdtLabel,                        matlset);

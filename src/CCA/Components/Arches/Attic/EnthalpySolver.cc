@@ -281,13 +281,13 @@ EnthalpySolver::sched_buildLinearMatrix(const LevelP& level,
                           &EnthalpySolver::buildLinearMatrix,
                           timelabels );
 
-  tsk->requires( Task::OldDW, d_lab->d_timeStepLabel );
+  tsk->requires( Task::WhichDW::OldDW, d_lab->d_timeStepLabel );
 
   Task::WhichDW parent_old_dw;
   if (timelabels->recursion){ 
-    parent_old_dw = Task::ParentOldDW;
+    parent_old_dw = Task::WhichDW::ParentOldDW;
   }else{ 
-    parent_old_dw = Task::OldDW;
+    parent_old_dw = Task::WhichDW::OldDW;
   }
 
   tsk->requires(parent_old_dw, d_lab->d_delTLabel);
@@ -300,35 +300,35 @@ EnthalpySolver::sched_buildLinearMatrix(const LevelP& level,
   Ghost::GhostType  gn = Ghost::None;
   Task::MaterialDomainSpec oams = Task::OutOfDomain;  //outside of arches matlSet.
   
-  tsk->requires(Task::NewDW, d_lab->d_cellTypeLabel,    gac, 1);
-  tsk->requires(Task::NewDW, d_lab->d_enthalpySPLabel,  gac, 2);
-  tsk->requires(Task::NewDW, d_lab->d_densityCPLabel,   gac, 2);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellTypeLabel,    gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_enthalpySPLabel,  gac, 2);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_densityCPLabel,   gac, 2);
 
   Task::WhichDW old_values_dw;
   if (timelabels->use_old_values){
     old_values_dw = parent_old_dw;
   }else{ 
-    old_values_dw = Task::NewDW;
+    old_values_dw = Task::WhichDW::NewDW;
   }
   tsk->requires(old_values_dw, d_lab->d_enthalpySPLabel,  gn, 0);
   tsk->requires(old_values_dw, d_lab->d_densityCPLabel,   gn, 0);
   
-  tsk->requires(Task::NewDW, d_lab->d_cellInfoLabel, gn);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellInfoLabel, gn);
 
 
   if (d_dynScalarModel){
-    tsk->requires(Task::NewDW, d_lab->d_enthalpyDiffusivityLabel, gac, 2);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_enthalpyDiffusivityLabel, gac, 2);
   }else{
-    tsk->requires(Task::NewDW, d_lab->d_viscosityCTSLabel,        gac, 2);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_viscosityCTSLabel,        gac, 2);
   }
   
-  tsk->requires(Task::NewDW, d_lab->d_uVelocitySPBCLabel, gaf, 1);
-  tsk->requires(Task::NewDW, d_lab->d_vVelocitySPBCLabel, gaf, 1);
-  tsk->requires(Task::NewDW, d_lab->d_wVelocitySPBCLabel, gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_uVelocitySPBCLabel, gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_vVelocitySPBCLabel, gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_wVelocitySPBCLabel, gaf, 1);
 
-  Task::WhichDW which_dw = Task::NewDW;
+  Task::WhichDW which_dw = Task::WhichDW::NewDW;
   if (timelabels->integrator_step_number == TimeIntegratorStepNumber::First) {
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   }
 
   tsk->requires(which_dw, d_lab->d_tempINLabel,  gac, 1);
@@ -336,12 +336,12 @@ EnthalpySolver::sched_buildLinearMatrix(const LevelP& level,
   
 
   if (d_radiationCalc) {
-    tsk->requires(Task::NewDW, d_lab->d_radiationSRCINLabel, gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_radiationSRCINLabel, gn, 0);
   } 
 
   if (d_MAlab && d_boundaryCondition->getIfCalcEnergyExchange()) {
-    tsk->requires(Task::NewDW, d_MAlab->d_enth_mmLinSrc_CCLabel,   gn, 0);
-    tsk->requires(Task::NewDW, d_MAlab->d_enth_mmNonLinSrc_tmp_CCLabel,gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, d_MAlab->d_enth_mmLinSrc_CCLabel,   gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, d_MAlab->d_enth_mmNonLinSrc_tmp_CCLabel,gn, 0);
   }
 
   if (timelabels->integrator_step_number == TimeIntegratorStepNumber::First ) {
@@ -363,10 +363,10 @@ EnthalpySolver::sched_buildLinearMatrix(const LevelP& level,
 
      SourceTermBase& src = factory.retrieve_source_term( *iter ); 
      const VarLabel* srcLabel = src.getSrcLabel(); 
-     tsk->requires(Task::NewDW, srcLabel, gn, 0); 
+     tsk->requires(Task::WhichDW::NewDW, srcLabel, gn, 0); 
   }
 
-  tsk->requires(Task::NewDW, timelabels->negativeDensityGuess);
+  tsk->requires(Task::WhichDW::NewDW, timelabels->negativeDensityGuess);
 
   tsk->modifies(d_lab->d_enthalpyBoundarySrcLabel);                  
 
@@ -393,7 +393,7 @@ void EnthalpySolver::buildLinearMatrix(const ProcessorGroup* pc,
 
   DataWarehouse* parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   }else{
      parent_old_dw = old_dw;
   }
@@ -681,9 +681,9 @@ EnthalpySolver::sched_enthalpyLinearSolve(SchedulerP& sched,
   
   Task::WhichDW parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = Task::ParentOldDW;
+    parent_old_dw = Task::WhichDW::ParentOldDW;
   }else{ 
-    parent_old_dw = Task::OldDW;
+    parent_old_dw = Task::WhichDW::OldDW;
   }
   
   Ghost::GhostType  gac = Ghost::AroundCells;
@@ -692,24 +692,24 @@ EnthalpySolver::sched_enthalpyLinearSolve(SchedulerP& sched,
   
   tsk->requires(parent_old_dw, d_lab->d_delTLabel);
   
-  tsk->requires(Task::NewDW,   d_lab->d_densityGuessLabel, gn, 0);
-  tsk->requires(Task::NewDW,   d_lab->d_cellInfoLabel,     gn, 0);
-  tsk->requires(Task::NewDW,   d_lab->d_cellTypeLabel,     gac, 1);
+  tsk->requires(Task::WhichDW::NewDW,   d_lab->d_densityGuessLabel, gn, 0);
+  tsk->requires(Task::WhichDW::NewDW,   d_lab->d_cellInfoLabel,     gn, 0);
+  tsk->requires(Task::WhichDW::NewDW,   d_lab->d_cellTypeLabel,     gac, 1);
   
 
   if (timelabels->multiple_steps){
-    tsk->requires(Task::NewDW, d_lab->d_enthalpyTempLabel, gac, 1);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_enthalpyTempLabel, gac, 1);
   }else{
-    tsk->requires(Task::OldDW, d_lab->d_enthalpySPLabel,   gac, 1);
+    tsk->requires(Task::WhichDW::OldDW, d_lab->d_enthalpySPLabel,   gac, 1);
   }
   
-  tsk->requires(Task::NewDW,   d_lab->d_enthCoefSBLMLabel, 
+  tsk->requires(Task::WhichDW::NewDW,   d_lab->d_enthCoefSBLMLabel, 
                                d_lab->d_stencilMatl, oams, gn, 0);
                                
-  tsk->requires(Task::NewDW,   d_lab->d_enthNonLinSrcSBLMLabel, gn, 0);
+  tsk->requires(Task::WhichDW::NewDW,   d_lab->d_enthNonLinSrcSBLMLabel, gn, 0);
 
   if (d_MAlab) {
-    tsk->requires(Task::NewDW, d_lab->d_mmgasVolFracLabel,gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, d_lab->d_mmgasVolFracLabel,gn, 0);
   } 
  
   tsk->modifies(d_lab->d_enthalpySPLabel);
@@ -729,7 +729,7 @@ EnthalpySolver::enthalpyLinearSolve(const ProcessorGroup* pc,
 {
   DataWarehouse* parent_old_dw;
   if (timelabels->recursion){ 
-    parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   }else{
     parent_old_dw = old_dw;
   }

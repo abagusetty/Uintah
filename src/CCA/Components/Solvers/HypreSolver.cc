@@ -1144,7 +1144,7 @@ namespace Uintah {
     const bool isRestart = sched->isRestartInitTimestep();
     Task* task = scinew Task("HypreSolver2::initialize_hypre", this, &HypreSolver2::initialize, isRestart );
 
-    task->setType(Task::OncePerProc);  // must run this task on every proc.  It's possible to have
+    task->setType(Task::TaskType::OncePerProc);  // must run this task on every proc.  It's possible to have
                                        // no patches on this proc when scheduling
 
     task->computes(hypre_solver_label);
@@ -1164,7 +1164,7 @@ namespace Uintah {
     const bool isRestart = sched->isRestartInitTimestep();
     Task* task = scinew Task("HypreSolver2::restartInitialize_hypre", this, &HypreSolver2::initialize, isRestart);
 
-    task->setType(Task::OncePerProc);  // must run this task on every proc.  It's possible to have
+    task->setType(Task::TaskType::OncePerProc);  // must run this task on every proc.  It's possible to have
                                        // no patches  on this proc when scheduling restarts with regridding
 
     task->computes(hypre_solver_label);
@@ -1329,10 +1329,10 @@ namespace Uintah {
 
     // solve struct
     if (isFirstSolve) {
-      task->requires( Task::OldDW, hypre_solver_label);
+      task->requires( Task::WhichDW::OldDW, hypre_solver_label);
       task->computes( hypre_solver_label);
     }  else {
-      task->requires( Task::NewDW, hypre_solver_label);
+      task->requires( Task::WhichDW::NewDW, hypre_solver_label);
     }
 
     sched->overrideVariableBehavior(hypre_solver_label->getName(),false,true,false,false,true);

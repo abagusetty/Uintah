@@ -294,8 +294,8 @@ void statistics::scheduleDoAnalysis(SchedulerP   & sched,
   Task* t = scinew Task("statistics::doAnalysis",
                    this,&statistics::doAnalysis);
 
-  t->requires( Task::OldDW, m_timeStepLabel);
-  t->requires( Task::OldDW, m_simulationTimeLabel);
+  t->requires( Task::WhichDW::OldDW, m_timeStepLabel);
+  t->requires( Task::WhichDW::OldDW, m_simulationTimeLabel);
 
   Ghost::GhostType  gn  = Ghost::None;
 
@@ -309,9 +309,9 @@ void statistics::scheduleDoAnalysis(SchedulerP   & sched,
 
     //__________________________________
     //  Lower order statistics
-    t->requires( Task::NewDW, Q.Q_Label,     matSubSet, gn, 0 );
-    t->requires( Task::OldDW, Q.Qsum_Label,  matSubSet, gn, 0 );
-    t->requires( Task::OldDW, Q.Qsum2_Label, matSubSet, gn, 0 );
+    t->requires( Task::WhichDW::NewDW, Q.Q_Label,     matSubSet, gn, 0 );
+    t->requires( Task::WhichDW::OldDW, Q.Qsum_Label,  matSubSet, gn, 0 );
+    t->requires( Task::WhichDW::OldDW, Q.Qsum2_Label, matSubSet, gn, 0 );
 
     t->computes ( Q.Qsum_Label,       matSubSet );
     t->computes ( Q.Qsum2_Label,      matSubSet );
@@ -322,8 +322,8 @@ void statistics::scheduleDoAnalysis(SchedulerP   & sched,
     // Higher order statistics
     if( d_doHigherOrderStats ){
 
-      t->requires( Task::OldDW, Q.Qsum3_Label, matSubSet, gn, 0 );
-      t->requires( Task::OldDW, Q.Qsum4_Label, matSubSet, gn, 0 );
+      t->requires( Task::WhichDW::OldDW, Q.Qsum3_Label, matSubSet, gn, 0 );
+      t->requires( Task::WhichDW::OldDW, Q.Qsum4_Label, matSubSet, gn, 0 );
 
       t->computes ( Q.Qsum3_Label,     matSubSet );
       t->computes ( Q.Qsum4_Label,     matSubSet );

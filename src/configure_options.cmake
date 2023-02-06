@@ -118,6 +118,7 @@ if( ENABLE_HIP )
   endif()
 
   add_compile_definitions(__HIP_PLATFORM_AMD__)
+  #add_compile_options(-fgpu-rdc)
 
   if( ENABLE_RCCL )
     find_dependency( rccl REQUIRED )

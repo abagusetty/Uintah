@@ -24,9 +24,9 @@ if( HAVE_HYPRE )
     set( HYPRE_DEPS HYPRE::HYPRE )
 endif()
 
-if( BUILD_MODELS_RADIATION )
+#if( BUILD_MODELS_RADIATION )
     set( SRCS ${SRCS} RMCRT_Test.cc )
-endif ()
+#endif ()
 
 if( HAVE_CUDA )
     set( SRCS ${SRCS} UnifiedSchedulerTest.cc )

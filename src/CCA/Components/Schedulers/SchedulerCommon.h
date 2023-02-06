@@ -332,7 +332,7 @@ class SchedulerCommon : public Scheduler, public UintahParallelComponent {
     bool                                m_is_restart_init_timestep{false};
     int                                 m_current_task_graph{-1};
     int                                 m_generation{0};
-    int                                 m_dwmap[Task::TotalDWs];
+    int                                 m_dwmap[static_cast<int>(Task::WhichDW::TotalDWs)];
 
     ApplicationInterface * m_application  {nullptr};
     LoadBalancer         * m_loadBalancer {nullptr};

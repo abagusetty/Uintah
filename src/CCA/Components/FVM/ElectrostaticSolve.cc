@@ -189,10 +189,10 @@ ElectrostaticSolve::scheduleTimeAdvance( const LevelP& level, SchedulerP& sched)
   scheduleBuildMatrixAndRhs(     sched, level, d_es_matlset);
 
   d_solver->scheduleSolve(level, sched, d_es_matlset,
-                          d_lb->ccESPotentialMatrix, Task::NewDW,
+                          d_lb->ccESPotentialMatrix, Task::WhichDW::NewDW,
                           d_lb->ccESPotential, false,
-                          d_lb->ccRHS_ESPotential, Task::NewDW,
-                          0, Task::OldDW,false);
+                          d_lb->ccRHS_ESPotential, Task::WhichDW::NewDW,
+                          0, Task::WhichDW::OldDW,false);
 
   scheduleUpdateESPotential(sched, level, d_es_matlset);
   scheduleComputeCurrent(sched, level, d_es_matlset);
@@ -243,7 +243,7 @@ void ElectrostaticSolve::scheduleComputeConductivity(SchedulerP& sched,
   Task* t = scinew Task("ElectrostaticSolve::computeConductivity", this,
                            &ElectrostaticSolve::computeConductivity);
 
-  t->requires(Task::OldDW, d_lb->ccConductivity, Ghost::AroundCells, 1);
+  t->requires(Task::WhichDW::OldDW, d_lb->ccConductivity, Ghost::AroundCells, 1);
   t->computes(d_lb->ccConductivity);
   t->computes(d_lb->ccGridConductivity, d_es_matl, Task::OutOfDomain);
 
@@ -295,7 +295,7 @@ void ElectrostaticSolve::scheduleComputeFCConductivity(SchedulerP& sched, const 
   Task* t = scinew Task("ElectrostaticSolve::computeFCConductivity", this,
                         &ElectrostaticSolve::computeFCConductivity);
 
-    t->requires(Task::NewDW, d_lb->ccGridConductivity, Ghost::AroundCells, 1);
+    t->requires(Task::WhichDW::NewDW, d_lb->ccGridConductivity, Ghost::AroundCells, 1);
     t->computes(d_lb->fcxConductivity,    d_es_matl, Task::OutOfDomain);
     t->computes(d_lb->fcyConductivity,    d_es_matl, Task::OutOfDomain);
     t->computes(d_lb->fczConductivity,    d_es_matl, Task::OutOfDomain);
@@ -354,9 +354,9 @@ void ElectrostaticSolve::scheduleBuildMatrixAndRhs(SchedulerP& sched,
                            &ElectrostaticSolve::buildMatrixAndRhs,
                            level, sched.get_rep());
 
-  task->requires(Task::NewDW, d_lb->fcxConductivity , Ghost::AroundCells, 1);
-  task->requires(Task::NewDW, d_lb->fcyConductivity , Ghost::AroundCells, 1);
-  task->requires(Task::NewDW, d_lb->fczConductivity , Ghost::AroundCells, 1);
+  task->requires(Task::WhichDW::NewDW, d_lb->fcxConductivity , Ghost::AroundCells, 1);
+  task->requires(Task::WhichDW::NewDW, d_lb->fcyConductivity , Ghost::AroundCells, 1);
+  task->requires(Task::WhichDW::NewDW, d_lb->fczConductivity , Ghost::AroundCells, 1);
 
   task->computes(d_lb->ccESPotentialMatrix, d_es_matl, Task::OutOfDomain);
   task->computes(d_lb->ccRHS_ESPotential,   d_es_matl, Task::OutOfDomain);
@@ -442,10 +442,10 @@ void ElectrostaticSolve::scheduleSolve(SchedulerP& sched,
                                        const MaterialSet* es_matlset)
 {
   d_solver->scheduleSolve(level, sched, d_es_matlset,
-                          d_lb->ccESPotentialMatrix, Task::NewDW,
+                          d_lb->ccESPotentialMatrix, Task::WhichDW::NewDW,
                           d_lb->ccESPotential, false,
-                          d_lb->ccRHS_ESPotential, Task::NewDW,
-                          d_lb->ccESPotential, Task::OldDW,false);
+                          d_lb->ccRHS_ESPotential, Task::WhichDW::NewDW,
+                          d_lb->ccESPotential, Task::WhichDW::OldDW,false);
 }
 
 void ElectrostaticSolve::scheduleUpdateESPotential(SchedulerP& sched, const LevelP& level,
@@ -455,9 +455,9 @@ void ElectrostaticSolve::scheduleUpdateESPotential(SchedulerP& sched, const Leve
                            &ElectrostaticSolve::updateESPotential,
                            level, sched.get_rep());
 
-  task->requires(Task::NewDW, d_lb->fcxConductivity , Ghost::AroundCells, 1);
-  task->requires(Task::NewDW, d_lb->fcyConductivity , Ghost::AroundCells, 1);
-  task->requires(Task::NewDW, d_lb->fczConductivity , Ghost::AroundCells, 1);
+  task->requires(Task::WhichDW::NewDW, d_lb->fcxConductivity , Ghost::AroundCells, 1);
+  task->requires(Task::WhichDW::NewDW, d_lb->fcyConductivity , Ghost::AroundCells, 1);
+  task->requires(Task::WhichDW::NewDW, d_lb->fczConductivity , Ghost::AroundCells, 1);
 
   task->modifies(d_lb->ccESPotential , d_es_matl);
   sched->addTask(task, level->eachPatch(), es_matl);
@@ -498,8 +498,8 @@ void ElectrostaticSolve::scheduleComputeCurrent(SchedulerP& sched,
                         &ElectrostaticSolve::computeCurrent,
                         level, sched.get_rep());
 
-  t->requires(Task::NewDW, d_lb->ccGridConductivity, Ghost::AroundCells, 1);
-  t->requires(Task::NewDW, d_lb->ccESPotential,      Ghost::AroundCells, 1);
+  t->requires(Task::WhichDW::NewDW, d_lb->ccGridConductivity, Ghost::AroundCells, 1);
+  t->requires(Task::WhichDW::NewDW, d_lb->ccESPotential,      Ghost::AroundCells, 1);
 
   t->computes(d_lb->ccCurrent, d_es_matl, Task::OutOfDomain);
 

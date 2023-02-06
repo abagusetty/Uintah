@@ -57,19 +57,19 @@ DissipationSource::sched_computeSource( const LevelP& level, SchedulerP& sched, 
   _volfrac_label = VarLabel::find("volFraction");
   
   if (timeSubStep == 0) {
-    tsk->requires( Task::OldDW, _densityLabel, Ghost::None, 0 ); 
-    tsk->requires( Task::OldDW, _mixFracLabel, Ghost::AroundCells, 1 );
-    tsk->requires( Task::OldDW, _gradMixFrac2Label, Ghost::None, 0 );
-    tsk->requires( Task::OldDW, _turbViscLabel, Ghost::None, 0 );
-    tsk->requires( Task::OldDW, _volfrac_label, Ghost::AroundCells, 1 );
-    tsk->requires( Task::OldDW, _ccVelocityLabel, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::OldDW, _densityLabel, Ghost::None, 0 ); 
+    tsk->requires( Task::WhichDW::OldDW, _mixFracLabel, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::OldDW, _gradMixFrac2Label, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::OldDW, _turbViscLabel, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::OldDW, _volfrac_label, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::OldDW, _ccVelocityLabel, Ghost::AroundCells, 1 );
   } else {
-    tsk->requires( Task::NewDW, _densityLabel, Ghost::None, 0 ); 
-    tsk->requires( Task::NewDW, _mixFracLabel, Ghost::AroundCells, 1 );
-    tsk->requires( Task::NewDW, _gradMixFrac2Label, Ghost::None, 0 );
-    tsk->requires( Task::NewDW, _turbViscLabel, Ghost::None, 0 );
-    tsk->requires( Task::NewDW, _volfrac_label, Ghost::AroundCells, 1 );
-    tsk->requires( Task::NewDW, _ccVelocityLabel, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::NewDW, _densityLabel, Ghost::None, 0 ); 
+    tsk->requires( Task::WhichDW::NewDW, _mixFracLabel, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::NewDW, _gradMixFrac2Label, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _turbViscLabel, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _volfrac_label, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::NewDW, _ccVelocityLabel, Ghost::AroundCells, 1 );
   }
   
   sched->addTask(tsk, level->eachPatch(), _materialManager->allMaterials( "Arches" ) ); 

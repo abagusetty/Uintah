@@ -23,7 +23,7 @@
  */
 
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
-#include <CCA/Components/Schedulers/GPUMemoryPool.h>
+#include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
 
@@ -35,22 +35,11 @@
 #include <Core/Parallel/Parallel.h>
 #include <Core/Parallel/ProcessorGroup.h>
 #include <Core/Util/DebugStream.h>
-//#include <Core/Util/GPU.h>
 
 #include <sci_defs/gpu_defs.h>
-
-#if !defined(__CUDA_ARCH__) || !defined(__HIP_DEVICE_COMPILE__)
 #include <string.h>
 #include <string>
-#endif
-
 #include <map>
-
-extern Uintah::MasterLock cerrLock;
-
-namespace Uintah {
-extern DebugStream gpu_stats;
-}
 
 //______________________________________________________________________
 //
@@ -155,29 +144,6 @@ void GPUDataWarehouse::copySuperPatchInfo(char const *label,
         varPointers->find(lpml_dest);
     if (dest_iter != varPointers->end()) {
 
-      if (gpu_stats.active()) {
-        cerrLock.lock();
-        {
-          gpu_stats << UnifiedScheduler::myRankThread()
-                    << " GPUDataWarehouse::copySuperPatchInfo() - "
-                    << " label " << label << " matl " << matlIndx << " level "
-                    << levelIndx
-                    << " Forming a superpatch by merging/shallowcopying "
-                       "metadata for patch "
-                    << superPatchDestinationID << " into patch "
-                    << superPatchBaseID << " with source status codes "
-                    << getDisplayableStatusCodes(
-                           source_iter->second.var->atomicStatusInGpuMemory)
-                    << " and dest status codes "
-                    << getDisplayableStatusCodes(
-                           dest_iter->second.var->atomicStatusInGpuMemory)
-                    << " on device " << d_device_id << " into GPUDW at "
-                    << std::hex << this << std::dec << " with description "
-                    << _internalName << std::endl;
-        }
-        cerrLock.unlock();
-      }
-
       // They now share the variable.  The magic of this happens because the var
       // is a C++ shared_ptr
       // TODO: They don't share the same offset.  When offsets are added in,
@@ -243,38 +209,6 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, size_t sizeOfDataType,
     }
   }
 
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " GPUDataWarehouse::put( " << label << " ) - "
-                << " Attempting to put a variable in the host-side varPointers "
-                   "map for label "
-                << label << " patch " << patchID << " matl " << matlIndx
-                << " level " << levelIndx;
-      if (staging) {
-        gpu_stats << " staging: true";
-      } else {
-        gpu_stats << " staging: false";
-      }
-      gpu_stats << " at device address " << var_ptr << " with status codes ";
-      if (!staging) {
-        gpu_stats << getDisplayableStatusCodes(
-            iter->second.var->atomicStatusInGpuMemory);
-      } else {
-        gpu_stats << getDisplayableStatusCodes(
-            staging_it->second.atomicStatusInGpuMemory);
-      }
-      gpu_stats << " datatype size " << sizeOfDataType << " on device "
-                << d_device_id << " into GPUDW at " << std::hex << this
-                << std::dec << " with description " << _internalName
-                << " current varPointers size is: " << varPointers->size()
-                << " low (" << var_offset.x << ", " << var_offset.y << ", "
-                << var_offset.z << ") " << std::endl;
-    }
-    cerrLock.unlock();
-  }
-
   if (staging == false) {
 
     iter->second.varDB_index = -1;
@@ -285,28 +219,6 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, size_t sizeOfDataType,
     iter->second.var->gtype = gtype;
     iter->second.var->numGhostCells = numGhostCells;
     iter->second.var->atomicStatusInHostMemory = UNKNOWN;
-
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::put( " << label << " ) - "
-                  << " Put a regular non-staging variable in the host-side "
-                     "varPointers map for label "
-                  << label << " patch " << patchID << " matl " << matlIndx
-                  << " level " << levelIndx << " at device address " << var_ptr
-                  << " with datatype size " << iter->second.var->sizeOfDataType
-                  << " with status codes "
-                  << getDisplayableStatusCodes(
-                         iter->second.var->atomicStatusInGpuMemory)
-                  << " on device " << d_device_id << " into GPUDW at "
-                  << std::hex << this << std::dec << " with description "
-                  << _internalName
-                  << " current varPointers size is: " << varPointers->size()
-                  << std::endl;
-      }
-      cerrLock.unlock();
-    }
 
   } else { // if (staging == true)
 
@@ -321,29 +233,6 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, size_t sizeOfDataType,
     // it here.
     iter->second.var->sizeOfDataType = sizeOfDataType;
 
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::put( " << label << " ) - "
-                  << " Put a staging variable in the host-side varPointers map "
-                     "for label "
-                  << label << " patch " << patchID << " matl " << matlIndx
-                  << " level " << levelIndx << " with offset (" << var_offset.x
-                  << ", " << var_offset.y << ", " << var_offset.z << ")"
-                  << " and size (" << var_size.x << ", " << var_size.y << ", "
-                  << var_size.z << ")"
-                  << " at device address " << var_ptr << " with datatype size "
-                  << iter->second.var->sizeOfDataType << " with status codes "
-                  << getDisplayableStatusCodes(
-                         staging_it->second.atomicStatusInGpuMemory)
-                  << " on device " << d_device_id
-
-                  << " into GPUDW at " << std::hex << this << std::dec
-                  << std::endl;
-      }
-      cerrLock.unlock();
-    }
   }
 
   varLock->unlock();
@@ -396,21 +285,6 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
       exit(-1);
     }
     it = ret.first;
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::putUnallocatedIfNotExists( " << label
-                  << " ) - "
-                  << " Put an unallocated non-staging variable in the "
-                     "host-side varPointers map for label "
-                  << label << " patch " << patchID << " matl " << matlIndx
-                  << " level " << levelIndx << " on device " << d_device_id
-                  << " into GPUDW at " << std::hex << this << std::dec
-                  << " with description " << _internalName << std::endl;
-      }
-      cerrLock.unlock();
-    }
   }
 
   if (staging) {
@@ -430,26 +304,6 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
       std::pair<stagingVar, stagingVarInfo> p = std::make_pair(sv, svi);
 
       it->second.var->stagingVars.insert(p);
-
-      if (gpu_stats.active()) {
-        cerrLock.lock();
-        {
-          gpu_stats << UnifiedScheduler::myRankThread()
-                    << " GPUDataWarehouse::putUnallocatedIfNotExists( " << label
-                    << " ) - "
-                    << " Put an unallocated staging variable in the host-side "
-                       "varPointers map for label "
-                    << label << " patch " << patchID << " matl " << matlIndx
-                    << " level " << levelIndx << " offset (" << offset.x << ", "
-                    << offset.y << ", " << offset.z << ")"
-                    << " size (" << size.x << ", " << size.y << ", " << size.z
-                    << ")"
-                    << " on device " << d_device_id << " into GPUDW at "
-                    << std::hex << this << std::dec << " with description "
-                    << _internalName << std::endl;
-        }
-        cerrLock.unlock();
-      }
     }
   }
   varLock->unlock();
@@ -474,23 +328,6 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
   bool allocationNeeded = false;
   int3 size = make_int3(high.x - low.x, high.y - low.y, high.z - low.z);
   int3 offset = low;
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " Calling putUnallocatedIfNotExists() for " << label
-                << " patch " << patchID << " matl " << matlIndx << " level "
-                << levelIndx << " staging: " << std::boolalpha << staging
-                << " with offset (" << offset.x << ", " << offset.y << ", "
-                << offset.z << ")"
-                << " and size (" << size.x << ", " << size.y << ", " << size.z
-                << ")"
-                << " on device " << d_device_id << " into GPUDW at " << std::hex
-                << this << std::dec << " with description " << _internalName
-                << std::endl;
-    }
-    cerrLock.unlock();
-  }
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, staging,
@@ -528,25 +365,6 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
     // See if someone has stated they are allocating it
     allocationNeeded =
         compareAndSwapAllocating(it->second.var->atomicStatusInGpuMemory);
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut( " << label << " ) - "
-                  << " allocationNeeded is " << std::boolalpha
-                  << allocationNeeded << " for label " << label << " patch "
-                  << patchID << " matl " << matlIndx << " level " << levelIndx
-                  << " with offset (" << offset.x << ", " << offset.y << ", "
-                  << offset.z << ")"
-                  << " and size (" << size.x << ", " << size.y << ", " << size.z
-                  << ")"
-                  << " with status codes "
-                  << getDisplayableStatusCodes(
-                         it->second.var->atomicStatusInGpuMemory)
-                  << std::endl;
-      }
-      cerrLock.unlock();
-    }
 
     if (!allocationNeeded) {
       // Someone else is allocating it or it has already been allocated. Wait
@@ -569,28 +387,6 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
           it->second.var->device_size.z == size.z) {
 
         // Space for this var already exists.  Use that and return.
-        if (gpu_stats.active()) {
-          cerrLock.lock();
-          {
-            gpu_stats
-                << UnifiedScheduler::myRankThread()
-                << " GPUDataWarehouse::allocateAndPut( " << label << " ) - "
-                << " This non-staging/regular variable already exists.  No "
-                   "need to allocate another.  GPUDW has a variable for label "
-                << label << " patch " << patchID << " matl " << matlIndx
-                << " level " << levelIndx << " with offset (" << offset.x
-                << ", " << offset.y << ", " << offset.z << ")"
-                << " and size (" << size.x << ", " << size.y << ", " << size.z
-                << ")"
-                << " on device " << d_device_id << " with data pointer "
-                << it->second.var->device_ptr << " with status codes "
-                << getDisplayableStatusCodes(
-                       it->second.var->atomicStatusInGpuMemory)
-                << " into GPUDW at " << std::hex << this << std::dec
-                << std::endl;
-          }
-          cerrLock.unlock();
-        }
 
         // Have this var use the existing memory address.
         var.setArray3(it->second.var->device_offset,
@@ -601,30 +397,6 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
                  it->second.var->device_size.x >= size.x &&
                  it->second.var->device_size.y >= size.y &&
                  it->second.var->device_size.z >= size.z) {
-        // It fits inside.  Just use it.
-        if (gpu_stats.active()) {
-          cerrLock.lock();
-          {
-            gpu_stats << UnifiedScheduler::myRankThread()
-                      << " GPUDataWarehouse::allocateAndPut( " << label
-                      << " ) - "
-                      << " This non-staging/regular variable fits inside "
-                         "another variable that already exists.  No need to "
-                         "allocate another.  GPUDW has a variable for label "
-                      << label << " patch " << patchID << " matl " << matlIndx
-                      << " level " << levelIndx << " with offset (" << offset.x
-                      << ", " << offset.y << ", " << offset.z << ")"
-                      << " and size (" << size.x << ", " << size.y << ", "
-                      << size.z << ")"
-                      << " on device " << d_device_id << " with data pointer "
-                      << it->second.var->device_ptr << " with status codes "
-                      << getDisplayableStatusCodes(
-                             it->second.var->atomicStatusInGpuMemory)
-                      << " into GPUDW at " << std::hex << this << std::dec
-                      << std::endl;
-          }
-          cerrLock.unlock();
-        }
 
         var.setArray3(it->second.var->device_offset,
                       it->second.var->device_size, it->second.var->device_ptr);
@@ -651,28 +423,6 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
           compareAndSwapAllocating(staging_it->second.atomicStatusInGpuMemory);
 
       if (!allocationNeeded) {
-        if (gpu_stats.active()) {
-          cerrLock.lock();
-          {
-            gpu_stats << UnifiedScheduler::myRankThread()
-                      << " GPUDataWarehouse::allocateAndPut( " << label
-                      << " ) - "
-                      << " This staging variable already exists.  No need to "
-                         "allocate another.  For label "
-                      << label << " patch " << patchID << " matl " << matlIndx
-                      << " level " << levelIndx << " with offset (" << offset.x
-                      << ", " << offset.y << ", " << offset.z << ")"
-                      << " and size (" << size.x << ", " << size.y << ", "
-                      << size.z << ")"
-                      << " on device " << d_device_id << " with data pointer "
-                      << staging_it->second.device_ptr << " with status codes "
-                      << getDisplayableStatusCodes(
-                             staging_it->second.atomicStatusInGpuMemory)
-                      << " into GPUDW at " << std::hex << this << std::dec
-                      << std::endl;
-          }
-          cerrLock.unlock();
-        }
         // We need the pointer.  We can't move on until we get the pointer.
         // Ensure that it has been allocated (just not allocating). Another
         // thread may have been assigned to allocate it but not completed that
@@ -695,34 +445,8 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
 
     unsigned int memSize = var.getMemSize();
 
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut(), calling "
-                     "GPUMemoryPool::allocateGpuSpaceFromPool"
-                  << " for " << label << " patch " << patchID << " material "
-                  << matlIndx << " level " << levelIndx
-                  << " staging: " << std::boolalpha << staging
-                  << " with offset (" << offset.x << ", " << offset.y << ", "
-                  << offset.z << ")"
-                  << " and size (" << size.x << ", " << size.y << ", " << size.z
-                  << ")"
-                  << " at " << addr << " with status codes ";
-        if (!staging) {
-          gpu_stats << getDisplayableStatusCodes(
-              it->second.var->atomicStatusInGpuMemory);
-        } else {
-          gpu_stats << getDisplayableStatusCodes(
-              staging_it->second.atomicStatusInGpuMemory);
-        }
-        gpu_stats << " on device " << d_device_id << " into GPUDW at "
-                  << std::hex << this << std::dec << std::endl;
-      }
-      cerrLock.unlock();
-    }
 
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id,
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id,
                                                                  memSize);
 
     // Also update the var object itself
@@ -738,31 +462,6 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
       compareAndSwapAllocate(it->second.var->atomicStatusInGpuMemory);
     } else {
       compareAndSwapAllocate(staging_it->second.atomicStatusInGpuMemory);
-    }
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut(), complete"
-                  << " for " << label << " patch " << patchID << " material "
-                  << matlIndx << " level " << levelIndx
-                  << " staging: " << std::boolalpha << staging
-                  << " with offset (" << offset.x << ", " << offset.y << ", "
-                  << offset.z << ")"
-                  << " and size (" << size.x << ", " << size.y << ", " << size.z
-                  << ")"
-                  << " at " << addr << " with status codes ";
-        if (!staging) {
-          gpu_stats << getDisplayableStatusCodes(
-              it->second.var->atomicStatusInGpuMemory);
-        } else {
-          gpu_stats << getDisplayableStatusCodes(
-              staging_it->second.atomicStatusInGpuMemory);
-        }
-        gpu_stats << " on device " << d_device_id << " into GPUDW at "
-                  << std::hex << this << std::dec << std::endl;
-      }
-      cerrLock.unlock();
     }
   }
 }
@@ -940,26 +639,6 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
   }
 
   d_dirty = true;
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " GPUDataWarehouse::copyItemIntoTaskDW( " << label << " ) - "
-                << " Put into d_varDB at index " << i << " of max index "
-                << d_maxdVarDBItems - 1 << " label " << label << " patch "
-                << d_varDB[i].domainID << " matl " << matlIndx << " level "
-                << levelIndx << " staging: " << std::boolalpha << staging
-                << " datatype size " << d_varDB[i].sizeOfDataType
-                << " into address " << d_varDB[i].var_ptr << " on device "
-                << d_device_id << " into GPUDW at " << std::hex << this
-                << std::dec << " size [" << d_varDB[i].var_size.x << ", "
-                << d_varDB[i].var_size.y << ", " << d_varDB[i].var_size.z << "]"
-                << " offset [" << d_varDB[i].var_offset.x << ", "
-                << d_varDB[i].var_offset.y << ", " << d_varDB[i].var_offset.z
-                << "]" << std::endl;
-    }
-    cerrLock.unlock();
-  }
   varLock->unlock();
 }
 
@@ -1063,26 +742,6 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, size_t sizeOfDataType,
   // previously set, do not set here
   // iter->second.var->atomicStatusInGpuMemory =
 
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " GPUDataWarehouse::put( " << label << " ) - "
-                << " Put a reduction variable in the host-side varPointers map "
-                   "for label "
-                << label << " patch " << patchID << " matl " << matlIndx
-                << " level " << levelIndx << " at device address " << var_ptr
-                << " with datatype size " << iter->second.var->sizeOfDataType
-                << " with status codes "
-                << getDisplayableStatusCodes(
-                       iter->second.var->atomicStatusInGpuMemory)
-                << " on device " << d_device_id << " into GPUDW at " << std::hex
-                << this << std::dec << " with description " << _internalName
-                << " current varPointers size is: " << varPointers->size()
-                << std::endl;
-    }
-    cerrLock.unlock();
-  }
 
   varLock->unlock();
 }
@@ -1127,27 +786,6 @@ void GPUDataWarehouse::put(GPUPerPatchBase &var, size_t sizeOfDataType,
   // previously set, do not set here
   // iter->second.atomicStatusInGputMemory =
 
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats
-          << UnifiedScheduler::myRankThread() << " GPUDataWarehouse::put( "
-          << label << " ) - "
-          << " Put a patch variable in the host-side varPointers map for label "
-          << label << " patch " << patchID << " matl " << matlIndx << " level "
-          << levelIndx << " at device address " << var_ptr
-          << " with datatype size " << iter->second.var->sizeOfDataType
-          << " with status codes "
-          << getDisplayableStatusCodes(
-                 iter->second.var->atomicStatusInGpuMemory)
-          << " on device " << d_device_id << " into GPUDW at " << std::hex
-          << this << std::dec << " with description " << _internalName
-          << " current varPointers size is: " << varPointers->size()
-          << std::endl;
-    }
-    cerrLock.unlock();
-  }
-
   varLock->unlock();
 }
 
@@ -1170,18 +808,6 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
   bool allocationNeeded = false;
   int3 size = make_int3(0, 0, 0);
   int3 offset = make_int3(0, 0, 0);
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " Calling putUnallocatedIfNotExists() for " << label
-                << " patch " << patchID << " matl " << matlIndx << " level "
-                << levelIndx << " on device " << d_device_id
-                << " into GPUDW at " << std::hex << this << std::dec
-                << " with description " << _internalName << std::endl;
-    }
-    cerrLock.unlock();
-  }
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, false, offset,
@@ -1204,24 +830,6 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
   if (!allocationNeeded) {
     // Someone else is allocating it or it has already been allocated.
     // Space for this var already exists.  Use that and return.
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut( " << label << " ) - "
-                  << " This reduction variable already exists.  No need to "
-                     "allocate another.  GPUDW has a variable for label "
-                  << label << " patch " << patchID << " matl " << matlIndx
-                  << " level " << levelIndx << " on device " << d_device_id
-                  << " with data pointer " << it->second.var->device_ptr
-                  << " with status codes "
-                  << getDisplayableStatusCodes(
-                         it->second.var->atomicStatusInGpuMemory)
-                  << " into GPUDW at " << std::hex << this << std::dec
-                  << std::endl;
-      }
-      cerrLock.unlock();
-    }
 
     // We need the pointer.  We can't move on until we get the pointer.
     // Ensure that it has been allocated (just not allocating). Another thread
@@ -1238,26 +846,7 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     size_t memSize = var.getMemSize();
 
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut(), calling "
-                     "GPUMemoryPool::getInstance().allocateGpuSpaceFromPool"
-                  << " for reduction variable " << label << " patch " << patchID
-                  << " material " << matlIndx << " level " << levelIndx
-                  << " size " << var.getMemSize() << " at " << addr
-                  << " with status codes "
-                  << getDisplayableStatusCodes(
-                         it->second.var->atomicStatusInGpuMemory)
-                  << " on device " << d_device_id << " into GPUDW at "
-                  << std::hex << this << std::dec << std::endl;
-      }
-      cerrLock.unlock();
-    }
-
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id,
-                                                                 memSize);
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
     // Also update the var object itself
     var.setData(addr);
@@ -1289,18 +878,6 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
   bool allocationNeeded = false;
   int3 size = make_int3(0, 0, 0);
   int3 offset = make_int3(0, 0, 0);
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " Calling putUnallocatedIfNotExists() for " << label
-                << " patch " << patchID << " matl " << matlIndx << " level "
-                << levelIndx << " on device " << d_device_id
-                << " into GPUDW at " << std::hex << this << std::dec
-                << " with description " << _internalName << std::endl;
-    }
-    cerrLock.unlock();
-  }
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, false, offset,
@@ -1324,24 +901,7 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
   if (!allocationNeeded) {
     // Someone else is allocating it or it has already been allocated.
     // Space for this var already exists.  Use that and return.
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut( " << label << " ) - "
-                  << " This patch variable already exists.  No need to "
-                     "allocate another.  GPUDW has a variable for label "
-                  << label << " patch " << patchID << " matl " << matlIndx
-                  << " level " << levelIndx << " on device " << d_device_id
-                  << " with data pointer " << it->second.var->device_ptr
-                  << " with status codes "
-                  << getDisplayableStatusCodes(
-                         it->second.var->atomicStatusInGpuMemory)
-                  << " into GPUDW at " << std::hex << this << std::dec
-                  << std::endl;
-      }
-      cerrLock.unlock();
-    }
+
     // We need the pointer.  We can't move on until we get the pointer.
     // Ensure that it has been allocated (just not allocating). Another thread
     // may have been assigned to allocate it but not completed that action.  If
@@ -1357,26 +917,7 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     size_t memSize = var.getMemSize();
 
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::allocateAndPut(), calling "
-                     "GPUMemoryPool::getInstance().allocateGpuSpaceFromPool"
-                  << " for PerPatch variable " << label << " patch " << patchID
-                  << " material " << matlIndx << " level " << levelIndx
-                  << " size " << var.getMemSize() << " at " << addr
-                  << " with status codes "
-                  << getDisplayableStatusCodes(
-                         it->second.var->atomicStatusInGpuMemory)
-                  << " on device " << d_device_id << " into GPUDW at "
-                  << std::hex << this << std::dec << std::endl;
-      }
-      cerrLock.unlock();
-    }
-
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id,
-                                                                 memSize);
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
     // Also update the var object itself
     var.setData(addr);
@@ -1391,10 +932,9 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
 
 //______________________________________________________________________
 //
-__device__ GPUDataWarehouse::dataItem *
+__device__ GPUDataWarehouse::dataItem*
 GPUDataWarehouse::getItem(char const *label, const int patchID,
                           const int8_t matlIndx, const int8_t levelIndx) {
-
   // This upcoming __syncthreads is needed.  With CUDA function calls are
   // inlined.
   //  If you don't have it this upcoming __syncthreads here's what I think can
@@ -1562,21 +1102,9 @@ void GPUDataWarehouse::init_device(size_t objectSizeInBytes,
   OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
   void *temp = nullptr;
   // CUDA_RT_SAFE_CALL(cudaMalloc(&temp, objectSizeInBytes));
-  temp = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(
+  temp = GPUMemoryPool::getInstance().allocate(
       d_device_id, objectSizeInBytes);
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats
-          << UnifiedScheduler::myRankThread()
-          << " GPUDataWarehouse::init_device() -"
-          << " requested GPU space from "
-             "GPUMemoryPool::allocateGpuSpaceFromPool for Task DW of size "
-          << objectSizeInBytes << " bytes at " << temp << " on device "
-          << d_device_id << " the host GPUDW is at " << this << std::endl;
-    }
-    cerrLock.unlock();
-  }
+
   d_device_copy = (GPUDataWarehouse *)temp;
   // cudaHostRegister(this, sizeof(GPUDataWarehouse), cudaHostRegisterPortable);
 
@@ -1607,18 +1135,6 @@ void GPUDataWarehouse::syncto_device(gpuStream_t *gpuStream) {
     // This approach does NOT require CUDA pinned memory.
     // unsigned int sizeToCopy = sizeof(GPUDataWarehouse);
 
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::syncto_device() - cuda/hipMemcpy -"
-                  << " sync GPUDW at " << d_device_copy << " with description "
-                  << _internalName << " to device " << d_device_id
-                  << " on stream " << (*gpuStream) << std::endl;
-      }
-      cerrLock.unlock();
-    }
-
 #ifndef HAVE_SYCL
     GPU_RT_SAFE_CALL(gpuMemcpyAsync(d_device_copy, this, objectSizeInBytes,
                                     gpuMemcpyHostToDevice, *gpuStream));
@@ -1648,25 +1164,12 @@ void GPUDataWarehouse::clear() {
       if (compareAndSwapDeallocating(
               stagingIter->second.atomicStatusInGpuMemory)) {
         // The counter hit zero, so lets deallocate the var.
-        if (gpu_stats.active()) {
-          cerrLock.lock();
-          {
-            gpu_stats << UnifiedScheduler::myRankThread()
-                      << " GPUDataWarehouse::clear() -"
-                      << " calling GPUMemoryPool::freeGpuSpaceToPool() for "
-                         "staging var for "
-                      << varIter->first.label << " at device ptr "
-                      << stagingIter->second.device_ptr << " on device "
-                      << d_device_id << std::endl;
-          }
-          cerrLock.unlock();
-        }
 
         // TODO: ABB: 08/27/22, ensure a way to check that the pointers returned
         // to the pool were obtained from pool
-        // if (GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id,
+        // if (GPUMemoryPool::getInstance().deallocate(d_device_id,
         // stagingIter->second.device_ptr) ) {
-        GPUMemoryPool::getInstance().freeGpuSpaceToPool(
+        GPUMemoryPool::getInstance().deallocate(
             d_device_id, stagingIter->second.device_ptr,
             stagingIter->second.sizeInBytesDevicePtr);
         stagingIter->second.device_ptr = nullptr;
@@ -1692,23 +1195,9 @@ void GPUDataWarehouse::clear() {
             varIter->second.var->atomicStatusInGpuMemory)) {
       if (varIter->second.var->device_ptr) {
 
-        if (gpu_stats.active()) {
-          cerrLock.lock();
-          {
-            gpu_stats << UnifiedScheduler::myRankThread()
-                      << " GPUDataWarehouse::clear() -"
-                      << " calling GPUMemoryPool::freeGpuSpaceToPool() for "
-                         "non-staging var for "
-                      << varIter->first.label << " at device ptr "
-                      << varIter->second.var->device_ptr << " on device "
-                      << d_device_id << std::endl;
-          }
-          cerrLock.unlock();
-        }
-
-        // if (GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id,
+        // if (GPUMemoryPool::getInstance().deallocate(d_device_id,
         // varIter->second.var->device_ptr)) {
-        GPUMemoryPool::getInstance().freeGpuSpaceToPool(
+        GPUMemoryPool::getInstance().deallocate(
             d_device_id, varIter->second.var->device_ptr,
             varIter->second.var->sizeInBytesDevicePtr);
         varIter->second.var->device_ptr = nullptr;
@@ -1736,19 +1225,7 @@ void GPUDataWarehouse::clear() {
 void GPUDataWarehouse::deleteSelfOnDevice() {
   if (d_device_copy) {
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::deleteSelfOnDevice - calling "
-                     "GPUMemoryPool::freeGpuSpaceToPool for Task DW at "
-                  << std::hex << d_device_copy << " on device " << std::dec
-                  << d_device_id << std::endl;
-      }
-      cerrLock.unlock();
-    }
-
-    GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id, d_device_copy,
+    GPUMemoryPool::getInstance().deallocate(d_device_id, d_device_copy,
                                                     objectSizeInBytes);
   }
 }
@@ -1943,18 +1420,6 @@ void GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t *stream) {
     // Give each ghost copying kernel 32 * 16 = 512 threads to
     // copy (32x32 was too much for a smaller laptop GPU and
     //the Uintah build server in debug mode)
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker() - "
-                  << " Launching ghost cell copies kernel"
-                  << " on device " << d_device_id << " at GPUDW at " << std::hex
-                  << this << std::dec << " with description " << _internalName
-                  << std::endl;
-      }
-      cerrLock.unlock();
-    }
 
     copyGpuGhostCellsToGpuVarsKernel<<<dimGrid, dimBlock, 0, *stream>>>(
         this->d_device_copy);
@@ -2047,35 +1512,6 @@ void GPUDataWarehouse::putGhostCell(
   d_varDB[i].var_size = d_varDB[index].var_size;
   d_varDB[i].var_ptr = d_varDB[index].var_ptr;
   d_varDB[i].sizeOfDataType = d_varDB[index].sizeOfDataType;
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " GPUDataWarehouse::putGhostCell() - "
-                << " Placed into d_varDB at index " << i << " of max index "
-                << d_maxdVarDBItems - 1 << " from patch " << sourcePatchID
-                << " staging " << sourceStaging << " to patch " << destPatchID
-                << " staging " << destStaging << " has shared coordinates ("
-                << sharedLowCoordinates.x << ", " << sharedLowCoordinates.y
-                << ", " << sharedLowCoordinates.z << "),"
-                << " (" << sharedHighCoordinates.x << ", "
-                << sharedHighCoordinates.y << ", " << sharedHighCoordinates.z
-                << "), "
-                << " from low/offset (" << d_varDB[i].var_offset.x << ", "
-                << d_varDB[i].var_offset.y << ", " << d_varDB[i].var_offset.z
-                << ") "
-                << " size (" << d_varDB[i].var_size.x << ", "
-                << d_varDB[i].var_size.y << ", " << d_varDB[i].var_size.z
-                << ") "
-                << " virtualOffset (" << d_varDB[i].ghostItem.virtualOffset.x
-                << ", " << d_varDB[i].ghostItem.virtualOffset.y << ", "
-                << d_varDB[i].ghostItem.virtualOffset.z << ") "
-                << " datatype size " << d_varDB[i].sizeOfDataType
-                << " on device " << d_device_id << " at GPUDW at " << std::hex
-                << this << std::dec << std::endl;
-    }
-    cerrLock.unlock();
-  }
 
   // Find where we are sending the ghost cell data to
   labelPatchMatlLevel lpml_dest(label, destPatchID, matlIndx, levelIndx);
@@ -2343,28 +1779,6 @@ bool GPUDataWarehouse::areAllStagingVarsValid(char const *label, int patchID,
          staging_it != it->second.var->stagingVars.end(); ++staging_it) {
       if (!checkValid(staging_it->second.atomicStatusInGpuMemory)) {
         varLock->unlock();
-        if (gpu_stats.active()) {
-          cerrLock.lock();
-          {
-            gpu_stats << UnifiedScheduler::myRankThread()
-                      << " GPUDataWarehouse::areAllStagingVarsValid() -"
-                      // Task: " << dtask->getName()
-                      << " Not all staging vars were ready for " << label
-                      << " patch " << patchID << " material " << matlIndx
-                      << " level " << levelIndx << " offset ("
-                      << staging_it->first.device_offset.x << ", "
-                      << staging_it->first.device_offset.y << ", "
-                      << staging_it->first.device_offset.z << ") and size ("
-                      << staging_it->first.device_size.x << ", "
-                      << staging_it->first.device_size.y << ", "
-                      << staging_it->first.device_size.z
-                      << ") with status codes "
-                      << getDisplayableStatusCodes(
-                             staging_it->second.atomicStatusInGpuMemory)
-                      << std::endl;
-          }
-          cerrLock.unlock();
-        }
         return false;
       }
     }
@@ -3247,18 +2661,6 @@ bool GPUDataWarehouse::compareAndSwapFormASuperPatchGPU(char const *label,
   while (!compareAndSwapSucceeded) {
 
     atomicDataStatus oldVarStatus = __sync_or_and_fetch(status, 0);
-    if (gpu_stats.active()) {
-      cerrLock.lock();
-      {
-        gpu_stats << UnifiedScheduler::myRankThread()
-                  << " GPUDataWarehouse::compareAndSwapFormASuperPatchGPU() - "
-                  << " Attempting to set a superpatch flag for label " << label
-                  << " patch " << patchID << " matl " << matlIndx << " level "
-                  << levelIndx << " with status codes "
-                  << getDisplayableStatusCodes(oldVarStatus) << std::endl;
-      }
-      cerrLock.unlock();
-    }
 
     if ((oldVarStatus & FORMING_SUPERPATCH) == FORMING_SUPERPATCH ||
         ((oldVarStatus & SUPERPATCH) == SUPERPATCH)) {
@@ -3292,18 +2694,6 @@ bool GPUDataWarehouse::compareAndSwapFormASuperPatchGPU(char const *label,
   }
 
   atomicDataStatus oldVarStatus = __sync_or_and_fetch(status, 0);
-  if (gpu_stats.active()) {
-    cerrLock.lock();
-    {
-      gpu_stats << UnifiedScheduler::myRankThread()
-                << " GPUDataWarehouse::compareAndSwapFormASuperPatchGPU() - "
-                << " Success for label " << label << " patch " << patchID
-                << " matl " << matlIndx << " level " << levelIndx
-                << " with status codes "
-                << getDisplayableStatusCodes(oldVarStatus) << std::endl;
-    }
-    cerrLock.unlock();
-  }
 
   return true;
 }

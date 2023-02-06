@@ -241,8 +241,8 @@ void Steady_Burn::scheduleComputeModelSources(SchedulerP& sched,
 
   printSchedule(level, cout_doing,"Steady_Burn::scheduleComputeNumPPC");  
 
-  t1->requires(Task::OldDW, Ilb->timeStepLabel);
-  t1->requires(Task::OldDW, Mlb->pXLabel,          react_matl, gn);
+  t1->requires(Task::WhichDW::OldDW, Ilb->timeStepLabel);
+  t1->requires(Task::WhichDW::OldDW, Mlb->pXLabel,          react_matl, gn);
   t1->computes(numPPCLabel, react_matl);
 
   sched->addTask(t1, level->eachPatch(), mymatls);
@@ -253,7 +253,7 @@ void Steady_Burn::scheduleComputeModelSources(SchedulerP& sched,
                         &Steady_Burn::computeModelSources);
 
   printSchedule(level,cout_doing,"Steady_Burn::scheduleComputeModelSources");  
-  t->requires( Task::OldDW, Ilb->delTLabel, level.get_rep());
+  t->requires( Task::WhichDW::OldDW, Ilb->delTLabel, level.get_rep());
   
   // define material subsets  
   const MaterialSet* all_matls = m_materialManager->allMaterials();
@@ -265,20 +265,20 @@ void Steady_Burn::scheduleComputeModelSources(SchedulerP& sched,
   
   Task::MaterialDomainSpec oms = Task::OutOfDomain;  //outside of mymatl set.
 
-  t->requires(Task::OldDW, Ilb->timeStepLabel );
-  t->requires(Task::OldDW, Ilb->delTLabel,         level.get_rep());
-  t->requires(Task::OldDW, Ilb->temp_CCLabel,      all_matls_sub, oms, gac,1);
-  t->requires(Task::NewDW, Ilb->vol_frac_CCLabel,  all_matls_sub, oms, gac,1);
+  t->requires(Task::WhichDW::OldDW, Ilb->timeStepLabel );
+  t->requires(Task::WhichDW::OldDW, Ilb->delTLabel,         level.get_rep());
+  t->requires(Task::WhichDW::OldDW, Ilb->temp_CCLabel,      all_matls_sub, oms, gac,1);
+  t->requires(Task::WhichDW::NewDW, Ilb->vol_frac_CCLabel,  all_matls_sub, oms, gac,1);
   /*     Products     */
   /*     Reactants    */
-  t->requires(Task::NewDW, Ilb->sp_vol_CCLabel,   react_matl, gn);
-  t->requires(Task::NewDW, MIlb->vel_CCLabel,     react_matl, gn);
-  t->requires(Task::NewDW, MIlb->cMassLabel,      react_matl, gn);
-  t->requires(Task::NewDW, MIlb->gMassLabel,      react_matl, gac,1);
-  t->requires(Task::NewDW, numPPCLabel,           react_matl, gac,1);
+  t->requires(Task::WhichDW::NewDW, Ilb->sp_vol_CCLabel,   react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, MIlb->vel_CCLabel,     react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, MIlb->cMassLabel,      react_matl, gn);
+  t->requires(Task::WhichDW::NewDW, MIlb->gMassLabel,      react_matl, gac,1);
+  t->requires(Task::WhichDW::NewDW, numPPCLabel,           react_matl, gac,1);
   /*     Misc      */
-  t->requires(Task::NewDW,  Ilb->press_equil_CCLabel, one_matl, gac, 1);
-  t->requires(Task::OldDW,  Mlb->NC_CCweightLabel,   one_matl, gac, 1);  
+  t->requires(Task::WhichDW::NewDW,  Ilb->press_equil_CCLabel, one_matl, gac, 1);
+  t->requires(Task::WhichDW::OldDW,  Mlb->NC_CCweightLabel,   one_matl, gac, 1);  
   
   t->modifies(Ilb->modelMass_srcLabel);
   t->modifies(Ilb->modelMom_srcLabel);

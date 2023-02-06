@@ -1435,7 +1435,7 @@ void Ray::sched_rayTrace_dataOnion(const LevelP &level, SchedulerP &sched,
 
   printSchedule(level, g_ray_dbg, taskname);
 
-  Task::MaterialDomainSpec ND = Task::NormalDomain;
+  Task::MaterialDomainSpec ND = Task::MaterialDomainSpec::NormalDomain;
   Ghost::GhostType gac = Ghost::AroundCells;
   Task::WhichDW abskg_dw = get_abskg_whichDW(L_indx, d_abskgLabel);
 
@@ -1473,25 +1473,25 @@ void Ray::sched_rayTrace_dataOnion(const LevelP &level, SchedulerP &sched,
   // functionality.
   if (!(Uintah::Parallel::usingDevice())) {
     // needed for carry Forward
-    tsk->requires(Task::OldDW, d_divQLabel, d_gn, 0);
-    tsk->requires(Task::OldDW, d_boundFluxLabel, d_gn, 0);
-    tsk->requires(Task::OldDW, d_radiationVolqLabel, d_gn, 0);
+    tsk->requires(Task::WhichDW::OldDW, d_divQLabel, d_gn, 0);
+    tsk->requires(Task::WhichDW::OldDW, d_boundFluxLabel, d_gn, 0);
+    tsk->requires(Task::WhichDW::OldDW, d_radiationVolqLabel, d_gn, 0);
   }
 
   if (d_ROI_algo == dynamic) {
-    tsk->requires(Task::NewDW, d_ROI_LoCellLabel);
-    tsk->requires(Task::NewDW, d_ROI_HiCellLabel);
+    tsk->requires(Task::WhichDW::NewDW, d_ROI_LoCellLabel);
+    tsk->requires(Task::WhichDW::NewDW, d_ROI_HiCellLabel);
   }
 
   // declare requires for all coarser levels
   for (int l = 0; l < maxLevels; ++l) {
     int offset = maxLevels - l;
     Task::WhichDW abskg_dw_CL = get_abskg_whichDW(l, d_abskgLabel);
-    tsk->requires(abskg_dw_CL, d_abskgLabel, nullptr, Task::CoarseLevel, offset,
+    tsk->requires(abskg_dw_CL, d_abskgLabel, nullptr, Task::PatchDomainSpec::CoarseLevel, offset,
                   nullptr, ND, gac, SHRT_MAX);
-    tsk->requires(sigma_dw, d_sigmaT4Label, nullptr, Task::CoarseLevel, offset,
+    tsk->requires(sigma_dw, d_sigmaT4Label, nullptr, Task::PatchDomainSpec::CoarseLevel, offset,
                   nullptr, ND, gac, SHRT_MAX);
-    tsk->requires(celltype_dw, d_cellTypeLabel, nullptr, Task::CoarseLevel,
+    tsk->requires(celltype_dw, d_cellTypeLabel, nullptr, Task::PatchDomainSpec::CoarseLevel,
                   offset, nullptr, ND, gac, SHRT_MAX);
 
     proc0cout << "WARNING: RMCRT High communication costs on level: " << l
@@ -2854,20 +2854,20 @@ void Ray::sched_Refine_Q(SchedulerP &sched, const PatchSet *patches,
 
     Task *task = scinew Task("Ray::refine_Q", this, &Ray::refine_Q);
 
-    Task::MaterialDomainSpec ND = Task::NormalDomain;
+    Task::MaterialDomainSpec ND = Task::MaterialDomainSpec::NormalDomain;
 #define allPatches 0
 #define allMatls 0
-    task->requires(Task::NewDW, d_divQLabel, allPatches, Task::CoarseLevel,
+    task->requires(Task::WhichDW::NewDW, d_divQLabel, allPatches, Task::PatchDomainSpec::CoarseLevel,
                    allMatls, ND, d_gac, 1);
-    task->requires(Task::NewDW, d_boundFluxLabel, allPatches, Task::CoarseLevel,
+    task->requires(Task::WhichDW::NewDW, d_boundFluxLabel, allPatches, Task::PatchDomainSpec::CoarseLevel,
                    allMatls, ND, d_gac, 1);
-    task->requires(Task::NewDW, d_radiationVolqLabel, allPatches,
-                   Task::CoarseLevel, allMatls, ND, d_gac, 1);
+    task->requires(Task::WhichDW::NewDW, d_radiationVolqLabel, allPatches,
+                   Task::PatchDomainSpec::CoarseLevel, allMatls, ND, d_gac, 1);
 
     // when carryforward is needed
-    task->requires(Task::OldDW, d_divQLabel, d_gn, 0);
-    task->requires(Task::OldDW, d_boundFluxLabel, d_gn, 0);
-    task->requires(Task::OldDW, d_radiationVolqLabel, d_gn, 0);
+    task->requires(Task::WhichDW::OldDW, d_divQLabel, d_gn, 0);
+    task->requires(Task::WhichDW::OldDW, d_boundFluxLabel, d_gn, 0);
+    task->requires(Task::WhichDW::OldDW, d_radiationVolqLabel, d_gn, 0);
 
     task->computes(d_divQLabel);
     task->computes(d_boundFluxLabel);
@@ -2976,8 +2976,8 @@ void Ray::sched_ROI_Extents(const LevelP &level, SchedulerP &scheduler) {
     tsk = scinew Task("Ray::ROI_Extents", this, &Ray::ROI_Extents<float>);
   }
 
-  tsk->requires(Task::NewDW, d_abskgLabel, d_gac, 1);
-  tsk->requires(Task::NewDW, d_sigmaT4Label, d_gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_abskgLabel, d_gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_sigmaT4Label, d_gac, 1);
   tsk->computes(d_mag_grad_abskgLabel);
   tsk->computes(d_mag_grad_sigmaT4Label);
   tsk->computes(d_flaggedCellsLabel);
@@ -3063,7 +3063,7 @@ void Ray::sched_CoarsenAll(const LevelP &coarseLevel, SchedulerP &sched,
 
     sched_Coarsen_Q(coarseLevel, sched, fineLevel_abskg_dw, modifies_abskg,
                     d_abskgLabel);
-    sched_Coarsen_Q(coarseLevel, sched, Task::NewDW, modifies_sigmaT4,
+    sched_Coarsen_Q(coarseLevel, sched, Task::WhichDW::NewDW, modifies_sigmaT4,
                     d_sigmaT4Label);
   }
 }
@@ -3094,12 +3094,12 @@ void Ray::sched_Coarsen_Q(const LevelP &coarseLevel, SchedulerP &sched,
   }
 
   if (modifies) {
-    tsk->requires(fineLevel_Q_dw, variable, 0, Task::FineLevel, 0,
-                  Task::NormalDomain, d_gn, 0);
+    tsk->requires(fineLevel_Q_dw, variable, 0, Task::PatchDomainSpec::FineLevel, 0,
+                  Task::MaterialDomainSpec::NormalDomain, d_gn, 0);
     tsk->modifies(variable);
   } else {
-    tsk->requires(fineLevel_Q_dw, variable, 0, Task::FineLevel, 0,
-                  Task::NormalDomain, d_gn, 0);
+    tsk->requires(fineLevel_Q_dw, variable, 0, Task::PatchDomainSpec::FineLevel, 0,
+                  Task::MaterialDomainSpec::NormalDomain, d_gn, 0);
     tsk->computes(variable);
   }
 
@@ -3272,8 +3272,8 @@ void Ray::sched_computeCellType(const LevelP &level, SchedulerP &sched,
   printSchedule(level, g_ray_dbg, taskname);
 
   if (which == Ray::modifiesVar) {
-    tsk->requires(Task::NewDW, d_cellTypeLabel, 0, Task::FineLevel, 0,
-                  Task::NormalDomain, d_gn, 0);
+    tsk->requires(Task::WhichDW::NewDW, d_cellTypeLabel, 0, Task::PatchDomainSpec::FineLevel, 0,
+                  Task::MaterialDomainSpec::NormalDomain, d_gn, 0);
     tsk->modifies(d_cellTypeLabel);
   } else if (which == Ray::computesVar) {
     tsk->computes(d_cellTypeLabel);

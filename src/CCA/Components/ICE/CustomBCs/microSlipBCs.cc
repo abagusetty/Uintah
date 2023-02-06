@@ -137,37 +137,37 @@ void addRequires_MicroSlip(Task         * t,
 
 
   if(where == "velFC_Exchange"){
-    t->requires(Task::OldDW, lb->rho_CCLabel,   ice_matls, gn,0);
-    t->requires(Task::OldDW, lb->vel_CCLabel,   ice_matls, gn,0);
-    t->requires(Task::OldDW, lb->temp_CCLabel,  ice_matls, gn,0);
-    t->requires(Task::NewDW, lb->viscosityLabel,ice_matls, gn,0);
-    t->requires(Task::NewDW, lb->press_CCLabel, press_matl,oims,gn, 0);
+    t->requires(Task::WhichDW::OldDW, lb->rho_CCLabel,   ice_matls, gn,0);
+    t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel,   ice_matls, gn,0);
+    t->requires(Task::WhichDW::OldDW, lb->temp_CCLabel,  ice_matls, gn,0);
+    t->requires(Task::WhichDW::NewDW, lb->viscosityLabel,ice_matls, gn,0);
+    t->requires(Task::WhichDW::NewDW, lb->press_CCLabel, press_matl,oims,gn, 0);
   }
   if(where == "imp_velFC_Exchange"){
-    t->requires(Task::ParentOldDW, lb->rho_CCLabel,   ice_matls, gn,0);
-    t->requires(Task::ParentOldDW, lb->vel_CCLabel,   ice_matls, gn,0);
-    t->requires(Task::ParentNewDW, lb->viscosityLabel,ice_matls, gn,0);
-    t->requires(Task::ParentNewDW, lb->press_CCLabel, press_matl,oims,gn, 0);
+    t->requires(Task::WhichDW::ParentOldDW, lb->rho_CCLabel,   ice_matls, gn,0);
+    t->requires(Task::WhichDW::ParentOldDW, lb->vel_CCLabel,   ice_matls, gn,0);
+    t->requires(Task::WhichDW::ParentNewDW, lb->viscosityLabel,ice_matls, gn,0);
+    t->requires(Task::WhichDW::ParentNewDW, lb->press_CCLabel, press_matl,oims,gn, 0);
   }
 #endif
 
   if(where == "CC_Exchange"){
-    t->requires(Task::NewDW, lb->rho_CCLabel,        ice_matls, gn);
-    t->requires(Task::NewDW, lb->gammaLabel,         ice_matls, gn);
-    t->requires(Task::NewDW, lb->specific_heatLabel, ice_matls, gn);
-    t->requires(Task::NewDW, lb->thermalCondLabel,   ice_matls, gn);
-    t->requires(Task::NewDW, lb->viscosityLabel,     ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->rho_CCLabel,        ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->gammaLabel,         ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->specific_heatLabel, ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->thermalCondLabel,   ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->viscosityLabel,     ice_matls, gn);
 
     t->computes(lb->vel_CC_XchangeLabel);
     t->computes(lb->temp_CC_XchangeLabel);
   }
   if(where == "Advection"){
-    t->requires(Task::NewDW, lb->gammaLabel,         ice_matls, gn);
-    t->requires(Task::NewDW, lb->specific_heatLabel, ice_matls, gn);
-    t->requires(Task::NewDW, lb->thermalCondLabel,   ice_matls, gn);
-    t->requires(Task::NewDW, lb->viscosityLabel,     ice_matls, gn);
-    // requires(Task::NewDW, lb->vel_CCLabel,        ice_matls, gn);
-    // requires(Task::NewDW, lb->rho_CCLabel,        ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->gammaLabel,         ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->specific_heatLabel, ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->thermalCondLabel,   ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->viscosityLabel,     ice_matls, gn);
+    // requires(Task::WhichDW::NewDW, lb->vel_CCLabel,        ice_matls, gn);
+    // requires(Task::WhichDW::NewDW, lb->rho_CCLabel,        ice_matls, gn);
   }
 }
 /*__________________________________________________________________

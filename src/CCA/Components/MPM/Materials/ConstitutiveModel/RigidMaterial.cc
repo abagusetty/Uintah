@@ -172,7 +172,7 @@ RigidMaterial::computeStressTensorImplicit(const PatchSubset* patches,
 
 {
   int dwi = matl->getDWIndex();
-  DataWarehouse* parent_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+  DataWarehouse* parent_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   for (int pp = 0; pp < patches->size(); pp++) {
     const Patch* patch = patches->get(pp);
     ParticleSubset* pset = parent_dw->getParticleSubset(dwi, patch);

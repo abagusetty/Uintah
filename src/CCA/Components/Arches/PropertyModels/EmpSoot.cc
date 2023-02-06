@@ -82,17 +82,17 @@ void EmpSoot::sched_computeProp( const LevelP& level, SchedulerP& sched, int tim
     
     tsk->computes( _absorp_label ); 
 
-    tsk->requires( Task::OldDW, _T_label,   gn, 0 ); 
-    tsk->requires( Task::OldDW, _den_label, gn, 0 ); 
-    tsk->requires( Task::OldDW, _f_label,   gn, 0 ); 
+    tsk->requires( Task::WhichDW::OldDW, _T_label,   gn, 0 ); 
+    tsk->requires( Task::WhichDW::OldDW, _den_label, gn, 0 ); 
+    tsk->requires( Task::WhichDW::OldDW, _f_label,   gn, 0 ); 
     
   } else {
 
     tsk->modifies( _absorp_label ); 
 
-    tsk->requires( Task::NewDW, _T_label,   gn, 0 ); 
-    tsk->requires( Task::NewDW, _den_label, gn, 0 ); 
-    tsk->requires( Task::NewDW, _f_label,   gn, 0 ); 
+    tsk->requires( Task::WhichDW::NewDW, _T_label,   gn, 0 ); 
+    tsk->requires( Task::WhichDW::NewDW, _den_label, gn, 0 ); 
+    tsk->requires( Task::WhichDW::NewDW, _f_label,   gn, 0 ); 
 
   }
 

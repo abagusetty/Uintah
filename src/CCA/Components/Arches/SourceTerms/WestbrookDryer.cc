@@ -205,17 +205,17 @@ WestbrookDryer::sched_computeSource( const LevelP& level, SchedulerP& sched, int
     tsk->computes(d_WDstrippingLabel);
     tsk->computes(d_WDextentLabel);
 
-    tsk->requires( Task::OldDW, _temperatureLabel, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::OldDW, _temperatureLabel, Ghost::None, 0 );
     if ( _using_xi ){
-      tsk->requires( Task::OldDW, _XiLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::OldDW, _XiLabel, Ghost::None, 0 );
     } else {
-      tsk->requires( Task::OldDW, _EtaLabel, Ghost::None, 0 );
-      tsk->requires( Task::OldDW, _FpLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::OldDW, _EtaLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::OldDW, _FpLabel, Ghost::None, 0 );
     }
-    tsk->requires( Task::OldDW, _denLabel,         Ghost::None, 0 );
-    tsk->requires( Task::OldDW, _O2MassFracLabel,  Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::OldDW, _denLabel,         Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::OldDW, _O2MassFracLabel,  Ghost::None, 0 );
     if ( _use_flam_limits && !_const_diluent ){
-      tsk->requires( Task::OldDW, _diluentLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::OldDW, _diluentLabel, Ghost::None, 0 );
     }
 
   } else {
@@ -224,23 +224,23 @@ WestbrookDryer::sched_computeSource( const LevelP& level, SchedulerP& sched, int
     tsk->modifies(d_WDstrippingLabel);
     tsk->modifies(d_WDextentLabel);
 
-    tsk->requires( Task::NewDW, _temperatureLabel, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _temperatureLabel, Ghost::None, 0 );
     if ( _using_xi ){
-      tsk->requires( Task::NewDW, _XiLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, _XiLabel, Ghost::None, 0 );
     } else {
-      tsk->requires( Task::NewDW, _EtaLabel, Ghost::None, 0 );
-      tsk->requires( Task::NewDW, _FpLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, _EtaLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, _FpLabel, Ghost::None, 0 );
     }
-    tsk->requires( Task::NewDW, _denLabel,         Ghost::None, 0 );
-    tsk->requires( Task::NewDW, _O2MassFracLabel,  Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _denLabel,         Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _O2MassFracLabel,  Ghost::None, 0 );
     if ( _use_flam_limits && !_const_diluent ){
-      tsk->requires( Task::NewDW, _diluentLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, _diluentLabel, Ghost::None, 0 );
     }
 
   }
 
-  tsk->requires( Task::OldDW, _simulationTimeLabel);
-  tsk->requires( Task::OldDW, _field_labels->d_delTLabel, Ghost::None, 0);
+  tsk->requires( Task::WhichDW::OldDW, _simulationTimeLabel);
+  tsk->requires( Task::WhichDW::OldDW, _field_labels->d_delTLabel, Ghost::None, 0);
 
   sched->addTask(tsk, level->eachPatch(), _materialManager->allMaterials( "Arches" ));
 

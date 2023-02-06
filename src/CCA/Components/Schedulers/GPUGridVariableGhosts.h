@@ -87,7 +87,7 @@ public:
 private:
 
   struct DatawarehouseIds {
-    unsigned int DwIds[Task::TotalDWs];
+    unsigned int DwIds[static_cast<int>(Task::WhichDW::TotalDWs)];
   };
 
   std::map<GpuUtilities::GhostVarsTuple, DeviceGhostCellsInfo> ghostVars;

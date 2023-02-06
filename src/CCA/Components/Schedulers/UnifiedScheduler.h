@@ -30,7 +30,7 @@
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
 #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
-#include <CCA/Components/Schedulers/GPUMemoryPool.h>
+#include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 #include <CCA/Components/Schedulers/GPUStreamPool.h>
 #include <sci_defs/gpu_defs.h>
 #endif
@@ -256,7 +256,7 @@ private:
   std::map<VarLabelMatl<Patch>, GPUGridVariableInfo> m_host_requires_ptrs;
   std::map<VarLabelMatl<Patch>, GPUGridVariableInfo> m_host_computes_ptrs;
 
-  int m_num_devices;
+  int m_num_devices{0};
 
   std::vector<std::string> m_material_names;
 

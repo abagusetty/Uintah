@@ -218,14 +218,14 @@ Thermophoresis::sched_computeModel( const LevelP& level, SchedulerP& sched, int 
 
   if (timeSubStep == 0 ) {
     tsk->computes(d_modelLabel);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
     tsk->modifies(d_modelLabel);
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
   tsk->requires( which_dw, _particle_temperature_varlabel, gn, 0 );
   tsk->requires( which_dw, _particle_density_varlabel, gn, 0 );
-  tsk->requires( Task::OldDW, _volFraction_varlabel, gac, 1 );
+  tsk->requires( Task::WhichDW::OldDW, _volFraction_varlabel, gac, 1 );
   tsk->requires( which_dw, _gas_temperature_varlabel, gac, 1 );
   tsk->requires( which_dw, _length_varlabel, gn, 0 );
   tsk->requires( which_dw, _weight_scaled_varlabel, gn, 0 );

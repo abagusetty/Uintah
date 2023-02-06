@@ -129,10 +129,10 @@ Pressure::schedule_solver( const Uintah::LevelP& level,
   if (enforceSolvability_) {
     solver_.scheduleEnforceSolvability<WasatchCore::SelectUintahFieldType<SVolField>::type >(level, sched, materials, prhsLabel_, RKStage);
   }
-  solver_.scheduleSolve( level, sched, materials, matrixLabel_, Uintah::Task::NewDW,
+  solver_.scheduleSolve( level, sched, materials, matrixLabel_, Uintah::Task::WhichDW::NewDW,
                          pressureLabel_, true,
-                         prhsLabel_, Uintah::Task::NewDW,
-                         pressureLabel_, RKStage == 1 ? Uintah::Task::OldDW : Uintah::Task::NewDW,
+                         prhsLabel_, Uintah::Task::WhichDW::NewDW,
+                         pressureLabel_, RKStage == 1 ? Uintah::Task::WhichDW::OldDW : Uintah::Task::WhichDW::NewDW,
                           RKStage == 1 ? true:false);
   if(useRefPressure_) {
     solver_.scheduleSetReferenceValue<WasatchCore::SelectUintahFieldType<SVolField>::type >(level, sched, materials, pressureLabel_, RKStage, refPressureLocation_, refPressureValue_);
@@ -152,7 +152,7 @@ Pressure::schedule_set_pressure_bcs( const Uintah::LevelP& level,
                                            &Pressure::process_bcs);
   const Uintah::Ghost::GhostType gt = get_uintah_ghost_type<SVolField>();
   const int ng = get_n_ghost<SVolField>();
-  task->requires( Uintah::Task::NewDW,pressureLabel_, gt, ng );
+  task->requires( Uintah::Task::WhichDW::NewDW,pressureLabel_, gt, ng );
   //task->modifies( pressureLabel_);
   Uintah::LoadBalancer * lb = sched->getLoadBalancer();
   sched->addTask( task, lb->getPerProcessorPatchSet( level ), materials );
@@ -166,12 +166,12 @@ Pressure::declare_uintah_vars( Uintah::Task& task,
                                const Uintah::MaterialSubset* const materials,
                                const int RKStage )
 {
-  if( RKStage == 1 ) task.computes( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::NormalDomain );
-  else               task.modifies( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::NormalDomain );
+  if( RKStage == 1 ) task.computes( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::MaterialDomainSpec::NormalDomain );
+  else               task.modifies( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::MaterialDomainSpec::NormalDomain );
   if ( hasIntrusion_ ) {
     const Uintah::Ghost::GhostType gt = get_uintah_ghost_type<SVolField>();
     const int ng = get_n_ghost<SVolField>();
-    task.requires(Uintah::Task::NewDW, Uintah::VarLabel::find(volFracTag_.name()), gt, ng);
+    task.requires(Uintah::Task::WhichDW::NewDW, Uintah::VarLabel::find(volFracTag_.name()), gt, ng);
   }
 }
 

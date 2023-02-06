@@ -409,14 +409,14 @@ ApplicationFactory::create(       ProblemSpecP     & prob_spec
     turned_on_options += "poisson4 ";
   }
 
-#ifndef NO_MODELS_RADIATION
+//#ifndef NO_MODELS_RADIATION
   if (sim_comp == "RMCRT_Test") {
     return scinew RMCRT_Test(myworld, materialManager);
   }
   else {
     turned_on_options += "RMCRT_Test ";
   }
-#endif
+//#endif
   
   if (sim_comp == "regriddertest" || sim_comp == "REGRIDDERTEST") {
     return scinew RegridderTest(myworld, materialManager);

@@ -75,7 +75,7 @@ class DetailedTask;
 class Task {
 
 public: // class Task
-  enum CallBackEvent {
+  enum class CallBackEvent {
     CPU // <- normal CPU task, happens when a GPU enabled task runs on CPU
     ,
     preGPU // <- pre GPU kernel callback, happens before CPU->GPU copy
@@ -198,7 +198,7 @@ private: // class Task
   }; // end GPU (device) Action constructor
 
 public: // class Task
-  enum WhichDW {
+  enum class WhichDW : int {
     None = -1,
     OldDW = 0,
     NewDW = 1,
@@ -211,7 +211,7 @@ public: // class Task
 
   enum { NoDW = -1, InvalidDW = -2 };
 
-  enum TaskType {
+  enum class TaskType {
     Normal,
     Reduction // tasks with MPI reductions
     ,
@@ -223,7 +223,7 @@ public: // class Task
     OutputGlobalVars // task the outputs the reduction variables
     ,
     Spatial // e.g. Radiometer task (spatial scheduling); must call
-            // task->setType(Task::Spatial)
+            // task->setType(Task::TaskType::Spatial)
     ,
     Hypre
   };
@@ -243,7 +243,7 @@ public: // class Task
        Args... args)
       : m_task_name(taskName), m_action(scinew Action<T, Args...>(
                                    ptr, pmf, std::forward<Args>(args)...)) {
-    d_tasktype = Normal;
+    d_tasktype = TaskType::Normal;
     initialize();
   }
 
@@ -261,7 +261,7 @@ public: // class Task
       : m_task_name(taskName), m_action(scinew ActionDevice<T, Args...>(
                                    ptr, pmf, std::forward<Args>(args)...)) {
     initialize();
-    d_tasktype = Normal;
+    d_tasktype = TaskType::Normal;
   }
   // #endif // HAVE_CUDA, HAVE_SYCL
 
@@ -282,13 +282,13 @@ public: // class Task
   inline bool usesDevice() const { return m_uses_device; }
   inline int  maxStreamsPerTask() const { return  m_max_streams_per_task; }
 
-  enum MaterialDomainSpec {
+  enum class MaterialDomainSpec {
     NormalDomain // <- Normal/default setting
     ,
     OutOfDomain // <- Require things from all material
   };
 
-  enum PatchDomainSpec {
+  enum class PatchDomainSpec {
     ThisLevel // <- Normal/default setting
     ,
     CoarseLevel // <- AMR :  The data on the coarse level under the range of the
@@ -302,16 +302,15 @@ public: // class Task
 
   //////////
   // Most general case
-  void
-    requires(WhichDW, const VarLabel *, const PatchSubset *patches,
-             PatchDomainSpec patches_dom, int level_offset,
-             const MaterialSubset *matls, MaterialDomainSpec matls_dom,
-             Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
+  void requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
+           PatchDomainSpec patches_dom, int level_offset,
+           const MaterialSubset *matls, MaterialDomainSpec matls_dom,
+           Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
 
   //////////
   // Like general case, level_offset is not specified
   void
-    requires(WhichDW, const VarLabel *, const PatchSubset *patches,
+    requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
              PatchDomainSpec patches_dom, const MaterialSubset *matls,
              MaterialDomainSpec matls_dom, Ghost::GhostType gtype,
              int numGhostCells = 0, bool oldTG = false);
@@ -319,41 +318,40 @@ public: // class Task
   //////////
   //
   void
-    requires(WhichDW, const VarLabel *, Ghost::GhostType gtype,
+    requires(WhichDW dw, const VarLabel *, Ghost::GhostType gtype,
              int numGhostCells = 0, bool oldTG = false);
 
   //////////
   //
   void
-    requires(WhichDW, const VarLabel *, const PatchSubset *patches,
+    requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
              const MaterialSubset *matls, Ghost::GhostType gtype,
              int numGhostCells = 0, bool oldTG = false);
 
   //////////
   //
-  void
-    requires(WhichDW, const VarLabel *, const PatchSubset *patches,
+  void requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
              Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
 
   //////////
   //
   void
-    requires(WhichDW, const VarLabel *, const MaterialSubset *matls,
+    requires(WhichDW dw, const VarLabel *, const MaterialSubset *matls,
              Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
 
   //////////
   //
   void
-    requires(WhichDW, const VarLabel *, const MaterialSubset *matls,
+    requires(WhichDW dw, const VarLabel *, const MaterialSubset *matls,
              MaterialDomainSpec matls_dom, Ghost::GhostType gtype,
              int numGhostCells = 0, bool oldTG = false);
 
   //////////
   // Requires only for Reduction variables
   void
-    requires(WhichDW, const VarLabel *, const Level *level = nullptr,
+    requires(WhichDW dw, const VarLabel *, const Level *level = nullptr,
              const MaterialSubset *matls = nullptr,
-             MaterialDomainSpec matls_dom = NormalDomain, bool oldTG = false);
+             MaterialDomainSpec matls_dom = MaterialDomainSpec::NormalDomain, bool oldTG = false);
 
   //////////
   // Requires for reduction variables or PerPatch variables
@@ -396,7 +394,7 @@ public: // class Task
   //
   void computes(const VarLabel *, const Level *level,
                 const MaterialSubset *matls = nullptr,
-                MaterialDomainSpec matls_domain = NormalDomain);
+                MaterialDomainSpec matls_domain = MaterialDomainSpec::NormalDomain);
 
   //////////
   /*! \brief Allows a task to do a computes and modify with ghost cell
@@ -460,7 +458,7 @@ public: // class Task
   // Modify reduction vars
   void modifies(const VarLabel *, const Level *level,
                 const MaterialSubset *matls = nullptr,
-                MaterialDomainSpec matls_domain = NormalDomain,
+                MaterialDomainSpec matls_domain = MaterialDomainSpec::NormalDomain,
                 bool oldTG = false);
 
   //////////
@@ -495,7 +493,7 @@ public: // class Task
   std::set<Task *> m_child_tasks;
   std::set<Task *> m_all_child_tasks;
 
-  enum DepType { Modifies, Computes, Requires };
+  enum class DepType { Modifies, Computes, Requires };
 
   struct Edge;
 
@@ -509,7 +507,7 @@ public: // class Task
     const PatchSubset *m_patches{nullptr};
     const MaterialSubset *m_matls{nullptr};
     const Level *m_reduction_level{nullptr};
-    PatchDomainSpec m_patches_dom{ThisLevel};
+    PatchDomainSpec m_patches_dom{PatchDomainSpec::ThisLevel};
     MaterialDomainSpec m_matls_dom;
     Ghost::GhostType m_gtype{Ghost::None};
     WhichDW m_whichdw; // Used only by requires
@@ -524,15 +522,15 @@ public: // class Task
     Dependency(DepType deptype, Task *task, WhichDW dw, const VarLabel *var,
                bool oldtg, const PatchSubset *patches,
                const MaterialSubset *matls,
-               PatchDomainSpec patches_dom = ThisLevel,
-               MaterialDomainSpec matls_dom = NormalDomain,
+               PatchDomainSpec patches_dom = PatchDomainSpec::ThisLevel,
+               MaterialDomainSpec matls_dom = MaterialDomainSpec::NormalDomain,
                Ghost::GhostType gtype = Ghost::None, int numGhostCells = 0,
                int level_offset = 0);
 
     Dependency(DepType deptype, Task *task, WhichDW dw, const VarLabel *var,
                bool oldtg, const Level *reductionLevel,
                const MaterialSubset *matls,
-               MaterialDomainSpec matls_dom = NormalDomain);
+               MaterialDomainSpec matls_dom = MaterialDomainSpec::NormalDomain);
 
     ~Dependency();
 
@@ -604,7 +602,7 @@ public: // class Task
   bool hasModifies(const VarLabel *var, int matlIndex,
                    const Patch *patch) const;
 
-  bool isReductionTask() const { return d_tasktype == Reduction; }
+  bool isReductionTask() const { return d_tasktype == TaskType::Reduction; }
 
   void setType(TaskType tasktype) { d_tasktype = tasktype; }
 
@@ -629,7 +627,7 @@ public: // class Task
 
   void setSortedOrder(int order) { m_sorted_order = order; }
 
-  void setMapping(int dwmap[TotalDWs]);
+  void setMapping(int dwmap[static_cast<int>(WhichDW::TotalDWs)]);
 
   void setSets(const PatchSet *patches, const MaterialSet *matls);
 
@@ -679,7 +677,7 @@ protected: // class Task
 
   TaskType d_tasktype;
 
-  int m_dwmap[TotalDWs];
+  int m_dwmap[static_cast<int>(WhichDW::TotalDWs)];
   int m_sorted_order{-1};
 
   friend std::ostream &operator<<(std::ostream &out, const Uintah::Task &task);

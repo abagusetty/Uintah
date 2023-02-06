@@ -96,9 +96,9 @@ MonoSoot::sched_computeSource( const LevelP& level, SchedulerP& sched, int timeS
     tsk->computes(m_nd_src_label);
     tsk->computes(m_soot_mass_src_label);
     tsk->computes(m_balance_src_label);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
     tsk->modifies(m_tar_src_label);
     tsk->modifies(m_nd_src_label);
     tsk->modifies(m_soot_mass_src_label);

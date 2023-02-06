@@ -123,8 +123,8 @@ void CompNeoHookImplicit::allocateCMDataAddRequires(Task* task,
   const MaterialSubset* matlset = matl->thisMaterial();
   Ghost::GhostType  gnone = Ghost::None;
 
-  task->requires(Task::NewDW,lb->pStressLabel_preReloc, matlset, gnone);
-  task->requires(Task::NewDW,lb->pDeformationMeasureLabel_preReloc,
+  task->requires(Task::WhichDW::NewDW,lb->pStressLabel_preReloc, matlset, gnone);
+  task->requires(Task::WhichDW::NewDW,lb->pDeformationMeasureLabel_preReloc,
                                                         matlset, gnone);
 }
 
@@ -181,7 +181,7 @@ CompNeoHookImplicit::computeStressTensor(const PatchSubset* patches,
 
 {
   DataWarehouse* parent_old_dw = 
-    new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   
   // double simTime = d_materialManager->getElapsedSimTime();
 

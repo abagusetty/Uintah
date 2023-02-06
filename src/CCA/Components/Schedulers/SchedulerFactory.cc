@@ -72,10 +72,13 @@ SchedulerFactory::create( const ProblemSpecP   & ps
       scheduler = "MPI";
     }
 #else
+    std::cout << "1. getting here \n";
     if (Uintah::Parallel::getNumThreads() > 0) {
+      std::cout << "1. unified scheduler \n";
       scheduler = "Unified";
     }
     else {
+      std::cout << "2. MPI scheduler \n";      
       scheduler = "MPI";
     }
 #endif
@@ -93,6 +96,7 @@ SchedulerFactory::create( const ProblemSpecP   & ps
   }
 
   else if (scheduler == "Unified") {
+    std::cout << "1. setting unified scheduler \n";
     sch = scinew UnifiedScheduler(world, nullptr);
   }
 
@@ -117,18 +121,20 @@ SchedulerFactory::create( const ProblemSpecP   & ps
   //  bulletproofing for Unified
 
   // "-nthreads" at command line, something other than "Unified" specified in UPS file (w/ -do_not_validate)
-  if ((Uintah::Parallel::getNumThreads() > 0) && (scheduler != "Unified" || scheduler != "SYCL") ) {
+  //if ((Uintah::Parallel::getNumThreads() > 0) && (scheduler != "Unified" || scheduler != "SYCL") ) {
+  if ((Uintah::Parallel::getNumThreads() > 0) && (scheduler != "Unified") ) {  
+    std::cout << "2. setting unified scheduler \n";    
     throw ProblemSetupException("\nERROR<Scheduler>: SYCL/Unified Scheduler needed for '-nthreads <n>' option.\n", __FILE__, __LINE__);
   }
 
   // "-gpu" provided at command line, but not using "Unified"
-  if ((scheduler != "Unified" || scheduler != "SYCL")  && Uintah::Parallel::usingDevice()) {
+  if ((scheduler != "Unified")  && Uintah::Parallel::usingDevice()) {
     std::string error = "\nERROR<Scheduler>: To use '-gpu' option you must invoke the SYCL/Unified Scheduler.  Add '-nthreads <n>' to the sus command line.\n";
     throw ProblemSetupException(error, __FILE__, __LINE__);
   }
 
   // "Unified" specified in UPS file, but "-nthreads" not given at command line
-  if ((scheduler == "Unified" || scheduler == "SYCL") && !(Uintah::Parallel::getNumThreads() > 0)) {
+  if ((scheduler == "Unified") && !(Uintah::Parallel::getNumThreads() > 0)) {
     std::string error = "\nERROR<Scheduler>: Add '-nthreads <n>' to the sus command line if you are specifying SYCL/Unified in your input file.\n";
     throw ProblemSetupException(error, __FILE__, __LINE__);
   }

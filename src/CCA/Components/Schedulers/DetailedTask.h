@@ -101,7 +101,7 @@ public:
   void doit(const ProcessorGroup *pg,
             std::vector<OnDemandDataWarehouseP> &oddws,
             std::vector<DataWarehouseP> &dws,
-            Task::CallBackEvent event = Task::CPU);
+            Task::CallBackEvent event = Task::CallBackEvent::CPU);
 
   // Called after doit and MPI data sent (packed in buffers) finishes.
   // Handles internal dependencies and scrubbing. Called after doit finishes.
@@ -191,7 +191,7 @@ public:
 
   std::map<int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setGpuStreamForThisTask(int deviceNum, gpuStream_t* s);
+  void setGpuStreamForThisTask(int deviceNum); //, gpuStream_t* s);
   void clearGpuStreamsForThisTask();
   bool checkAllGpuStreamsDoneForThisTask() const;
 

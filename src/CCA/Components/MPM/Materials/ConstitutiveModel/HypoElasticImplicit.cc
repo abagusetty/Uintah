@@ -161,7 +161,7 @@ HypoElasticImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     constNCVariable<Vector> dispNew;
     
     DataWarehouse* parent_old_dw =
-      new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+      new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
     pset = parent_old_dw->getParticleSubset(dwi, patch);
     parent_old_dw->get(px,                  lb->pXLabel,                  pset);
     parent_old_dw->get(psize,               lb->pSizeLabel,               pset);

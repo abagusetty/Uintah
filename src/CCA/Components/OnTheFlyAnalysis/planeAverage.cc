@@ -310,7 +310,7 @@ void planeAverage::scheduleInitialize(SchedulerP   & sched,
   Task* t = scinew Task("planeAverage::initialize",
                   this, &planeAverage::initialize);
 
-  t->setType( Task::OncePerProc );
+  t->setType( Task::TaskType::OncePerProc );
   t->computes(d_lb->lastCompTimeLabel );
 
   if( d_writeOutput ){
@@ -447,7 +447,7 @@ void planeAverage::sched_initializePlanarVars(SchedulerP   & sched,
   Task* t = scinew Task( "planeAverage::initializePlanarVars",
                      this,&planeAverage::initializePlanarVars );
 
-  t->setType( Task::OncePerProc );
+  t->setType( Task::TaskType::OncePerProc );
   const PatchSet* perProcPatches = m_scheduler->getLoadBalancer()->getPerProcessorPatchSet(level);
 
   sched_TimeVars( t, level, d_lb->lastCompTimeLabel, false );
@@ -508,14 +508,14 @@ void planeAverage::sched_computePlanarSums(SchedulerP   & sched,
   Task* t = scinew Task( "planeAverage::computePlanarSums",
                      this,&planeAverage::computePlanarSums );
 
-  t->setType( Task::OncePerProc );
+  t->setType( Task::TaskType::OncePerProc );
 
 
   sched_TimeVars( t, level, d_lb->lastCompTimeLabel, false );
 
   Ghost::GhostType gn = Ghost::None;
   if( d_lb->weightLabel != nullptr ){
-    t->requires( Task::NewDW, d_lb->weightLabel, d_matl_subSet, gn, 0);
+    t->requires( Task::WhichDW::NewDW, d_lb->weightLabel, d_matl_subSet, gn, 0);
   }
 
   const int L_indx = level->getIndex();
@@ -535,7 +535,7 @@ void planeAverage::sched_computePlanarSums(SchedulerP   & sched,
     matSubSet->add( planarVars[i]->matl );
     matSubSet->addReference();
 
-    t->requires( Task::NewDW, label, matSubSet, gn, 0 );
+    t->requires( Task::WhichDW::NewDW, label, matSubSet, gn, 0 );
 
     if(matSubSet && matSubSet->removeReference()){
       delete matSubSet;
@@ -802,7 +802,7 @@ void planeAverage::sched_sumOverAllProcs( SchedulerP   & sched,
   Task* t = scinew Task( "planeAverage::sumOverAllProcs",
                      this,&planeAverage::sumOverAllProcs );
 
-  t->setType( Task::OncePerProc );
+  t->setType( Task::TaskType::OncePerProc );
 
   sched_TimeVars( t, level, d_lb->lastCompTimeLabel, false );
 
@@ -875,7 +875,7 @@ void planeAverage::sched_writeToFiles(SchedulerP   &    sched,
 
   sched_TimeVars( t, level, d_lb->lastCompTimeLabel, true );
 
-  t->requires( Task::OldDW, d_lb->fileVarsStructLabel, m_zeroMatl, m_gn, 0 );
+  t->requires( Task::WhichDW::OldDW, d_lb->fileVarsStructLabel, m_zeroMatl, m_gn, 0 );
   t->computes( d_lb->fileVarsStructLabel, m_zeroMatl );
 
   // first patch on this level
@@ -1020,7 +1020,7 @@ void planeAverage::sched_resetProgressVar( SchedulerP   & sched,
   Task* t = scinew Task( "planeAverage::resetProgressVar",
                      this,&planeAverage::resetProgressVar );
 
-  t->setType( Task::OncePerProc );
+  t->setType( Task::TaskType::OncePerProc );
 
   // only compute task on 1 patch in this proc
   const PatchSet* perProcPatches = m_scheduler->getLoadBalancer()->getPerProcessorPatchSet(level);

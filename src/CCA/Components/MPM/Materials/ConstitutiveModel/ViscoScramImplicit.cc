@@ -321,7 +321,7 @@ ViscoScramImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     constNCVariable<Vector> dispNew;
     
     DataWarehouse* parent_old_dw =
-      new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+      new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
     pset = parent_old_dw->getParticleSubset(dwi, patch);
     parent_old_dw->get(px,                  lb->pXLabel,                  pset);
     parent_old_dw->get(psize,               lb->pSizeLabel,               pset);
@@ -648,13 +648,13 @@ void ViscoScramImplicit::addComputesAndRequires(Task* task,
 {
   const MaterialSubset* matlset = matl->thisMaterial();
 
-  task->requires(Task::ParentOldDW, lb->pXLabel,         matlset,Ghost::None);
-  task->requires(Task::ParentOldDW, lb->pSizeLabel,      matlset,Ghost::None);
-  task->requires(Task::ParentOldDW, lb->pMassLabel,      matlset,Ghost::None);
-  task->requires(Task::ParentOldDW, lb->pVolumeLabel,    matlset,Ghost::None);
-  task->requires(Task::ParentOldDW, lb->pDeformationMeasureLabel,
+  task->requires(Task::WhichDW::ParentOldDW, lb->pXLabel,         matlset,Ghost::None);
+  task->requires(Task::WhichDW::ParentOldDW, lb->pSizeLabel,      matlset,Ghost::None);
+  task->requires(Task::WhichDW::ParentOldDW, lb->pMassLabel,      matlset,Ghost::None);
+  task->requires(Task::WhichDW::ParentOldDW, lb->pVolumeLabel,    matlset,Ghost::None);
+  task->requires(Task::WhichDW::ParentOldDW, lb->pDeformationMeasureLabel,
                                                          matlset,Ghost::None);
-  task->requires(Task::OldDW,Il->dispNewLabel,matlset,Ghost::AroundCells,1);
+  task->requires(Task::WhichDW::OldDW,Il->dispNewLabel,matlset,Ghost::AroundCells,1);
 
   task->computes(lb->pStressLabel_preReloc,matlset);  
   task->computes(lb->pdTdtLabel,           matlset);  
@@ -669,18 +669,18 @@ void ViscoScramImplicit::addComputesAndRequires(Task* task,
   const MaterialSubset* matlset = matl->thisMaterial();
   Ghost::GhostType  gnone = Ghost::None;
 
-  task->requires(Task::OldDW, lb->delTLabel);
-  task->requires(Task::OldDW, lb->pXLabel,                 matlset,gnone);
-  task->requires(Task::OldDW, lb->pSizeLabel,              matlset,gnone);
-  task->requires(Task::OldDW, lb->pMassLabel,              matlset,gnone);
-  task->requires(Task::OldDW, lb->pVolumeLabel,            matlset,gnone);
-  task->requires(Task::OldDW, lb->pStressLabel,            matlset,gnone);
-  task->requires(Task::OldDW, lb->pVelocityLabel,          matlset,gnone);
-  task->requires(Task::OldDW, lb->pDeformationMeasureLabel,matlset,gnone);
-  task->requires(Task::OldDW, pCrackRadiusLabel,           matlset,gnone);
-  task->requires(Task::OldDW, pStatedataLabel,             matlset,gnone);
-  task->requires(Task::OldDW, pRandLabel,                  matlset,gnone);
-  task->requires(Task::NewDW, Il->dispNewLabel,   matlset,Ghost::AroundCells,1);
+  task->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  task->requires(Task::WhichDW::OldDW, lb->pXLabel,                 matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pSizeLabel,              matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pMassLabel,              matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pVolumeLabel,            matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pStressLabel,            matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pVelocityLabel,          matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pDeformationMeasureLabel,matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, pCrackRadiusLabel,           matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, pStatedataLabel,             matlset,gnone);
+  task->requires(Task::WhichDW::OldDW, pRandLabel,                  matlset,gnone);
+  task->requires(Task::WhichDW::NewDW, Il->dispNewLabel,   matlset,Ghost::AroundCells,1);
                                                                                 
   task->computes(lb->pStressLabel_preReloc,                matlset);
   task->computes(lb->pdTdtLabel,                           matlset);

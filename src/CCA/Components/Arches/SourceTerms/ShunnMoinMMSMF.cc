@@ -76,16 +76,16 @@ ShunnMoinMMSMF::sched_computeSource( const LevelP& level, SchedulerP& sched, int
   if (timeSubStep == 0) { 
 
     tsk->computes(_src_label);
-    which_dw = Task::OldDW; 
+    which_dw = Task::WhichDW::OldDW; 
 
   } else {
 
     tsk->modifies(_src_label); 
-    which_dw = Task::NewDW; 
+    which_dw = Task::WhichDW::NewDW; 
 
   }
 
-  tsk->requires(Task::OldDW, _simulationTimeLabel);
+  tsk->requires(Task::WhichDW::OldDW, _simulationTimeLabel);
 
   tsk->requires(which_dw, VarLabel::find("density"), Ghost::None, 0); 
 

@@ -48,10 +48,10 @@ TabRxnRate::sched_computeSource( const LevelP& level, SchedulerP& sched, int tim
   Task::WhichDW which_dw;
   if (timeSubStep == 0) {
     tsk->computes(_src_label);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
     tsk->modifies(_src_label);
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
 
   const VarLabel* the_label = VarLabel::find(_rxn_rate);

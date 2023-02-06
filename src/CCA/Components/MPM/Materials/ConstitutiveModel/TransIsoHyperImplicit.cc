@@ -232,7 +232,7 @@ TransIsoHyperImplicit::computeStressTensorImplicit(const PatchSubset* patches,
     delt_vartype delT;
 
     DataWarehouse* parent_old_dw =
-      new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+      new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
 
     pset = parent_old_dw->getParticleSubset(dwi, patch);
     parent_old_dw->get(px,                 lb->pXLabel,                  pset);
@@ -1035,11 +1035,11 @@ void TransIsoHyperImplicit::addComputesAndRequires(Task* task,
   addSharedCRForImplicit(task, matlset, reset, true,SchedParent);
 
   if(SchedParent){
-    task->requires(Task::ParentOldDW, lb->pFiberDirLabel, matlset,Ghost::None);
-    task->requires(Task::ParentOldDW, pFailureLabel,      matlset,Ghost::None);
+    task->requires(Task::WhichDW::ParentOldDW, lb->pFiberDirLabel, matlset,Ghost::None);
+    task->requires(Task::WhichDW::ParentOldDW, pFailureLabel,      matlset,Ghost::None);
   }else{
-    task->requires(Task::OldDW, lb->pFiberDirLabel, matlset,Ghost::None);
-    task->requires(Task::OldDW, pFailureLabel,      matlset,Ghost::None);
+    task->requires(Task::WhichDW::OldDW, lb->pFiberDirLabel, matlset,Ghost::None);
+    task->requires(Task::WhichDW::OldDW, pFailureLabel,      matlset,Ghost::None);
   }
 
   task->computes(lb->pFiberDirLabel_preReloc,           matlset);
@@ -1056,8 +1056,8 @@ void TransIsoHyperImplicit::addComputesAndRequires(Task* task,
                                                                                 
   addSharedCRForImplicit(task, matlset, reset);
 
-  task->requires(Task::OldDW, lb->pFiberDirLabel,       matlset,Ghost::None);
-  task->requires(Task::OldDW, pFailureLabel,            matlset,Ghost::None);
+  task->requires(Task::WhichDW::OldDW, lb->pFiberDirLabel,       matlset,Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pFailureLabel,            matlset,Ghost::None);
 
   task->computes(lb->pFiberDirLabel_preReloc,           matlset);
   task->computes(pStretchLabel_preReloc,                matlset);

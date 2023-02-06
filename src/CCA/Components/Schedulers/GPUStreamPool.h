@@ -25,8 +25,6 @@
 #pragma once
 
 #include <sci_defs/gpu_defs.h>
-#include <map>
-#include <vector>
 
 #if defined(HAVE_SYCL)
 auto sycl_asynchandler = [](sycl::exception_list exceptions) {
@@ -64,7 +62,7 @@ protected:
   // "valid" because when that task's stream completes, then we can infer the
   // variable is ready to go.  More about how a task claims a stream can be
   // found in DetailedTasks.cc
-  std::vector<gpuStream_t*> s_idle_streams;
+  gpuStream_t* s_idle_streams{nullptr};
 
   // thread-safe, GPU-specific counter for getting a round-robin stream/queue
   // from pool
@@ -80,20 +78,16 @@ private:
     for (int devID = 0; devID < s_ngpus; devID++) { // # of GPUs per node
       GPU_RT_SAFE_CALL( gpuSetDevice(devID) );
       s_count[devID] = 0;
-
-      for (int j = 0; j < N; j++) { // # of streams per GPU
+      s_idle_streams = new gpuStream_t[N];
+      for (int streamID = 0; streamID < N; streamID++) { // # of streams per GPU
 #if defined(HAVE_CUDA)
-        gpuStream_t* stream = nullptr;
-        GPU_RT_SAFE_CALL(cudaStreamCreateWithFlags(stream, cudaStreamNonBlocking));
-        s_idle_streams.push_back(stream);
+        GPU_RT_SAFE_CALL(cudaStreamCreateWithFlags(&s_idle_streams[streamID], cudaStreamNonBlocking));
 #elif defined(HAVE_HIP)
-        gpuStream_t* stream = nullptr;
-        GPU_RT_SAFE_CALL(hipStreamCreateWithFlags(stream, hipStreamNonBlocking));
-        s_idle_streams.push_back(stream);
+        GPU_RT_SAFE_CALL(hipStreamCreateWithFlags(&s_idle_streams[streamID], hipStreamNonBlocking));
 #elif defined(HAVE_SYCL)
-        s_idle_streams.push_back( new sycl::queue(*sycl_get_context(devID),
-                                                  *sycl_get_device(devID),
-                                                  sycl_asynchandler) );
+        s_idle_streams[streamID] = new sycl::queue(*sycl_get_context(devID),
+                                                   *sycl_get_device(devID),
+                                                   sycl_asynchandler);
 #endif
       } // streamID
     } // devID
@@ -113,14 +107,14 @@ public:
   /// Returns a default/first GPU stream
   gpuStream_t* getDefaultGpuStreamFromPool(int deviceID) {
     check_device(deviceID);
-    return s_idle_streams[deviceID*N + 0];
+    return &(s_idle_streams[deviceID*N + 0]);
   }
 
   /// Returns a GPU stream in a round-robin fashion
   gpuStream_t* getGpuStreamFromPool(int deviceID) {
     check_device(deviceID);
     unsigned short int counter = (s_count[deviceID])++ % N;
-    return s_idle_streams[deviceID*N + counter];
+    return &(s_idle_streams[deviceID*N + counter]);
   }
 
   /// Returns the instance of device manager singleton.

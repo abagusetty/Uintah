@@ -185,7 +185,7 @@ printTask( Dout         & out
         msg << patches->get(p)->getID();
       }
 
-      if (dtask->getTask()->getType() != Task::OncePerProc && dtask->getTask()->getType() != Task::Hypre) {
+      if (dtask->getTask()->getType() != Task::TaskType::OncePerProc && dtask->getTask()->getType() != Task::TaskType::Hypre) {
         const Level* level = getLevel(patches);
         msg << "\t  L-" << level->getIndex();
       }

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 module load cmake
+module load rocm/5.4.0 cray-mpich/8.1.23 craype/2.7.19 libxml2/2.9.12
 module load cce/15.0.0
-module load rocm/5.4.0 cray-mpich/8.1.23 craype/2.7.19
 module -t list
 
 rm -rf build_hip

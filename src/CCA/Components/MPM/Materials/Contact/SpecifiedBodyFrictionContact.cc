@@ -382,15 +382,15 @@ void SpecifiedBodyFrictionContact::addComputesAndRequiresIntegrated(
   z_matl->addReference();
   
   const MaterialSubset* mss = ms->getUnion();
-  t->requires(Task::OldDW, lb->simulationTimeLabel);
-  t->requires(Task::OldDW, lb->delTLabel);
-  t->requires(Task::NewDW, lb->gMassLabel,                    Ghost::None);
-  t->requires(Task::NewDW, lb->gInternalForceLabel,           Ghost::None);
-  t->requires(Task::NewDW, lb->gVolumeLabel,                  Ghost::None);
-  t->requires(Task::NewDW, lb->gMatlProminenceLabel,          Ghost::None);
-  t->requires(Task::NewDW, lb->gAlphaMaterialLabel,           Ghost::None);
-  t->requires(Task::OldDW, lb->NC_CCweightLabel,      z_matl, Ghost::None);
-  t->requires(Task::NewDW, lb->gNormAlphaToBetaLabel, z_matl, Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->simulationTimeLabel);
+  t->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  t->requires(Task::WhichDW::NewDW, lb->gMassLabel,                    Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gInternalForceLabel,           Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gVolumeLabel,                  Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gMatlProminenceLabel,          Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gAlphaMaterialLabel,           Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->NC_CCweightLabel,      z_matl, Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gNormAlphaToBetaLabel, z_matl, Ghost::None);
 
   t->modifies(             lb->gVelocityStarLabel,   mss);
 

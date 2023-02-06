@@ -356,7 +356,7 @@ Radiometer::sched_radiometer( const LevelP & level,
     tsk = scinew Task(taskname, this, &Radiometer::radiometerTask<float>, abskg_dw, sigma_dw, celltype_dw);
   }
 
-  tsk->setType(Task::Spatial);
+  tsk->setType(Task::TaskType::Spatial);
 
   printSchedule(level, g_ray_dbg, "Radiometer::sched_radiometer on patches ");
 

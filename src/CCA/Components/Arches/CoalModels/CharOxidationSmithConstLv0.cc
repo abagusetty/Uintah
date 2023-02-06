@@ -477,7 +477,7 @@ CharOxidationSmithConstLv0::sched_computeModel( const LevelP& level, SchedulerP&
     for (std::vector<const VarLabel*>::iterator iter = _reaction_rate_varlabels.begin(); iter != _reaction_rate_varlabels.end(); iter++) {
       tsk->computes(*iter);
     }
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
     tsk->modifies(d_modelLabel);
     tsk->modifies(d_gasLabel);
@@ -487,7 +487,7 @@ CharOxidationSmithConstLv0::sched_computeModel( const LevelP& level, SchedulerP&
     for (std::vector<const VarLabel*>::iterator iter = _reaction_rate_varlabels.begin(); iter != _reaction_rate_varlabels.end(); iter++) {
       tsk->modifies(*iter);
     }
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
 
   for (std::vector<const VarLabel*>::iterator iter = _reaction_rate_varlabels.begin(); iter != _reaction_rate_varlabels.end(); iter++) {
@@ -505,23 +505,23 @@ CharOxidationSmithConstLv0::sched_computeModel( const LevelP& level, SchedulerP&
 
   // require particle velocity
   ArchesLabel::PartVelMap::const_iterator i = d_fieldLabels->partVel.find(d_quadNode);
-  tsk->requires( Task::NewDW, i->second, gn, 0 );
+  tsk->requires( Task::WhichDW::NewDW, i->second, gn, 0 );
   tsk->requires( which_dw, d_fieldLabels->d_CCVelocityLabel, gn, 0 );
   tsk->requires( which_dw, _gas_temperature_varlabel, gn, 0);
   for (int l=0; l<_NUM_species; l++) {
     tsk->requires( which_dw, _species_varlabels[l], gn, 0 );
   }
   tsk->requires( which_dw, _MW_varlabel, gn, 0 );
-  tsk->requires( Task::OldDW, d_fieldLabels->d_delTLabel);
-  tsk->requires( Task::NewDW, _RHS_source_varlabel, gn, 0 );
-  tsk->requires( Task::NewDW, _RC_RHS_source_varlabel, gn, 0 );
+  tsk->requires( Task::WhichDW::OldDW, d_fieldLabels->d_delTLabel);
+  tsk->requires( Task::WhichDW::NewDW, _RHS_source_varlabel, gn, 0 );
+  tsk->requires( Task::WhichDW::NewDW, _RC_RHS_source_varlabel, gn, 0 );
 
   tsk->requires( which_dw, d_fieldLabels->d_densityCPLabel, gn, 0);
-  tsk->requires( Task::NewDW, _devolRCLabel, gn, 0);
+  tsk->requires( Task::WhichDW::NewDW, _devolRCLabel, gn, 0);
   if ( _char_birth_label != nullptr )
-    tsk->requires( Task::NewDW, _char_birth_label, gn, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _char_birth_label, gn, 0 );
   if ( _rawcoal_birth_label != nullptr )
-    tsk->requires( Task::NewDW, _rawcoal_birth_label, gn, 0 );
+    tsk->requires( Task::WhichDW::NewDW, _rawcoal_birth_label, gn, 0 );
 
   sched->addTask(tsk, level->eachPatch(), d_materialManager->allMaterials( "Arches" ));
 }

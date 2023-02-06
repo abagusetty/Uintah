@@ -219,17 +219,17 @@ void MassMomEng_src::scheduleComputeModelSources(SchedulerP& sched,
   t->modifies( Ilb->modelVol_srcLabel );
 
   Ghost::GhostType  gn  = Ghost::None;
-  t->requires( Task::OldDW, Ilb->simulationTimeLabel );
-  t->requires( Task::OldDW, Ilb->delTLabel,        level.get_rep() );
+  t->requires( Task::WhichDW::OldDW, Ilb->simulationTimeLabel );
+  t->requires( Task::WhichDW::OldDW, Ilb->delTLabel,        level.get_rep() );
 
-  t->requires( Task::OldDW, Ilb->rho_CCLabel,        gn );
-  t->requires( Task::OldDW, Ilb->temp_CCLabel,       gn );
-  t->requires( Task::OldDW, Ilb->vel_CCLabel,        gn );
-  t->requires( Task::OldDW, Ilb->specific_heatLabel, gn );
+  t->requires( Task::WhichDW::OldDW, Ilb->rho_CCLabel,        gn );
+  t->requires( Task::WhichDW::OldDW, Ilb->temp_CCLabel,       gn );
+  t->requires( Task::WhichDW::OldDW, Ilb->vel_CCLabel,        gn );
+  t->requires( Task::WhichDW::OldDW, Ilb->specific_heatLabel, gn );
 
-  t->requires( Task::NewDW, Ilb->specific_heatLabel, gn );
-  t->requires( Task::NewDW, Ilb->sp_vol_CCLabel,     gn );
-  t->requires( Task::NewDW, Ilb->vol_frac_CCLabel,   gn );
+  t->requires( Task::WhichDW::NewDW, Ilb->specific_heatLabel, gn );
+  t->requires( Task::WhichDW::NewDW, Ilb->sp_vol_CCLabel,     gn );
+  t->requires( Task::WhichDW::NewDW, Ilb->vol_frac_CCLabel,   gn );
 
   t->computes( MassMomEng_src::totalMass_srcLabel );
   t->computes( MassMomEng_src::totalMom_srcLabel );

@@ -23,7 +23,11 @@
  */
 
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
-#include <CCA/Components/Schedulers/SYCLScheduler.hpp>
+#ifdef HAVE_SYCL
+  #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
+#else
+  #include <CCA/Components/Schedulers/UnifiedScheduler.h>
+#endif
 
 #include <Core/Parallel/MasterLock.h>
 
@@ -406,24 +410,22 @@ void GpuUtilities::assignPatchesToGpus(const GridP &grid) {
 
   unsigned int currentAcceleratorCounter = 0;
   int numDevices = OnDemandDataWarehouse::getNumDevices();
-  if (numDevices > 0) {
-    std::map<const Patch *, int>::iterator it;
-    for (int i = 0; i < grid->numLevels(); i++) {
-      LevelP level = grid->getLevel(i);
-      for (auto iter = level->patchesBegin(); iter != level->patchesEnd();
-           ++iter) {
-        // TODO: Clean up so that instead of assigning round robin, it assigns
-        // in blocks.
-        const Patch *patch = *iter;
-        it = patchAcceleratorLocation.find(patch);
-        if (it == patchAcceleratorLocation.end()) {
-          // This patch has not been assigned, so assign it to a GPU in a round
-          // robin fashion.
-          patchAcceleratorLocation.insert(
-              std::pair<const Patch *, int>(patch, currentAcceleratorCounter));
-          currentAcceleratorCounter++;
-          currentAcceleratorCounter %= numDevices;
-        }
+
+  for (int i = 0; i < grid->numLevels(); i++) {
+    LevelP level = grid->getLevel(i);
+    for (auto iter = level->patchesBegin(); iter != level->patchesEnd();
+         ++iter) {
+      // TODO: Clean up so that instead of assigning round robin, it assigns
+      // in blocks.
+      const Patch *patch = *iter;
+
+      auto [it, inserted] = patchAcceleratorLocation.insert(
+        std::pair<const Patch *, int>(patch, currentAcceleratorCounter));
+      if (inserted) {
+        // This patch has not been assigned a GPU and just got inserted,
+        // so assign it to a GPU in a round robin fashion.
+        currentAcceleratorCounter++;
+        currentAcceleratorCounter %= numDevices;
       }
     }
   }
@@ -436,5 +438,6 @@ int GpuUtilities::getGpuIndexForPatch(const Patch *patch) {
   if (it != patchAcceleratorLocation.end()) {
     return it->second;
   }
-  return -1;
+  SCI_THROW(InternalError("Invalid GPU index not assigned to patch! ",
+                          __FILE__, __LINE__));
 }

@@ -392,14 +392,14 @@ void RMCRT_Test::scheduleTimeAdvance ( const LevelP& level,
                                                       
   VarLabelVec coarseLevelVarLabels = { d_RMCRT->d_abskgLabel,
                                        d_RMCRT->d_sigmaT4Label };
-  Task::WhichDW notUsed = Task::None;
+  Task::WhichDW notUsed = Task::WhichDW::None;
   //______________________________________________________________________
   //   D A T A   O N I O N   A P P R O A C H
   if( d_whichAlgo == dataOnion ){
   
-    Task::WhichDW temp_dw       = Task::NewDW;
-    Task::WhichDW sigmaT4_dw    = Task::NewDW;
-    Task::WhichDW celltype_dw   = Task::NewDW;  
+    Task::WhichDW temp_dw       = Task::WhichDW::NewDW;
+    Task::WhichDW sigmaT4_dw    = Task::WhichDW::NewDW;
+    Task::WhichDW celltype_dw   = Task::WhichDW::NewDW;  
     const bool backoutTemp      = true;    
     const bool modifies_abskg   = false;
     const bool modifies_sigmaT4 = false;
@@ -408,7 +408,7 @@ void RMCRT_Test::scheduleTimeAdvance ( const LevelP& level,
     const LevelP& fineLevel = grid->getLevel(maxLevels-1);
     
     // define per level which abskg dw
-    d_RMCRT->set_abskg_dw_perLevel ( fineLevel, Task::NewDW );
+    d_RMCRT->set_abskg_dw_perLevel ( fineLevel, Task::WhichDW::NewDW );
     
     // convert abskg:dbl -> abskg:flt if needed
     d_RMCRT->sched_DoubleToFloat( fineLevel,sched, notUsed );
@@ -452,9 +452,9 @@ void RMCRT_Test::scheduleTimeAdvance ( const LevelP& level,
   // and the results are interpolated to the fine level
   if( d_whichAlgo == coarseLevel ){
   
-      Task::WhichDW temp_dw       = Task::NewDW;
-      Task::WhichDW sigmaT4_dw    = Task::NewDW;
-      Task::WhichDW celltype_dw   = Task::NewDW;
+      Task::WhichDW temp_dw       = Task::WhichDW::NewDW;
+      Task::WhichDW sigmaT4_dw    = Task::WhichDW::NewDW;
+      Task::WhichDW celltype_dw   = Task::WhichDW::NewDW;
       const bool modifies_divQ    = false;
       const bool backoutTemp      = true;
       const bool modifies_abskg   = false;
@@ -473,7 +473,7 @@ void RMCRT_Test::scheduleTimeAdvance ( const LevelP& level,
   
     const LevelP& fineLevel = grid->getLevel(maxLevels-1);
 
-    d_RMCRT->set_abskg_dw_perLevel ( fineLevel, Task::NewDW );
+    d_RMCRT->set_abskg_dw_perLevel ( fineLevel, Task::WhichDW::NewDW );
     
     // convert abskg:dbl -> abskg:flt if needed
     d_RMCRT->sched_DoubleToFloat( fineLevel, sched, notUsed );
@@ -513,13 +513,13 @@ void RMCRT_Test::scheduleTimeAdvance ( const LevelP& level,
   //  RMCRT is performed on one level
   if( d_whichAlgo == singleLevel ) {
   
-    Task::WhichDW temp_dw     = Task::NewDW;
-    Task::WhichDW sigmaT4_dw  = Task::NewDW;
-    Task::WhichDW celltype_dw = Task::NewDW;
+    Task::WhichDW temp_dw     = Task::WhichDW::NewDW;
+    Task::WhichDW sigmaT4_dw  = Task::WhichDW::NewDW;
+    Task::WhichDW celltype_dw = Task::WhichDW::NewDW;
     const bool modifies_divQ  = false;
     const bool backoutTemp    = true;
 
-    d_RMCRT->set_abskg_dw_perLevel( level, Task::NewDW );
+    d_RMCRT->set_abskg_dw_perLevel( level, Task::WhichDW::NewDW );
 
     // carry forward if it's time
     d_RMCRT->sched_carryForward_VarLabels( level, sched, fineLevelVarLabels );
@@ -545,12 +545,12 @@ void RMCRT_Test::scheduleTimeAdvance ( const LevelP& level,
   //  No other calculations 
   if (d_whichAlgo == radiometerOnly) {
 
-    Task::WhichDW temp_dw     = Task::NewDW;
-    Task::WhichDW sigmaT4_dw  = Task::NewDW;
-    Task::WhichDW celltype_dw = Task::NewDW;
+    Task::WhichDW temp_dw     = Task::WhichDW::NewDW;
+    Task::WhichDW sigmaT4_dw  = Task::WhichDW::NewDW;
+    Task::WhichDW celltype_dw = Task::WhichDW::NewDW;
     const bool backoutTemp    = true;
 
-    d_RMCRT->set_abskg_dw_perLevel ( level, Task::NewDW );
+    d_RMCRT->set_abskg_dw_perLevel ( level, Task::WhichDW::NewDW );
     
     VarLabelVec varLabels = { d_RMCRT->d_sigmaT4Label,
                               radiometer->d_VRFluxLabel,

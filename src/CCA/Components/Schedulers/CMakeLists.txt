@@ -2,7 +2,7 @@ if( ENABLE_CUDA OR ENABLE_HIP )
     set( GPU_SRC
             GPUDataWarehouse.cu
             GPUGridVariableGhosts.cc
-            GPUGridVariableInfo.cc
+            GPUGridVariableInfo.cpp
         )
 endif()
 
@@ -21,7 +21,7 @@ if( ENABLE_CUDA )
 endif( ENABLE_CUDA )
 
 if( ENABLE_HIP )
-    set_source_files_properties(${GPU_SRC} PROPERTIES LANGUAGE HIP)
+    set_source_files_properties(${GPU_SRC} PROPERTIES LANGUAGE CXX)
     include_directories( $ENV{MPI_HOME}/include )
 endif( ENABLE_HIP )
 
@@ -61,14 +61,15 @@ target_link_libraries( CCA_Components_Schedulers PRIVATE
         Core_OS
         Core_Parallel
         Core_Util
-        Threads::Threads
-    )
+        Threads::Threads )
 
 if( ENABLE_CUDA )
     target_link_libraries( CCA_Components_Schedulers PRIVATE CUDA::cudart )
 endif( ENABLE_CUDA )
 if( ENABLE_HIP )
+    target_compile_options( CCA_Components_Schedulers PRIVATE -fgpu-rdc )
     target_link_libraries( CCA_Components_Schedulers PRIVATE hip::device )
+    target_link_options( CCA_Components_Schedulers PRIVATE "$<$<LINK_LANGUAGE:CXX>:-fgpu-rdc;--hip-link>" )
 endif( ENABLE_HIP )
 
 

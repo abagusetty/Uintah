@@ -1,5 +1,6 @@
 set( LIB_DEPS
         CCA_Ports
+        CCA_Components_Schedulers
         Core_Disclosure
         Core_Exceptions
         Core_Geometry
@@ -25,10 +26,12 @@ if( ENABLE_CUDA )
 endif( ENABLE_CUDA )
 
 if( ENABLE_HIP )
+    set_source_files_properties(${MDL_RADIATION_SRC} PROPERTIES LANGUAGE CXX)
     find_package(hiprand REQUIRED)
     include_directories( $ENV{MPI_HOME}/include )
 endif( ENABLE_HIP )
 
+message(STATUS "MKL_RADIATION_SRC :${MDL_RADIATION_SRC}")
 add_library( CCA_Components_Models
                ModelFactory.cc
                ${MDL_FLUIDSBASED_SRC}
@@ -52,10 +55,13 @@ if( ENABLE_MPM_ICE )
 endif()
 
 target_link_libraries( CCA_Components_Models PRIVATE ${LIB_DEPS} )
+
 if( ENABLE_CUDA )
     target_link_libraries( CCA_Components_Models PRIVATE CUDA::cudart CUDA::curand )
 endif( ENABLE_CUDA )
 if( ENABLE_HIP )
+    target_compile_options( CCA_Components_Models PRIVATE -fgpu-rdc )
+    target_link_options( CCA_Components_Models PRIVATE "$<$<LINK_LANGUAGE:CXX>:-fgpu-rdc;--hip-link>" )
     target_link_libraries( CCA_Components_Models PRIVATE hip::device hip::hiprand )
 endif( ENABLE_HIP )
 

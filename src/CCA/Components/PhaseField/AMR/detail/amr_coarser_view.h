@@ -143,7 +143,7 @@ private: // METHODS
             Variable < PP, SubProblems<Problem> > subproblems_coarse;
 
             // get coarse subproblems (all logic for handling correctly all possible coarse geometries is already there)
-            dw->getOtherDataWarehouse ( Task::NewDW )->get ( subproblems_coarse, m_subproblems_label, m_material, patch_coarse );
+            dw->getOtherDataWarehouse ( Task::WhichDW::NewDW )->get ( subproblems_coarse, m_subproblems_label, m_material, patch_coarse );
             auto problems_coarse = subproblems_coarse.get().get_rep();
 
             for ( const auto & p : *problems_coarse )

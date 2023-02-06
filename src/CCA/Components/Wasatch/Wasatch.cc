@@ -1222,12 +1222,12 @@ namespace WasatchCore{
       // exist so require the value from the new DW.  Otherwise for a
       // normal time step require the time step from the old DW.
       if(sched->get_dw(0) ) {
-        task->requires( Uintah::Task::OldDW, getTimeStepLabel() );
-        task->requires( Uintah::Task::OldDW, getSimTimeLabel() );
+        task->requires( Uintah::Task::WhichDW::OldDW, getTimeStepLabel() );
+        task->requires( Uintah::Task::WhichDW::OldDW, getSimTimeLabel() );
       }
       else if(sched->get_dw(1) ) {
-        task->requires( Uintah::Task::NewDW, getTimeStepLabel() );
-        task->requires( Uintah::Task::NewDW, getSimTimeLabel() );
+        task->requires( Uintah::Task::WhichDW::NewDW, getTimeStepLabel() );
+        task->requires( Uintah::Task::WhichDW::NewDW, getSimTimeLabel() );
       }
       
       // jcs it appears that for reduction variables we cannot specify the patches - only the materials.
@@ -1244,7 +1244,7 @@ namespace WasatchCore{
 
       if( timeStep > 0 ){
         if( useStableDT ){
-          task->requires(Uintah::Task::NewDW, Uintah::VarLabel::find(tagNames.stableTimestep.name()),  Uintah::Ghost::None, 0);
+          task->requires(Uintah::Task::WhichDW::NewDW, Uintah::VarLabel::find(tagNames.stableTimestep.name()),  Uintah::Ghost::None, 0);
         }
       }
                   
@@ -1262,7 +1262,7 @@ namespace WasatchCore{
     
     Uintah::Task* t = scinew Uintah::Task("Wasatch::computeDualTimeResidual", this, &Wasatch::computeDualTimeResidual, level, subsched.get_rep());
     
-    t->requires( Uintah::Task::NewDW, Uintah::VarLabel::find("convergence"), Uintah::Ghost::None, 0);
+    t->requires( Uintah::Task::WhichDW::NewDW, Uintah::VarLabel::find("convergence"), Uintah::Ghost::None, 0);
     t->computes(Uintah::VarLabel::find("DualtimeResidual"));
     subsched->addTask(t, level->eachPatch(), materials_);
   }
@@ -1313,8 +1313,8 @@ namespace WasatchCore{
       dualTimeTask->hasSubScheduler();
 
       // we need the "outer" timestep
-      dualTimeTask->requires( Uintah::Task::OldDW, getTimeStepLabel() );
-      dualTimeTask->requires( Uintah::Task::OldDW, getDelTLabel() );
+      dualTimeTask->requires( Uintah::Task::WhichDW::OldDW, getTimeStepLabel() );
+      dualTimeTask->requires( Uintah::Task::WhichDW::OldDW, getDelTLabel() );
       
       Expr::TagList timeTags;
       timeTags.push_back( TagNames::self().time     );
@@ -1326,7 +1326,7 @@ namespace WasatchCore{
       
       // figure out how to deal with the convergence criterion (reduction)
       Uintah::VarLabel* convLabel = Uintah::VarLabel::create( "DualtimeResidual", Uintah::max_vartype::getTypeDescription() );
-      dualTimeTask->requires( Uintah::Task::NewDW, convLabel );
+      dualTimeTask->requires( Uintah::Task::WhichDW::NewDW, convLabel );
 
       // -----------------------------------------------------------------------
       // BOUNDARY CONDITIONS TREATMENT
@@ -1363,10 +1363,10 @@ namespace WasatchCore{
       // create and schedule the Wasatch RHS tasks as well as the dualtime integrators
       subsched_->clearMappings();
       
-      subsched_->mapDataWarehouse(Uintah::Task::ParentOldDW, 0);
-      subsched_->mapDataWarehouse(Uintah::Task::ParentNewDW, 1);
-      subsched_->mapDataWarehouse(Uintah::Task::OldDW, 2);
-      subsched_->mapDataWarehouse(Uintah::Task::NewDW, 3);
+      subsched_->mapDataWarehouse(Uintah::Task::WhichDW::ParentOldDW, 0);
+      subsched_->mapDataWarehouse(Uintah::Task::WhichDW::ParentNewDW, 1);
+      subsched_->mapDataWarehouse(Uintah::Task::WhichDW::OldDW, 2);
+      subsched_->mapDataWarehouse(Uintah::Task::WhichDW::NewDW, 3);
 
       // updates the current time. This should happen on the outer timestep since time will be
       // frozen in the dual time iteration
@@ -1392,7 +1392,7 @@ namespace WasatchCore{
       const std::set<const Uintah::VarLabel*, Uintah::VarLabel::Compare>& initialRequires = subsched_->getInitialRequiredVars();
       for (std::set<const Uintah::VarLabel*>::const_iterator it=initialRequires.begin(); it!=initialRequires.end(); ++it)
       {
-        dualTimeTask->requires(Uintah::Task::OldDW, *it, Uintah::Ghost::AroundCells, 1);
+        dualTimeTask->requires(Uintah::Task::WhichDW::OldDW, *it, Uintah::Ghost::AroundCells, 1);
       }
 
       const std::set<const Uintah::VarLabel*, Uintah::VarLabel::Compare>& computedVars = subsched_->getComputedVars();
@@ -1471,7 +1471,7 @@ namespace WasatchCore{
         //       executed together across all patches.  This is required if
         //       any global MPI syncronizations occurr (e.g. in a linear
         //       solve)
-        //    also need to set a flag on the task: task->setType(Task::OncePerProc);
+        //    also need to set a flag on the task: task->setType(Task::TaskType::OncePerProc);
         
         // set up any "old" variables that have been requested.
         OldVariable::self().setup_tasks( allPatches, materials_, sched, iStage );
@@ -1559,10 +1559,10 @@ namespace WasatchCore{
     parentNewDW->setScrubbing(DataWarehouse::ScrubNone);
     
     subsched_->clearMappings();
-    subsched_->mapDataWarehouse(Uintah::Task::ParentOldDW, 0);
-    subsched_->mapDataWarehouse(Uintah::Task::ParentNewDW, 1);
-    subsched_->mapDataWarehouse(Uintah::Task::OldDW, 2);
-    subsched_->mapDataWarehouse(Uintah::Task::NewDW, 3);
+    subsched_->mapDataWarehouse(Uintah::Task::WhichDW::ParentOldDW, 0);
+    subsched_->mapDataWarehouse(Uintah::Task::WhichDW::ParentNewDW, 1);
+    subsched_->mapDataWarehouse(Uintah::Task::WhichDW::OldDW, 2);
+    subsched_->mapDataWarehouse(Uintah::Task::WhichDW::NewDW, 3);
 
     DataWarehouse* subOldDW = subsched_->get_dw(2);
     DataWarehouse* subNewDW = subsched_->get_dw(3);
@@ -1663,8 +1663,8 @@ namespace WasatchCore{
                            this,
                            &Wasatch::set_initial_time );
 
-      updateCurrentTimeTask->requires( Uintah::Task::NewDW, getTimeStepLabel() );
-      updateCurrentTimeTask->requires( Uintah::Task::NewDW, getSimTimeLabel() );
+      updateCurrentTimeTask->requires( Uintah::Task::WhichDW::NewDW, getTimeStepLabel() );
+      updateCurrentTimeTask->requires( Uintah::Task::WhichDW::NewDW, getSimTimeLabel() );
       
       const Uintah::TypeDescription* perPatchTD = Uintah::PerPatch<double>::getTypeDescription();
       tLabel_     = (!tLabel_      ) ? Uintah::VarLabel::create( TagNames::self().time.name(), perPatchTD )     : tLabel_    ;
@@ -1746,9 +1746,9 @@ namespace WasatchCore{
                            this,
                            &Wasatch::update_current_time,
                           rkStage );
-      updateCurrentTimeTask->requires( (has_dual_time() ? Uintah::Task::ParentOldDW : Uintah::Task::OldDW), getTimeStepLabel() );
-      updateCurrentTimeTask->requires( (has_dual_time() ? Uintah::Task::ParentOldDW : Uintah::Task::OldDW), getSimTimeLabel() );
-      updateCurrentTimeTask->requires( (has_dual_time() ? Uintah::Task::ParentOldDW : Uintah::Task::OldDW), getDelTLabel() );
+      updateCurrentTimeTask->requires( (has_dual_time() ? Uintah::Task::WhichDW::ParentOldDW : Uintah::Task::WhichDW::OldDW), getTimeStepLabel() );
+      updateCurrentTimeTask->requires( (has_dual_time() ? Uintah::Task::WhichDW::ParentOldDW : Uintah::Task::WhichDW::OldDW), getSimTimeLabel() );
+      updateCurrentTimeTask->requires( (has_dual_time() ? Uintah::Task::WhichDW::ParentOldDW : Uintah::Task::WhichDW::OldDW), getDelTLabel() );
       
       const Uintah::TypeDescription* perPatchTD = Uintah::PerPatch<double>::getTypeDescription();
       dtLabel_      = (!dtLabel_     ) ? Uintah::VarLabel::create( TagNames::self().dt.name(), perPatchTD )       : dtLabel_     ;
@@ -1782,7 +1782,7 @@ namespace WasatchCore{
                                 Uintah::DataWarehouse* const newDW,
                                 const int rkStage )
   {
-    Uintah::DataWarehouse* whichDW = has_dual_time() ? oldDW->getOtherDataWarehouse(Uintah::Task::ParentOldDW) : oldDW;
+    Uintah::DataWarehouse* whichDW = has_dual_time() ? oldDW->getOtherDataWarehouse(Uintah::Task::WhichDW::ParentOldDW) : oldDW;
 
     // grab the timestep
     // const double simTime = m_materialManager->getElapsedSimTime();

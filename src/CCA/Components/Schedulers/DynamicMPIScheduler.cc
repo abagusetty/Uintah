@@ -197,8 +197,8 @@ DynamicMPIScheduler::execute( int tgnum     /*=0*/
 
   m_mpi_info.reset( 0 );
 
-  if( m_reloc_new_pos_label && m_dws[m_dwmap[Task::OldDW]] != nullptr ) {
-    m_dws[m_dwmap[Task::OldDW]]->exchangeParticleQuantities(dts, m_loadBalancer, m_reloc_new_pos_label, iteration);
+  if( m_reloc_new_pos_label && m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]] != nullptr ) {
+    m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]]->exchangeParticleQuantities(dts, m_loadBalancer, m_reloc_new_pos_label, iteration);
   }
 
   int currphase = 0;
@@ -249,7 +249,7 @@ DynamicMPIScheduler::execute( int tgnum     /*=0*/
     while(dts->numInternalReadyTasks() > 0) { 
       DetailedTask * task = dts->getNextInternalReadyTask();
 
-      if ((task->getTask()->getType() == Task::Reduction) || (task->getTask()->usesMPI())) {  //save the reduction task for later
+      if ((task->getTask()->getType() == Task::TaskType::Reduction) || (task->getTask()->usesMPI())) {  //save the reduction task for later
         phaseSyncTask[task->getTask()->m_phase] = task;
         DOUT(g_task_dbg, "Rank-" << d_myworld->myRank() << " Task Reduction ready " << *task << " deps needed: " << task->getExternalDepCount());
       } else {
@@ -310,13 +310,13 @@ DynamicMPIScheduler::execute( int tgnum     /*=0*/
         histogram[dts->numExternalReadyTasks()]++;
       }
       DetailedTask *reducetask = phaseSyncTask[currphase];
-      if (reducetask->getTask()->getType() == Task::Reduction) {
+      if (reducetask->getTask()->getType() == Task::TaskType::Reduction) {
         if (!abort) {
           DOUT(g_task_dbg, "Rank-" << d_myworld->myRank() << " Running Reduce task " << reducetask->getTask()->getName());
         }
         initiateReduction(reducetask);
       }
-      else {  // Task::OncePerProc task
+      else {  // Task::TaskType::OncePerProc task
         ASSERT(reducetask->getTask()->usesMPI());
         initiateTask(reducetask, abort, abort_point, iteration);
         reducetask->markInitiated();

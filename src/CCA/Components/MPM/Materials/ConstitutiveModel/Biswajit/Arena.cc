@@ -1710,7 +1710,7 @@ void Arena::addRequiresDamageParameter(Task* task,
 
   // Require the damage parameter
   const MaterialSubset* matlset = matl->thisMaterial();
-  task->requires(Task::NewDW, pLocalizedLabel_preReloc,matlset,Ghost::None);
+  task->requires(Task::WhichDW::NewDW, pLocalizedLabel_preReloc,matlset,Ghost::None);
 }
 
 
@@ -1826,14 +1826,14 @@ void Arena::addComputesAndRequires(Task* task,
   // base class.
   const MaterialSubset* matlset = matl->thisMaterial();
   addSharedCRForHypoExplicit(task, matlset, patches);
-  task->requires(Task::OldDW, pPlasticStrainLabel,       matlset, Ghost::None);
-  task->requires(Task::OldDW, pPlasticStrainVolLabel,    matlset, Ghost::None);
-  task->requires(Task::OldDW, pElasticStrainVolLabel,    matlset, Ghost::None);
-  task->requires(Task::OldDW, pBackStressLabel,    matlset, Ghost::None);
-  task->requires(Task::OldDW, pBackStressIsoLabel, matlset, Ghost::None);
-  task->requires(Task::OldDW, pKappaStateLabel,    matlset, Ghost::None);
-  task->requires(Task::OldDW, pLocalizedLabel,     matlset, Ghost::None);
-  task->requires(Task::OldDW, lb->pParticleIDLabel,     matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel,       matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pPlasticStrainVolLabel,    matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pElasticStrainVolLabel,    matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pBackStressLabel,    matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pBackStressIsoLabel, matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pKappaStateLabel,    matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pLocalizedLabel,     matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel,     matlset, Ghost::None);
   task->computes(pPlasticStrainLabel_preReloc,     matlset);
   task->computes(pPlasticStrainVolLabel_preReloc,  matlset);
   task->computes(pElasticStrainVolLabel_preReloc,  matlset);

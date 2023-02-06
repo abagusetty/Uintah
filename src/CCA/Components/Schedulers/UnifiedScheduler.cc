@@ -270,7 +270,7 @@ UnifiedScheduler::UnifiedScheduler(const ProcessorGroup *myworld,
         if (i != j) {
           GPU_RT_SAFE_CALL(gpuDeviceCanAccessPeer(&can_access, i, j));
           if (can_access) {
-            printf("GOOD\n GPU device #%d can access GPU device #%d\n", i, j);
+            printf("UnifiedScheduler: GPU device #%d can access GPU device #%d\n", i, j);
             GPU_RT_SAFE_CALL(gpuDeviceEnablePeerAccess(j, 0));
           } else {
             printf("ERROR\n GPU device #%d cannot access GPU device #%d\n.  "
@@ -340,6 +340,7 @@ UnifiedScheduler::~UnifiedScheduler() {}
 
 void UnifiedScheduler::problemSetup(const ProblemSpecP &prob_spec,
                                     const MaterialManagerP &materialManager) {
+
   // Default taskReadyQueueAlg
   std::string taskQueueAlg = "";
 
@@ -566,9 +567,6 @@ void UnifiedScheduler::runTask(DetailedTask *dtask, int iteration,
                                int thread_id /* = 0 */
                                ,
                                Task::CallBackEvent event) {
-  std::cout << "US::runTask() " << dtask->getName() << ", " << iteration << ", "
-            << thread_id << ", " << event << std::endl;
-
   // end of per-thread wait time - how long has a thread waited before executing
   // another task
   if (thread_id > 0) {
@@ -584,7 +582,7 @@ void UnifiedScheduler::runTask(DetailedTask *dtask, int iteration,
   }
 
   // Only execute CPU or GPU tasks.  Don't execute postGPU tasks a second time.
-  if (event == Task::CPU || event == Task::GPU) {
+  if (event == Task::CallBackEvent::CPU || event == Task::CallBackEvent::GPU) {
 
     if (m_tracking_vars_print_location & SchedulerCommon::PRINT_BEFORE_EXEC) {
       printTrackedVars(dtask, SchedulerCommon::PRINT_BEFORE_EXEC);
@@ -605,7 +603,7 @@ void UnifiedScheduler::runTask(DetailedTask *dtask, int iteration,
   }
 
   // For CPU and postGPU task runs, post MPI sends and call task->done;
-  if (event == Task::CPU || event == Task::postGPU) {
+  if (event == Task::CallBackEvent::CPU || event == Task::CallBackEvent::postGPU) {
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     if (Uintah::Parallel::usingDevice()) {
@@ -682,7 +680,7 @@ void UnifiedScheduler::runTask(DetailedTask *dtask, int iteration,
         // add my task time to the total time
         m_mpi_info[TotalTask] += total_task_time;
         if (!m_is_copy_data_timestep &&
-            dtask->getTask()->getType() != Task::Output) {
+            dtask->getTask()->getType() != Task::TaskType::Output) {
           // add contribution for patchlist
           m_loadBalancer->addContribution(dtask, total_task_time);
         }
@@ -789,8 +787,8 @@ void UnifiedScheduler::execute(int tgnum, int iteration) {
   m_abort = false;
   m_abort_point = 987654;
 
-  if (m_reloc_new_pos_label && m_dws[m_dwmap[Task::OldDW]] != nullptr) {
-    m_dws[m_dwmap[Task::OldDW]]->exchangeParticleQuantities(
+  if (m_reloc_new_pos_label && m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]] != nullptr) {
+    m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]]->exchangeParticleQuantities(
         m_detailed_tasks, m_loadBalancer, m_reloc_new_pos_label, iteration);
   }
 
@@ -1107,7 +1105,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
        *
        */
       else if ((initTask = m_detailed_tasks->getNextInternalReadyTask())) {
-        if (initTask->getTask()->getType() == Task::Reduction ||
+        if (initTask->getTask()->getType() == Task::TaskType::Reduction ||
             initTask->getTask()->usesMPI()) {
           DOUT(g_task_dbg, myRankThread()
                                << " Task internal ready 1 " << *initTask);
@@ -1316,7 +1314,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
 
       DOUT(g_task_dbg, myRankThread() << " Task external ready " << *readyTask)
 
-      if (readyTask->getTask()->getType() == Task::Reduction) {
+        if (readyTask->getTask()->getType() == Task::TaskType::Reduction) {
         MPIScheduler::initiateReduction(readyTask);
       }
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
@@ -1372,7 +1370,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
       } else if (gpuRunReady) {
 
         // Run the task on the GPU!
-        runTask(readyTask, m_curr_iteration, thread_id, Task::GPU);
+        runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::GPU);
 
         // See if we're dealing with 32768 ghost cells per patch.  If so,
         // it's easier to manage them on the host for now than on the GPU.  We
@@ -1398,7 +1396,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
         // Run post GPU part of task.  It won't actually rerun the task
         // But it will run post computation management logic, which includes
         // marking the task as done.
-        runTask(readyTask, m_curr_iteration, thread_id, Task::postGPU);
+        runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::postGPU);
       }
 #endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
       else {
@@ -1448,7 +1446,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
           if (readyTask->getVarsBeingCopiedByTask().getMap().empty()) {
             if (allHostVarsProcessingReady(readyTask)) {
               m_detailed_tasks->addHostReadyToExecute(readyTask);
-              // runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+              // runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
               // GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
             } else {
               m_detailed_tasks->addHostCheckIfExecutable(readyTask);
@@ -1466,7 +1464,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
           markHostRequiresDataAsValid(readyTask);
           if (allHostVarsProcessingReady(readyTask)) {
             m_detailed_tasks->addHostReadyToExecute(readyTask);
-            // runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+            // runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
             // GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
           } else {
             m_detailed_tasks->addHostCheckIfExecutable(readyTask);
@@ -1474,7 +1472,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
         } else if (cpuCheckIfExecutable) {
           if (allHostVarsProcessingReady(readyTask)) {
             m_detailed_tasks->addHostReadyToExecute(readyTask);
-            // runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+            // runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
             // GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
           } else {
             // Some vars aren't valid and ready,  We must be waiting on another
@@ -1485,7 +1483,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
 #endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
 
           // run CPU task.
-          runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+          runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
           // See note above near cpuInitReady.  Some CPU tasks may internally
@@ -1832,10 +1830,8 @@ void UnifiedScheduler::prepareGpuDependencies(
 //______________________________________________________________________
 //
 void UnifiedScheduler::gpuInitialize(bool reset) {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
-  int numDevices = 0;
-  GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
-  m_num_devices = numDevices;
+#if defined(UINTAH_ENABLE_DEVICE)
+  GPU_RT_SAFE_CALL(gpuGetDeviceCount(&m_num_devices));
 
   for (int i = 0; i < m_num_devices; i++) {
     if (reset) {
@@ -1843,14 +1839,6 @@ void UnifiedScheduler::gpuInitialize(bool reset) {
       GPU_RT_SAFE_CALL(gpuDeviceReset());
     }
   }
-
-  // set it back to the 0th device
-  GPU_RT_SAFE_CALL(gpuSetDevice(0));
-#elif defined(HAVE_SYCL)
-  int numDevices = 0;
-  syclGetDeviceCount(&numDevices);
-  m_num_devices = numDevices;
-  syclSetDevice(0);
 #endif
 }
 
@@ -2018,7 +2006,7 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
       for (int j = 0; j < numMatls; j++) {
         labelPatchMatlDependency lpmd(dependantVar->m_var->getName().c_str(),
                                       patches->get(i)->getID(), matls->get(j),
-                                      Task::Requires);
+                                      Task::DepType::Requires);
         if (vars.find(lpmd) == vars.end()) {
           vars.insert(
               std::map<labelPatchMatlDependency,
@@ -2040,7 +2028,7 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
       for (int j = 0; j < numMatls; j++) {
         labelPatchMatlDependency lpmd(dependantVar->m_var->getName().c_str(),
                                       patches->get(i)->getID(), matls->get(j),
-                                      Task::Computes);
+                                      Task::DepType::Computes);
         if (vars.find(lpmd) == vars.end()) {
           vars.insert(
               std::map<labelPatchMatlDependency,
@@ -2180,9 +2168,9 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
                     << curDependency->m_var->getName()
                     << " for patch: " << patchID << " material: " << matlID
                     << " level: " << levelID;
-          if (curDependency->m_dep_type == Task::Requires) {
+          if (curDependency->m_dep_type == Task::DepType::Requires) {
             gpu_stats << " - A REQUIRES dependency";
-          } else if (curDependency->m_dep_type == Task::Computes) {
+          } else if (curDependency->m_dep_type == Task::DepType::Computes) {
             gpu_stats << " - A COMPUTES dependency";
           }
           gpu_stats << " with a size of (" << host_size.x() << ", "
@@ -2196,7 +2184,7 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
       }
 #endif
 
-      if (curDependency->m_dep_type == Task::Requires) {
+      if (curDependency->m_dep_type == Task::DepType::Requires) {
 
         // For any variable, only ONE task should manage all ghost cells for it.
         // It is a giant mess to try and have two tasks simultaneously managing
@@ -2482,7 +2470,7 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
                 if (!patches->contains(sourcePatch)) {
                   if (!(dtask->getTaskVars().varAlreadyExists(
                           curDependency->m_var, sourcePatch, matlID, levelID,
-                          (Task::WhichDW)curDependency->mapDataWarehouse()))) {
+                          static_cast<int>((Task::WhichDW)curDependency->mapDataWarehouse())))) {
                     dtask->getTaskVars().addTaskGpuDWVar(
                         sourcePatch, matlID, levelID, elementDataSize,
                         curDependency, sourceDeviceNum);
@@ -2609,8 +2597,8 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
                 // foreign var.  If it's a foreign var, then the foreign var
                 // section above should handle it, not here.
                 if (!dtask->getDeviceVars().varAlreadyExists(
-                        curDependency->m_var, sourcePatch, matlID, levelID,
-                        curDependency->mapDataWarehouse())) {
+                      curDependency->m_var, sourcePatch, matlID, levelID,
+                      curDependency->mapDataWarehouse())) {
 #ifdef HAVE_CUDA
                   if (gpu_stats.active()) {
                     cerrLock.lock();
@@ -2811,7 +2799,7 @@ void UnifiedScheduler::initiateH2DCopies(DetailedTask *dtask) {
                       << curDependency->m_var->getName() << std::endl;
           }
         }
-      } else if (curDependency->m_dep_type == Task::Computes) {
+      } else if (curDependency->m_dep_type == Task::DepType::Computes) {
 // compute the amount of space the host needs to reserve on the GPU for this
 // variable.
 #ifdef HAVE_CUDA
@@ -3054,7 +3042,7 @@ void UnifiedScheduler::prepareDeviceVars(DetailedTask *dtask) {
 
           // If it's a requires, copy the data on over.  If it's a computes,
           // leave it as allocated but unused space.
-          if (it->second.m_dep->m_dep_type == Task::Requires) {
+          if (it->second.m_dep->m_dep_type == Task::DepType::Requires) {
             if (device_ptr == nullptr) {
               std::cerr << "ERROR: GPU variable's device pointer was nullptr"
                         << std::endl;
@@ -3677,7 +3665,7 @@ bool UnifiedScheduler::allHostVarsProcessingReady(DetailedTask *dtask) {
         for (int j = 0; j < numMatls; j++) {
           labelPatchMatlDependency lpmd(dependantVar->m_var->getName().c_str(),
                                         patches->get(i)->getID(), matls->get(j),
-                                        Task::Requires);
+                                        Task::DepType::Requires);
           if (vars.find(lpmd) == vars.end()) {
             vars.insert(
                 std::map<labelPatchMatlDependency,
@@ -3723,7 +3711,7 @@ bool UnifiedScheduler::allHostVarsProcessingReady(DetailedTask *dtask) {
     OnDemandDataWarehouseP dw = m_dws[dwIndex];
     GPUDataWarehouse *gpudw =
         dw->getGPUDW(GpuUtilities::getGpuIndexForPatch(patch));
-    if (curDependency->m_dep_type == Task::Requires) {
+    if (curDependency->m_dep_type == Task::DepType::Requires) {
       if (gpudw->dwEntryExistsOnCPU(curDependency->m_var->getName().c_str(),
                                     patchID, matlID, levelID)) {
         if (!(gpudw->isValidOnCPU(curDependency->m_var->getName().c_str(),
@@ -3794,7 +3782,7 @@ bool UnifiedScheduler::allGPUVarsProcessingReady(DetailedTask *dtask) {
       for (int j = 0; j < numMatls; j++) {
         labelPatchMatlDependency lpmd(dependantVar->m_var->getName().c_str(),
                                       patches->get(i)->getID(), matls->get(j),
-                                      Task::Requires);
+                                      Task::DepType::Requires);
         if (vars.find(lpmd) == vars.end()) {
           vars.insert(
               std::map<labelPatchMatlDependency,
@@ -3836,7 +3824,7 @@ bool UnifiedScheduler::allGPUVarsProcessingReady(DetailedTask *dtask) {
     OnDemandDataWarehouseP dw = m_dws[dwIndex];
     GPUDataWarehouse *gpudw =
         dw->getGPUDW(GpuUtilities::getGpuIndexForPatch(patch));
-    if (curDependency->m_dep_type == Task::Requires) {
+    if (curDependency->m_dep_type == Task::DepType::Requires) {
       if (curDependency->m_gtype != Ghost::None &&
           curDependency->m_num_ghost_cells > 0) {
         // it has ghost cells.
@@ -3919,7 +3907,7 @@ void UnifiedScheduler::markDeviceRequiresDataAsValid(DetailedTask *dtask) {
     int whichGPU = it->second.m_whichGPU;
     int dwIndex = it->second.m_dep->mapDataWarehouse();
     GPUDataWarehouse *gpudw = m_dws[dwIndex]->getGPUDW(whichGPU);
-    if (it->second.m_dep->m_dep_type == Task::Requires) {
+    if (it->second.m_dep->m_dep_type == Task::DepType::Requires) {
       if (!it->second.m_staging) {
 #ifdef HAVE_CUDA
         if (gpu_stats.active()) {
@@ -4066,7 +4054,7 @@ void UnifiedScheduler::markHostRequiresDataAsValid(DetailedTask *dtask) {
     int whichGPU = it->second.m_whichGPU;
     int dwIndex = it->second.m_dep->mapDataWarehouse();
     GPUDataWarehouse *gpudw = m_dws[dwIndex]->getGPUDW(whichGPU);
-    if (it->second.m_dep->m_dep_type == Task::Requires) {
+    if (it->second.m_dep->m_dep_type == Task::DepType::Requires) {
       if (!it->second.m_staging) {
 #ifdef HAVE_CUDA
         if (gpu_stats.active()) {
@@ -4352,7 +4340,7 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
       for (int j = 0; j < numMatls; j++) {
         labelPatchMatlDependency lpmd(dependantVar->m_var->getName().c_str(),
                                       patches->get(i)->getID(), matls->get(j),
-                                      Task::Requires);
+                                      Task::DepType::Requires);
         if (vars.find(lpmd) == vars.end()) {
 #ifdef HAVE_CUDA
           if (gpu_stats.active()) {
@@ -4388,7 +4376,7 @@ void UnifiedScheduler::initiateD2H(DetailedTask *dtask) {
       for (int j = 0; j < numMatls; j++) {
         labelPatchMatlDependency lpmd(dependantVar->m_var->getName().c_str(),
                                       patches->get(i)->getID(), matls->get(j),
-                                      Task::Computes);
+                                      Task::DepType::Computes);
         if (vars.find(lpmd) == vars.end()) {
 #ifdef HAVE_CUDA
           if (gpu_stats.active()) {
@@ -4944,8 +4932,8 @@ void UnifiedScheduler::createTaskGpuDWs(DetailedTask *dtask) {
        deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
     int numItemsInDW =
-        dtask->getTaskVars().getTotalVars(currentDevice, Task::OldDW) +
-        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::OldDW);
+      dtask->getTaskVars().getTotalVars(currentDevice, static_cast<int>(Task::WhichDW::OldDW)) +
+        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::WhichDW::OldDW);
 
     if (numItemsInDW > 0) {
       std::size_t objectSizeInBytes =
@@ -4964,12 +4952,12 @@ void UnifiedScheduler::createTaskGpuDWs(DetailedTask *dtask) {
       old_taskGpuDW->init(currentDevice, out.str());
 
       old_taskGpuDW->init_device(objectSizeInBytes, numItemsInDW);
-      dtask->setTaskGpuDataWarehouse(currentDevice, Task::OldDW, old_taskGpuDW);
+      dtask->setTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW, old_taskGpuDW);
     }
 
     numItemsInDW =
-        dtask->getTaskVars().getTotalVars(currentDevice, Task::NewDW) +
-        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::NewDW);
+      dtask->getTaskVars().getTotalVars(currentDevice, static_cast<int>(Task::WhichDW::NewDW)) +
+        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::WhichDW::NewDW);
     if (numItemsInDW > 0) {
 
       std::size_t objectSizeInBytes =
@@ -4987,7 +4975,7 @@ void UnifiedScheduler::createTaskGpuDWs(DetailedTask *dtask) {
       new_taskGpuDW->init(currentDevice, out.str());
       new_taskGpuDW->init_device(objectSizeInBytes, numItemsInDW);
 
-      dtask->setTaskGpuDataWarehouse(currentDevice, Task::NewDW, new_taskGpuDW);
+      dtask->setTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW, new_taskGpuDW);
     }
   }
 }
@@ -4996,24 +4984,20 @@ void UnifiedScheduler::createTaskGpuDWs(DetailedTask *dtask) {
 //
 void UnifiedScheduler::assignDevicesAndStreams(DetailedTask *dtask) {
   // Figure out which device this patch was assigned to.
-  // If a task has multiple patches, then assign all.  Most tasks should
-  // only end up on one device.  Only tasks like data archiver's output
+  // If a task has multiple patches, then assign all. Most tasks should
+  // only end up on one device.
+  //
+  // Note: Only tasks like data archiver's output
   // variables work on multiple patches which can be on multiple devices.
-  std::map<const Patch *, int>::iterator it;
+
   for (int patchID = 0; patchID < dtask->getPatches()->size(); patchID++) {
     const Patch *patch = dtask->getPatches()->get(patchID);
     int gpuID = GpuUtilities::getGpuIndexForPatch(patch);
 
-    if (gpuID >= 0) {
-      // multi-Streams per Task are being used by RMCRT task only by setting
-      // usesDevice(true, 4) in Ray.cc
-      for (int i = 0; i < dtask->getTask()->maxStreamsPerTask(); i++) {
-	if (dtask->getGpuStreamForThisTask(gpuID) == nullptr) {
-	  dtask->setGpuStreamForThisTask(gpuID, GPUStreamPool<>::getInstance().getGpuStreamFromPool(gpuID));
-	}
-      }
-    } else {
-      exit(-1);
+    // multi-Streams per Task are being used by RMCRT task only by setting
+    // usesDevice(true, 4) in Ray.cc
+    for (int i = 0; i < dtask->getTask()->maxStreamsPerTask(); i++) {
+      dtask->setGpuStreamForThisTask(gpuID);
     }
   }
 }
@@ -5021,8 +5005,6 @@ void UnifiedScheduler::assignDevicesAndStreams(DetailedTask *dtask) {
 //
 void UnifiedScheduler::assignDevicesAndStreamsFromGhostVars(
     DetailedTask *dtask) {
-  // std::cout << "1. UnifiedScheduler::assignDevicesAndStreamsFromGhostVars()
-  // \n";
   //  Go through the ghostVars collection and look at the patch where all ghost
   //  cells are going.
   std::set<unsigned int> &destinationDevices =
@@ -5031,12 +5013,10 @@ void UnifiedScheduler::assignDevicesAndStreamsFromGhostVars(
        iter != destinationDevices.end(); ++iter) {
     // see if this task was already assigned a stream.
     if (dtask->getGpuStreamForThisTask(*iter) == nullptr) {
-      dtask->setGpuStreamForThisTask(
-          *iter, GPUStreamPool<>::getInstance().getGpuStreamFromPool(*iter));
+      // dtask->setGpuStreamForThisTask(
+      //     *iter, GPUStreamPool<>::getInstance().getGpuStreamFromPool(*iter));
     }
   }
-  // std::cout << "2. UnifiedScheduler::assignDevicesAndStreamsFromGhostVars()
-  // \n";
 }
 
 //______________________________________________________________________
@@ -5142,7 +5122,7 @@ void UnifiedScheduler::findIntAndExtGpuDependencies(DetailedTask *dtask,
         // desired but not sure of the effect of not calling it and doing
         // an out of sync output or checkpoint.
 
-        if (req->m_to_tasks.front()->getTask()->getType() == Task::Output &&
+        if (req->m_to_tasks.front()->getTask()->getType() == Task::TaskType::Output &&
             !m_output->isOutputTimeStep() &&
             !m_output->isCheckpointTimeStep()) {
 #ifdef HAVE_CUDA
@@ -5184,17 +5164,17 @@ void UnifiedScheduler::findIntAndExtGpuDependencies(DetailedTask *dtask,
         // particle data is on the old dw
 
         if (!m_reloc_new_pos_label && m_parent_scheduler) {
-          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::ParentOldDW)]
+          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::ParentOldDW)]
                       .get_rep();
           posLabel = m_parent_scheduler->m_reloc_new_pos_label;
         } else {
           // on an output task (and only on one) we require particle
           // variables from the NewDW
-          if (req->m_to_tasks.front()->getTask()->getType() == Task::Output) {
-            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::NewDW)]
+          if (req->m_to_tasks.front()->getTask()->getType() == Task::TaskType::Output) {
+            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::NewDW)]
                         .get_rep();
           } else {
-            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::OldDW)]
+            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::OldDW)]
                         .get_rep();
           }
           posLabel = m_reloc_new_pos_label;
@@ -5218,11 +5198,11 @@ void UnifiedScheduler::syncTaskGpuDWs(DetailedTask *dtask) {
   for (std::set<int>::const_iterator deviceNums_it = deviceNums.begin();
        deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
-    taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW);
+    taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW);
     if (taskgpudw) {
       taskgpudw->syncto_device(dtask->getGpuStreamForThisTask(currentDevice));
     }
-    taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW);
+    taskgpudw = dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW);
     if (taskgpudw) {
       taskgpudw->syncto_device(dtask->getGpuStreamForThisTask(currentDevice));
     }
@@ -5239,10 +5219,10 @@ void UnifiedScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
   for (std::set<int>::const_iterator deviceNums_it = deviceNums.begin();
        deviceNums_it != deviceNums.end(); ++deviceNums_it) {
     const int currentDevice = *deviceNums_it;
-    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW) != nullptr &&
-        dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)
+    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW) != nullptr &&
+        dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW)
             ->ghostCellCopiesNeeded()) {
-      dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)
+      dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW)
           ->copyGpuGhostCellsToGpuVarsInvoker(
               dtask->getGpuStreamForThisTask(currentDevice));
     } else {
@@ -5259,10 +5239,10 @@ void UnifiedScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
       }
 #endif
     }
-    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW) != nullptr &&
-        dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)
+    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW) != nullptr &&
+        dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW)
             ->ghostCellCopiesNeeded()) {
-      dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)
+      dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW)
           ->copyGpuGhostCellsToGpuVarsInvoker(
               dtask->getGpuStreamForThisTask(currentDevice));
     } else {

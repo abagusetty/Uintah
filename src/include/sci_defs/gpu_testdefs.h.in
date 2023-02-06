@@ -28,6 +28,8 @@
 #cmakedefine HAVE_CUDA
 #cmakedefine HAVE_NCCL
 
+#cmakedefine UINTAH_ENABLE_DEVICE
+
 #define SCI_GPU_ASSERTION_LEVEL @ASSERTION_LEVEL@
 
 #ifdef HAVE_CUDA
@@ -75,6 +77,7 @@
   #define gpurandState curandState
   #define gpuHostRegister cudaHostRegister
   #define gpuHostRegisterPortable cudaHostRegisterPortable
+  #define gpuMemGetInfo cudaMemGetInfo
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
@@ -162,7 +165,7 @@
 #include <rccl.h>
 #endif
 
-#ifdef __HIPCC__
+#ifdef __HIP__
 #define HOST_DEVICE __host__ __device__
 #else
 #define HOST_DEVICE
@@ -198,6 +201,8 @@
   #define gpurandState hiprandState
   #define gpuHostRegister hipHostRegister
   #define gpuHostRegisterPortable hipHostRegisterPortable
+  #define gpuMemGetInfo hipMemGetInfo
+
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
@@ -293,10 +298,6 @@
 namespace sycl = cl::sycl;
 #endif
 
-#include <level_zero/ze_api.h>
-#include <level_zero/zes_api.h>
-#include <sycl/ext/oneapi/backend/level_zero.hpp>
-
 #define HOST_DEVICE
 #define __host__
 #define __device__
@@ -306,7 +307,9 @@ using gpuEvent_t = sycl::event;
 #define gpuGetDevice syclGetDevice
 #define GPU_RT_SAFE_CALL
 #define gpuSetDevice syclSetDevice
+#define gpuDeviceReset 
 #define gpuGetDeviceCount syclGetDeviceCount
+#define gpuMemGetInfo syclMemGetInfo
 
 using int3 = sycl::int3;
 using uint3 = sycl::uint3;
@@ -364,35 +367,6 @@ public:
     _thread2dev_map[get_tid()] = id;
   }
   int device_count() { return static_cast<int>(_devs.size()); }
-
-  void memGetInfo(size_t *m_free, size_t *m_total) {
-    size_t mfree = 0, mtotal = 0;
-    int current_devID = this->current_device();
-    sycl::device *myDev = get_sycl_device(current_devID);
-
-    ze_device_handle_t ze_device =
-        sycl::get_native<sycl::backend::ext_oneapi_level_zero>(*myDev);
-    zes_device_handle_t zes_device = (zes_device_handle_t)ze_device;
-
-    uint32_t module_count = 0;
-    zesDeviceEnumMemoryModules(zes_device, &module_count, nullptr);
-    if (module_count > 0) {
-      std::vector<zes_mem_handle_t> module_list(module_count);
-      std::vector<zes_mem_state_t> state_list(module_count);
-
-      zesDeviceEnumMemoryModules(zes_device, &module_count, module_list.data());
-
-      for (uint32_t i = 0; i < module_count; ++i) {
-        zesMemoryGetState(module_list[i], &(state_list[i]));
-        mfree += state_list[i].free;
-        mtotal += state_list[i].size;
-      }
-    }
-
-    *m_free = mfree;
-    *m_total = mtotal;
-    return;
-  }
 
   /// Returns the instance of device manager singleton.
   static dev_mgr &instance() {
@@ -471,7 +445,11 @@ static inline void syclGetDeviceCount(int *id) {
 
 /// Util function to get free, totoal memory in bytes for the active GPU
 static inline void syclMemGetInfo(size_t *free, size_t *total) {
-  dev_mgr::instance().memGetInfo(free, total);
+  int current_devID = this->current_device();
+  sycl::device *myDev = get_sycl_device(current_devID);
+
+  *total = myDev->get_info<sycl::info::device::global_mem_size>();
+  *free  = myDev->get_info<sycl::ext::intel::info::device::free_memory>();
 }
 
 #endif // HAVE_SYCL

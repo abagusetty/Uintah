@@ -853,21 +853,21 @@ void HyperelasticPlastic::addComputesAndRequires(Task* task,
   
   // Plasticity
   if(d_usePlasticity) {
-    task->requires(Task::OldDW, pPlasticStrain_label,   matlset, gnone);
-    task->requires(Task::OldDW, pYieldStress_label,     matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pPlasticStrain_label,   matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pYieldStress_label,     matlset, gnone);
     task->computes(pPlasticStrain_label_preReloc,       matlset);
     task->computes(pYieldStress_label_preReloc,         matlset);
   }
   
   if(d_useDamage) {
     //for pParticleID
-    task->requires(Task::OldDW, lb->pParticleIDLabel,   matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel,   matlset, gnone);
     
     // Other constitutive model and input dependent computes and requires
-    task->requires(Task::OldDW, pFailureStressOrStrainLabel,    matlset, gnone);
-    task->requires(Task::OldDW, pLocalizedLabel,                matlset, gnone);
-    task->requires(Task::OldDW, pTimeOfLocLabel,                matlset, gnone);
-    task->requires(Task::OldDW, pDamageLabel,                   matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pFailureStressOrStrainLabel,    matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pLocalizedLabel,                matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pTimeOfLocLabel,                matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pDamageLabel,                   matlset, gnone);
     
     task->computes(pFailureStressOrStrainLabel_preReloc,        matlset);
     task->computes(pLocalizedLabel_preReloc,                    matlset);
@@ -875,15 +875,15 @@ void HyperelasticPlastic::addComputesAndRequires(Task* task,
     task->computes(pDamageLabel_preReloc,                       matlset);
     task->computes(lb->TotalLocalizedParticleLabel);   
   } else {
-    task->requires(Task::OldDW, lb->pParticleIDLabel,   matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel,   matlset, gnone);
   }
 
   if(flag->d_with_color) {
-    task->requires(Task::OldDW, lb->pColorLabel,  Ghost::None);
+    task->requires(Task::WhichDW::OldDW, lb->pColorLabel,  Ghost::None);
   }
   
   // Universal
-  task->requires(Task::OldDW, bElBarLabel,              matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, bElBarLabel,              matlset, gnone);
   task->computes(bElBarLabel_preReloc,                  matlset);
   task->computes(pDeformRateLabel_preReloc,             matlset);
 }
@@ -904,16 +904,16 @@ void HyperelasticPlastic::addComputesAndRequires(Task* task,
   Ghost::GhostType  gnone = Ghost::None;
   if(d_usePlasticity){
     if(SchedParent){
-      task->requires(Task::ParentOldDW, pPlasticStrain_label, matlset, gnone);
+      task->requires(Task::WhichDW::ParentOldDW, pPlasticStrain_label, matlset, gnone);
     }else{
-      task->requires(Task::OldDW,       pPlasticStrain_label, matlset, gnone);
+      task->requires(Task::WhichDW::OldDW,       pPlasticStrain_label, matlset, gnone);
     }
   }
 
   if(SchedParent){
-    task->requires(Task::ParentOldDW,   bElBarLabel,          matlset, gnone);
+    task->requires(Task::WhichDW::ParentOldDW,   bElBarLabel,          matlset, gnone);
   }else{
-    task->requires(Task::OldDW,         bElBarLabel,          matlset, gnone);
+    task->requires(Task::WhichDW::OldDW,         bElBarLabel,          matlset, gnone);
   }
 }
 
@@ -949,9 +949,9 @@ void HyperelasticPlastic::addRequiresDamageParameter(Task* task,
 {
   if(d_useDamage) {
     const MaterialSubset* matlset = matl->thisMaterial();
-    task->requires(Task::NewDW, pLocalizedLabel_preReloc, matlset, Ghost::None);
-    task->requires(Task::NewDW, pTimeOfLocLabel_preReloc, matlset, Ghost::None);
-    task->requires(Task::NewDW, pDamageLabel_preReloc, matlset, Ghost::None);
+    task->requires(Task::WhichDW::NewDW, pLocalizedLabel_preReloc, matlset, Ghost::None);
+    task->requires(Task::WhichDW::NewDW, pTimeOfLocLabel_preReloc, matlset, Ghost::None);
+    task->requires(Task::WhichDW::NewDW, pDamageLabel_preReloc, matlset, Ghost::None);
   }
 }
 
@@ -1460,7 +1460,7 @@ void HyperelasticPlastic::computeStressTensor(const PatchSubset* patches,
   
   Ghost::GhostType gac = Ghost::AroundCells;
   Matrix3 Identity; Identity.Identity();
-  DataWarehouse* parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+  DataWarehouse* parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   
   // Particle and grid variables
   constParticleVariable<double>  pVol,pMass,pvolumeold;

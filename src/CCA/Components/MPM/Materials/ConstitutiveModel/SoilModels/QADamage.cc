@@ -499,29 +499,29 @@ void QADamage::addComputesAndRequires(Task* task,
 	// Other constitutive model and input dependent computes and requires
 	Ghost::GhostType  gnone = Ghost::None;
 
-	task->requires(Task::OldDW, d_lb->pLocalizedMPMLabel, matlset, gnone);
+	task->requires(Task::WhichDW::OldDW, d_lb->pLocalizedMPMLabel, matlset, gnone);
 
 	// Plasticity
 	if (d_usePlasticity) {
 
-		task->requires(Task::OldDW, pPlasticStrainLabel, matlset, gnone);
-		task->requires(Task::OldDW, pYieldStressLabel, matlset, gnone);
+		task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel, matlset, gnone);
+		task->requires(Task::WhichDW::OldDW, pYieldStressLabel, matlset, gnone);
 		task->computes(pPlasticStrainLabel_preReloc, matlset);
 		task->computes(pYieldStressLabel_preReloc, matlset);
 	}
 
 	if (flag->d_with_color) {
-		task->requires(Task::OldDW, lb->pColorLabel, Ghost::None);
+		task->requires(Task::WhichDW::OldDW, lb->pColorLabel, Ghost::None);
 	}
 
 	// Universal
-	task->requires(Task::OldDW, lb->pParticleIDLabel, matlset, gnone);
-	task->requires(Task::OldDW, bElBarLabel, matlset, gnone);
+	task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel, matlset, gnone);
+	task->requires(Task::WhichDW::OldDW, bElBarLabel, matlset, gnone);
 	task->computes(bElBarLabel_preReloc, matlset);
 
 	// Computes and requires for internal state data
 	for (int i = 0; i < d_INPUT; i++) {
-		task->requires(Task::OldDW, ISVLabels[i], matlset, Ghost::None);
+		task->requires(Task::WhichDW::OldDW, ISVLabels[i], matlset, Ghost::None);
 		task->computes(ISVLabels_preReloc[i], matlset);
 	}
 }
@@ -543,18 +543,18 @@ void QADamage::addComputesAndRequires(Task* task,
 	Ghost::GhostType  gnone = Ghost::None;
 	if (d_usePlasticity) {
 		if (SchedParent) {
-			task->requires(Task::ParentOldDW, pPlasticStrainLabel, matlset, gnone);
+			task->requires(Task::WhichDW::ParentOldDW, pPlasticStrainLabel, matlset, gnone);
 		}
 		else {
-			task->requires(Task::OldDW, pPlasticStrainLabel, matlset, gnone);
+			task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel, matlset, gnone);
 		}
 	}
 
 	if (SchedParent) {
-		task->requires(Task::ParentOldDW, bElBarLabel, matlset, gnone);
+		task->requires(Task::WhichDW::ParentOldDW, bElBarLabel, matlset, gnone);
 	}
 	else {
-		task->requires(Task::OldDW, bElBarLabel, matlset, gnone);
+		task->requires(Task::WhichDW::OldDW, bElBarLabel, matlset, gnone);
 	}
 }
 //______________________________________________________________________
@@ -1141,7 +1141,7 @@ void QADamage::computeStressTensorImplicit(const PatchSubset* patches,
 
 	Ghost::GhostType gac = Ghost::AroundCells;
 	Matrix3 Identity; Identity.Identity();
-	DataWarehouse* parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+	DataWarehouse* parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
 
 	// Particle and grid variables
 	constParticleVariable<double>  pVol, pMass, pvolumeold;

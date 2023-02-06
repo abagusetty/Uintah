@@ -280,17 +280,17 @@ CNHDamage::addComputesAndRequires(Task* task,
     addSharedCRForImplicit(task, matlset, patches);
   } else {
     addSharedCRForExplicit(task, matlset, patches);
-    task->requires(Task::OldDW, lb->pErosionLabel,     matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, lb->pErosionLabel,     matlset, gnone);
     task->computes(pDeformRateLabel_preReloc,          matlset);
   }
 
   //for pParticleID
-  task->requires(Task::OldDW, lb->pParticleIDLabel,  matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel,  matlset, gnone);
 
   // Other constitutive model and input dependent computes and requires
-  task->requires(Task::OldDW, bElBarLabel,           matlset, gnone);
-  task->requires(Task::OldDW, pFailureStrainLabel,   matlset, gnone);
-  task->requires(Task::OldDW, pLocalizedLabel,       matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, bElBarLabel,           matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pFailureStrainLabel,   matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pLocalizedLabel,       matlset, gnone);
 
   task->computes(bElBarLabel_preReloc,               matlset);
   task->computes(pFailureStrainLabel_preReloc,       matlset);
@@ -807,7 +807,7 @@ CNHDamage::addComputesAndRequires(Task* task,
   addSharedCRForImplicit(task, matlset, patches, recurse,SchedParent);
 
   // Local stuff
-  task->requires(Task::ParentOldDW, bElBarLabel, matlset, Ghost::None);
+  task->requires(Task::WhichDW::ParentOldDW, bElBarLabel, matlset, Ghost::None);
 }
 
 void 
@@ -829,7 +829,7 @@ CNHDamage::computeStressTensor(const PatchSubset* patches,
   Ghost::GhostType gac = Ghost::AroundCells;
   Matrix3 Identity; Identity.Identity();
   DataWarehouse* parent_old_dw = 
-    new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
 
   // Particle and grid variables
   constParticleVariable<double>  pVol,pmass;
@@ -1098,7 +1098,7 @@ CNHDamage::addRequiresDamageParameter(Task* task,
                                       const PatchSet* ) const
 {
   const MaterialSubset* matlset = matl->thisMaterial();
-  task->requires(Task::NewDW, pLocalizedLabel_preReloc, matlset, Ghost::None);
+  task->requires(Task::WhichDW::NewDW, pLocalizedLabel_preReloc, matlset, Ghost::None);
 }
 
 void 
@@ -1128,14 +1128,14 @@ CNHDamage::allocateCMDataAddRequires(Task* task,
 
   // Add requires local to this model
   const MaterialSubset* matlset = matl->thisMaterial();
-  task->requires(Task::NewDW, bElBarLabel_preReloc,         matlset, 
+  task->requires(Task::WhichDW::NewDW, bElBarLabel_preReloc,         matlset, 
                  Ghost::None);
-  task->requires(Task::NewDW, pFailureStrainLabel_preReloc, matlset, 
+  task->requires(Task::WhichDW::NewDW, pFailureStrainLabel_preReloc, matlset, 
                  Ghost::None);
-  task->requires(Task::NewDW, pLocalizedLabel_preReloc,     matlset, 
+  task->requires(Task::WhichDW::NewDW, pLocalizedLabel_preReloc,     matlset, 
                  Ghost::None);
   if (flag->d_integrator != MPMFlags::Implicit) {
-    task->requires(Task::NewDW, pDeformRateLabel_preReloc,  matlset, 
+    task->requires(Task::WhichDW::NewDW, pDeformRateLabel_preReloc,  matlset, 
                    Ghost::None);
   }
 }

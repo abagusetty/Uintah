@@ -321,7 +321,7 @@ DQMOM::sched_solveLinearSystem( const LevelP& level, SchedulerP& sched, int time
   CoalModelFactory& model_factory = CoalModelFactory::self();
   Task::WhichDW which_dw;
 
-  tsk->requires( Task::OldDW, m_fieldLabels->d_timeStepLabel );
+  tsk->requires( Task::WhichDW::OldDW, m_fieldLabels->d_timeStepLabel );
 
   if (timeSubStep == 0) {
     tsk->computes(m_normBLabel);
@@ -330,7 +330,7 @@ DQMOM::sched_solveLinearSystem( const LevelP& level, SchedulerP& sched, int time
     tsk->computes(m_normRedNormalizedLabelB);
     tsk->computes(m_normRedNormalizedLabelX);
     tsk->computes(m_conditionNumberLabel);
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   } else {
     tsk->modifies(m_normBLabel);
     tsk->modifies(m_normXLabel);
@@ -338,7 +338,7 @@ DQMOM::sched_solveLinearSystem( const LevelP& level, SchedulerP& sched, int time
     tsk->modifies(m_normRedNormalizedLabelB);
     tsk->modifies(m_normRedNormalizedLabelX);
     tsk->modifies(m_conditionNumberLabel);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   }
 
   for (vector<DQMOMEqn*>::iterator iEqn = weightEqns.begin(); iEqn != weightEqns.end(); ++iEqn) {
@@ -365,7 +365,7 @@ DQMOM::sched_solveLinearSystem( const LevelP& level, SchedulerP& sched, int time
     for ( vector<string>::iterator iModels = modelsList.begin(); iModels != modelsList.end(); ++iModels ) {
       ModelBase& model_base = model_factory.retrieve_model(*iModels);
       const VarLabel* model_label = model_base.getModelLabel();
-      tsk->requires( Task::NewDW, model_label, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, model_label, Ghost::None, 0 );
     }
   }
 
@@ -393,7 +393,7 @@ DQMOM::sched_solveLinearSystem( const LevelP& level, SchedulerP& sched, int time
     for ( vector<string>::iterator iModels = modelsList.begin(); iModels != modelsList.end(); ++iModels ) {
       ModelBase& model_base = model_factory.retrieve_model(*iModels);
       const VarLabel* model_label = model_base.getModelLabel();
-      tsk->requires( Task::NewDW, model_label, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, model_label, Ghost::None, 0 );
     }
   }
 
@@ -1926,13 +1926,13 @@ DQMOM::sched_calculateMoments( const LevelP& level, SchedulerP& sched, int timeS
     //// require weights
     //const VarLabel* tempLabel;
     //tempLabel = (*iEqn)->getTransportEqnLabel();
-    //tsk->requires( Task::NewDW, tempLabel, Ghost::None, 0 );
+    //tsk->requires( Task::WhichDW::NewDW, tempLabel, Ghost::None, 0 );
   //}
   //for (vector<DQMOMEqn*>::iterator iEqn = weightedAbscissaEqns.begin(); iEqn != weightedAbscissaEqns.end(); ++iEqn) {
     //// require weighted abscissas
     //const VarLabel* tempLabel;
     //tempLabel = (*iEqn)->getTransportEqnLabel();
-    //tsk->requires(Task::NewDW, tempLabel, Ghost::None, 0);
+    //tsk->requires(Task::WhichDW::NewDW, tempLabel, Ghost::None, 0);
   //}
 
   //sched->addTask(tsk, level->eachPatch(), m_fieldLabels->d_materialManager->allMaterials( "Arches" ));

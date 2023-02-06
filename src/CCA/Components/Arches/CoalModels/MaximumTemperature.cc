@@ -153,17 +153,17 @@ MaximumTemperature::sched_computeModel( const LevelP& level, SchedulerP& sched, 
 
   if (timeSubStep == 0 ) { 
     tsk->computes(d_modelLabel);
-    which_dw = Task::OldDW; 
+    which_dw = Task::WhichDW::OldDW; 
   } else {
     tsk->modifies(d_modelLabel); 
-    which_dw = Task::NewDW; 
+    which_dw = Task::WhichDW::NewDW; 
   }
   tsk->requires( which_dw, _particle_temperature_varlabel, gn, 0 ); 
   tsk->requires( which_dw, _max_pT_varlabel, gn, 0 ); 
   tsk->requires( which_dw, _weight_scaled_varlabel, gn, 0 ); 
   tsk->requires( which_dw, _max_pT_weighted_scaled_varlabel, gn, 0 ); 
-  tsk->requires( Task::OldDW, d_fieldLabels->d_delTLabel); 
-  tsk->requires( Task::NewDW, _RHS_source_varlabel, gn, 0 ); 
+  tsk->requires( Task::WhichDW::OldDW, d_fieldLabels->d_delTLabel); 
+  tsk->requires( Task::WhichDW::NewDW, _RHS_source_varlabel, gn, 0 ); 
 
   sched->addTask(tsk, level->eachPatch(), d_materialManager->allMaterials( "Arches" )); 
 

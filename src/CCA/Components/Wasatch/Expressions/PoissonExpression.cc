@@ -102,10 +102,10 @@ namespace WasatchCore {
                                       const Uintah::MaterialSet* const materials,
                                       const int RKStage, const bool isDoingInitialization )
   {
-    solver_.scheduleSolve( level, sched, materials, matrixLabel_, Uintah::Task::NewDW,
+    solver_.scheduleSolve( level, sched, materials, matrixLabel_, Uintah::Task::WhichDW::NewDW,
                            phiLabel_, true,
-                           phirhsLabel_, Uintah::Task::NewDW,
-                           isDoingInitialization ? 0 : phiLabel_, RKStage == 1 ? Uintah::Task::OldDW : Uintah::Task::NewDW,
+                           phirhsLabel_, Uintah::Task::WhichDW::NewDW,
+                           isDoingInitialization ? 0 : phiLabel_, RKStage == 1 ? Uintah::Task::WhichDW::OldDW : Uintah::Task::WhichDW::NewDW,
                            RKStage == 1 ? true:false );
   }
 
@@ -122,7 +122,7 @@ namespace WasatchCore {
                                              &PoissonExpression::process_bcs);
     const Uintah::Ghost::GhostType gt = get_uintah_ghost_type<SVolField>();
     const int ng = get_n_ghost<SVolField>();
-    task->requires(Uintah::Task::NewDW,phiLabel_, gt, ng);
+    task->requires(Uintah::Task::WhichDW::NewDW,phiLabel_, gt, ng);
     //task->modifies(phiLabel_);
     Uintah::LoadBalancer * lb = sched->getLoadBalancer();
     sched->addTask( task, lb->getPerProcessorPatchSet( level ), materials );
@@ -136,8 +136,8 @@ namespace WasatchCore {
                                           const Uintah::MaterialSubset* const materials,
                                           const int RKStage )
   {
-    if( RKStage == 1 ) task.computes( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::NormalDomain );
-    else               task.modifies( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::NormalDomain );
+    if( RKStage == 1 ) task.computes( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::MaterialDomainSpec::NormalDomain );
+    else               task.modifies( matrixLabel_, patches, Uintah::Task::ThisLevel, materials, Uintah::Task::MaterialDomainSpec::NormalDomain );
   }
 
   //--------------------------------------------------------------------

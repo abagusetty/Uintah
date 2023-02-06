@@ -472,15 +472,15 @@ void ApproachContact::addComputesAndRequiresInterpolated(SchedulerP & sched,
   z_matl->addReference();
   
   const MaterialSubset* mss = ms->getUnion();
-  t->requires(Task::OldDW, lb->delTLabel);
-  t->requires(Task::OldDW, lb->pXLabel,                 flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
-  t->requires(Task::OldDW, lb->pVolumeLabel,            flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel,flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
-  t->requires(Task::OldDW, lb->pSizeLabel,              flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
-  t->requires(Task::NewDW, lb->gMassLabel,              Ghost::None);
-  t->requires(Task::NewDW, lb->gVolumeLabel,            Ghost::None);
-  t->requires(Task::OldDW, lb->NC_CCweightLabel,z_matl, Ghost::None);
-  t->requires(Task::NewDW, lb->gSurfNormLabel,          Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  t->requires(Task::WhichDW::OldDW, lb->pXLabel,                 flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
+  t->requires(Task::WhichDW::OldDW, lb->pVolumeLabel,            flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
+  t->requires(Task::WhichDW::OldDW, lb->pDeformationMeasureLabel,flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
+  t->requires(Task::WhichDW::OldDW, lb->pSizeLabel,              flag->d_particle_ghost_type, flag->d_particle_ghost_layer);
+  t->requires(Task::WhichDW::NewDW, lb->gMassLabel,              Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gVolumeLabel,            Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->NC_CCweightLabel,z_matl, Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gSurfNormLabel,          Ghost::None);
 
   t->modifies(lb->frictionalWorkLabel, mss);
   t->modifies(lb->gVelocityLabel, mss);
@@ -503,11 +503,11 @@ void ApproachContact::addComputesAndRequiresIntegrated(SchedulerP & sched,
   z_matl->addReference();
   
   const MaterialSubset* mss = ms->getUnion();
-  t->requires(Task::OldDW, lb->delTLabel);
-  t->requires(Task::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);
-  t->requires(Task::NewDW, lb->gSurfNormLabel,         Ghost::None);
-  t->requires(Task::NewDW, lb->gMassLabel,             Ghost::None);
-  t->requires(Task::NewDW, lb->gVolumeLabel,           Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  t->requires(Task::WhichDW::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gSurfNormLabel,         Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gMassLabel,             Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gVolumeLabel,           Ghost::None);
   t->modifies(             lb->gVelocityStarLabel,     mss);
   t->modifies(             lb->frictionalWorkLabel,    mss);
 

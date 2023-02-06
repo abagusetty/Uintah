@@ -83,7 +83,7 @@ void UnifiedSchedulerTest::scheduleInitialize( const LevelP     & level
 {
   Task* task = scinew Task("UnifiedSchedulerTest::initialize", this, &UnifiedSchedulerTest::initialize);
 
-  task->computesWithScratchGhost(m_phi_label, nullptr, Uintah::Task::NormalDomain, Ghost::AroundNodes, 1);
+  task->computesWithScratchGhost(m_phi_label, nullptr, Uintah::Task::MaterialDomainSpec::NormalDomain, Ghost::AroundNodes, 1);
   task->computes(m_residual_label);
   sched->addTask(task, level->eachPatch(), m_materialManager->allMaterials());
 }
@@ -105,7 +105,7 @@ void UnifiedSchedulerTest::scheduleComputeStableTimeStep( const LevelP     & lev
 {
   Task* task = scinew Task("UnifiedSchedulerTest::computeStableTimeStep", this, &UnifiedSchedulerTest::computeStableTimeStep);
 
-  task->requires(Task::NewDW, m_residual_label);
+  task->requires(Task::WhichDW::NewDW, m_residual_label);
   task->computes(getDelTLabel(), level.get_rep());
   sched->addTask(task, level->eachPatch(), m_materialManager->allMaterials());
 }
@@ -126,8 +126,8 @@ void UnifiedSchedulerTest::scheduleTimeAdvance( const LevelP     & level
   }
 #endif
 
-  task->requires(Task::OldDW, m_phi_label, Ghost::AroundNodes, 1);
-  task->computesWithScratchGhost(m_phi_label, nullptr, Uintah::Task::NormalDomain, Ghost::AroundNodes, 1);
+  task->requires(Task::WhichDW::OldDW, m_phi_label, Ghost::AroundNodes, 1);
+  task->computesWithScratchGhost(m_phi_label, nullptr, Uintah::Task::MaterialDomainSpec::NormalDomain, Ghost::AroundNodes, 1);
   task->computes(m_residual_label);
   sched->addTask(task, level->eachPatch(), m_materialManager->allMaterials());
 }
@@ -201,7 +201,7 @@ void UnifiedSchedulerTest::timeAdvance(       DetailedTask        * task
 {
   //-----------------------------------------------------------------------------------------------
   // When Task is scheduled to CPU
-  if (event == Task::CPU) {
+  if (event == Task::CallBackEvent::CPU) {
 
     int matl = 0;
 
@@ -245,7 +245,7 @@ void UnifiedSchedulerTest::timeAdvance(       DetailedTask        * task
 
 
   // When Task is scheduled to GPU
-  if (event == Task::GPU) {
+  if (event == Task::CallBackEvent::GPU) {
 
     // Do time steps
     int num_patches = patches->size();

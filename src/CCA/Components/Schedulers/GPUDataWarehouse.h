@@ -874,8 +874,8 @@ private:
     return &d_varDB[*index];
   }
 #else // CUDA, HIP
-  __device__ dataItem *getItem(char const *label, const int patchID,
-                               const int8_t matlIndx, const int8_t levelIndx);
+  __device__ dataItem* getItem(char const *label, const int patchID,
+                               const int8_t matlIndx, const int8_t levelIndx); 
 #endif
 
   std::map<labelPatchMatlLevel, allVarPointersInfo> *varPointers;

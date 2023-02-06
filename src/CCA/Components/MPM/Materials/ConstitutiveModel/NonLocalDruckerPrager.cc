@@ -914,11 +914,11 @@ void NonLocalDruckerPrager::addComputesAndRequires(Task* task,
   // base class.
   const MaterialSubset* matlset = matl->thisMaterial();
   addSharedCRForHypoExplicit(task, matlset, patches);
-  task->requires(Task::OldDW, etaLabel, matlset, Ghost::None);
-  task->requires(Task::OldDW, eta_nlLabel, matlset, Ghost::None);
-  task->requires(Task::OldDW, pPlasticStrainLabel,    matlset, Ghost::None);
-  task->requires(Task::OldDW,k_o_distLabel, matlset, Ghost::None);
-  task->requires(Task::OldDW,lb->pSizeLabel, matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, etaLabel, matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, eta_nlLabel, matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel,    matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW,k_o_distLabel, matlset, Ghost::None);
+  task->requires(Task::WhichDW::OldDW,lb->pSizeLabel, matlset, Ghost::None);
   task->computes(etaLabel_preReloc,matlset);
   task->computes(eta_nlLabel_preReloc,matlset);
   task->computes(pPlasticStrainLabel_preReloc,  matlset);

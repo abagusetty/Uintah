@@ -357,16 +357,16 @@ void FluidContact::addComputesAndRequiresInterpolated(SchedulerP & sched,
   z_matl->addReference();
 
   const MaterialSubset* mss = ms->getUnion();
-  t->requires(Task::OldDW, lb->delTLabel);
-  t->requires(Task::OldDW, lb->pXLabel,           gp, ngc_p);
-  t->requires(Task::OldDW, lb->pMassLabel,        gp, ngc_p);
-  t->requires(Task::OldDW, lb->pVolumeLabel,      gp, ngc_p);
-  t->requires(Task::OldDW, lb->pStressLabel,      gp, ngc_p);
-  t->requires(Task::OldDW, lb->pSizeLabel,        gp, ngc_p);
-  t->requires(Task::OldDW, lb->pDeformationMeasureLabel, gp, ngc_p);
-  t->requires(Task::NewDW, lb->gMassLabel,        Ghost::AroundNodes, 1);
-  t->requires(Task::NewDW, lb->gVolumeLabel,           Ghost::None);
-  t->requires(Task::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  t->requires(Task::WhichDW::OldDW, lb->pXLabel,           gp, ngc_p);
+  t->requires(Task::WhichDW::OldDW, lb->pMassLabel,        gp, ngc_p);
+  t->requires(Task::WhichDW::OldDW, lb->pVolumeLabel,      gp, ngc_p);
+  t->requires(Task::WhichDW::OldDW, lb->pStressLabel,      gp, ngc_p);
+  t->requires(Task::WhichDW::OldDW, lb->pSizeLabel,        gp, ngc_p);
+  t->requires(Task::WhichDW::OldDW, lb->pDeformationMeasureLabel, gp, ngc_p);
+  t->requires(Task::WhichDW::NewDW, lb->gMassLabel,        Ghost::AroundNodes, 1);
+  t->requires(Task::WhichDW::NewDW, lb->gVolumeLabel,           Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);
   // t->computes(lb->gStressLabel); // Will this influence pore pressure?
   t->modifies(Hlb->gFluidVelocityLabel, mss);
 
@@ -388,14 +388,14 @@ void FluidContact::addComputesAndRequiresIntegrated(SchedulerP & sched,
   z_matl->addReference();
   
   const MaterialSubset* mss = ms->getUnion();
-  t->requires(Task::OldDW, lb->delTLabel);
-  t->requires(Task::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);
-  // t->requires(Task::NewDW, lb->gSurfNormLabel,         Ghost::None);
-  t->requires(Task::NewDW, lb->gMassLabel,             Ghost::None);
-  t->requires(Task::NewDW, lb->gVolumeLabel,           Ghost::None);
-  // t->requires(Task::NewDW, lb->gPositionLabel,         Ghost::None);
-  t->requires(Task::NewDW, lb->gVelocityLabel,         Ghost::None);
-  t->requires(Task::NewDW, Hlb->gFluidVelocityLabel,         Ghost::None);
+  t->requires(Task::WhichDW::OldDW, lb->delTLabel);
+  t->requires(Task::WhichDW::OldDW, lb->NC_CCweightLabel,z_matl,Ghost::None);
+  // t->requires(Task::WhichDW::NewDW, lb->gSurfNormLabel,         Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gMassLabel,             Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gVolumeLabel,           Ghost::None);
+  // t->requires(Task::WhichDW::NewDW, lb->gPositionLabel,         Ghost::None);
+  t->requires(Task::WhichDW::NewDW, lb->gVelocityLabel,         Ghost::None);
+  t->requires(Task::WhichDW::NewDW, Hlb->gFluidVelocityLabel,         Ghost::None);
   t->modifies(             Hlb->gFluidVelocityStarLabel,  mss);
   t->modifies(             Hlb->gFluidAccelerationLabel,  mss);
 

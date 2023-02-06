@@ -467,7 +467,7 @@ DQMOMEqn::sched_initializeVariables( const LevelP& level, SchedulerP& sched )
   d_face_pvel_z = VarLabel::find(name);
 
   //Old
-  tsk->requires(Task::OldDW, d_transportVarLabel, gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_transportVarLabel, gn, 0);
   sched->addTask(tsk, level->eachPatch(), d_fieldLabels->d_materialManager->allMaterials( "Arches" ));
 }
 //---------------------------------------------------------------------------
@@ -553,13 +553,13 @@ DQMOMEqn::sched_computePsi( const LevelP& level, SchedulerP& sched )
   tsk->modifies(d_Y_psi_label);
   tsk->modifies(d_Z_psi_label);
 
-  tsk->requires(Task::NewDW, d_transportVarLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::NewDW, d_face_pvel_x, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_face_pvel_y, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_face_pvel_z, Ghost::AroundCells, 1);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionFXLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionFYLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionFZLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::NewDW, d_transportVarLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::NewDW, d_face_pvel_x, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_face_pvel_y, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_face_pvel_z, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionFXLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionFYLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionFZLabel, Ghost::AroundCells, 2);
 
   sched->addTask(tsk, level->eachPatch(), d_fieldLabels->d_materialManager->allMaterials( "Arches" ));
 
@@ -661,9 +661,9 @@ DQMOMEqn::sched_buildRHS( const LevelP& level, SchedulerP& sched )
 
   tsk->modifies(d_RHSLabel);
 
-  tsk->requires(Task::NewDW, d_X_flux_label, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_Y_flux_label, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_Z_flux_label, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_X_flux_label, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_Y_flux_label, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_Z_flux_label, Ghost::AroundCells, 1);
 
   sched->addTask(tsk, level->eachPatch(), d_fieldLabels->d_materialManager->allMaterials( "Arches" ));
 
@@ -719,16 +719,16 @@ DQMOMEqn::sched_buildTransportEqn( const LevelP& level, SchedulerP& sched, const
 
   ArchesLabel::PartVelMap::iterator pvel_iter = d_fieldLabels->partVel.find(d_quadNode);
   if ( timeSubStep == 0 ){
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
 
   tsk->requires(which_dw, d_transportVarLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::NewDW, pvel_iter->second, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_face_pvel_x, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_face_pvel_y, Ghost::AroundCells, 1);
-  tsk->requires(Task::NewDW, d_face_pvel_z, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, pvel_iter->second, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_face_pvel_x, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_face_pvel_y, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_face_pvel_z, Ghost::AroundCells, 1);
 
   tsk->modifies(d_X_flux_label);
   tsk->modifies(d_Y_flux_label);
@@ -738,15 +738,15 @@ DQMOMEqn::sched_buildTransportEqn( const LevelP& level, SchedulerP& sched, const
   tsk->modifies(d_FconvLabel);
   tsk->modifies(d_RHSLabel);
 
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionFXLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionFYLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_areaFractionFZLabel, Ghost::AroundCells, 2);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_viscosityCTSLabel, Ghost::AroundCells, 1);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionFXLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionFYLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_areaFractionFZLabel, Ghost::AroundCells, 2);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_viscosityCTSLabel, Ghost::AroundCells, 1);
 
-  tsk->requires(Task::NewDW, d_X_psi_label, Ghost::None, 0);
-  tsk->requires(Task::NewDW, d_Y_psi_label, Ghost::None, 0);
-  tsk->requires(Task::NewDW, d_Z_psi_label, Ghost::None, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_X_psi_label, Ghost::None, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_Y_psi_label, Ghost::None, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_Z_psi_label, Ghost::None, 0);
 
   if( !d_weight ) {
     tsk->requires(which_dw, d_weightLabel, Ghost::AroundCells, 0);
@@ -755,7 +755,7 @@ DQMOMEqn::sched_buildTransportEqn( const LevelP& level, SchedulerP& sched, const
   // extra srcs
   if (d_addExtraSources) {
     for ( auto iter = d_sources.begin(); iter != d_sources.end(); iter++){
-      tsk->requires( Task::NewDW, VarLabel::find(*iter), Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, VarLabel::find(*iter), Ghost::None, 0 );
     }
   }
 
@@ -890,12 +890,12 @@ DQMOMEqn::sched_addSources( const LevelP& level, SchedulerP& sched, const int ti
 
   Task::WhichDW which_dw;
   if ( timeSubStep == 0 ){
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
   tsk->modifies( d_RHSLabel );
-  tsk->requires( Task::NewDW , d_sourceLabel , Ghost::None , 0 );
+  tsk->requires( Task::WhichDW::NewDW , d_sourceLabel , Ghost::None , 0 );
   if( !d_weight ) {
     tsk->requires( which_dw, d_weightLabel, Ghost::AroundCells, 0 );
   }
@@ -967,14 +967,14 @@ DQMOMEqn::sched_solveTransportEqn( const LevelP& level, SchedulerP& sched, int t
 
   //New
   tsk->modifies(d_transportVarLabel);
-  tsk->requires(Task::NewDW, d_RHSLabel, Ghost::None, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_RHSLabel, Ghost::None, 0);
   if( !d_weight )
-      tsk->requires(Task::NewDW, d_weightLabel, Ghost::None, 0);
+      tsk->requires(Task::WhichDW::NewDW, d_weightLabel, Ghost::None, 0);
 
   //Old
-  tsk->requires(Task::OldDW, d_transportVarLabel, Ghost::None, 0);
-  tsk->requires(Task::OldDW, d_fieldLabels->d_delTLabel, Ghost::None, 0 );
-  tsk->requires(Task::OldDW, d_fieldLabels->d_volFractionLabel, Ghost::None, 0 );
+  tsk->requires(Task::WhichDW::OldDW, d_transportVarLabel, Ghost::None, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_delTLabel, Ghost::None, 0 );
+  tsk->requires(Task::WhichDW::OldDW, d_fieldLabels->d_volFractionLabel, Ghost::None, 0 );
 
   sched->addTask(tsk, level->eachPatch(), d_fieldLabels->d_materialManager->allMaterials( "Arches" ));
 }
@@ -1047,10 +1047,10 @@ DQMOMEqn::sched_getUnscaledValues( const LevelP& level, SchedulerP& sched )
 
   //NEW
   tsk->modifies(d_icLabel);
-  tsk->requires( Task::NewDW,d_transportVarLabel , Ghost::None, 0 );
+  tsk->requires( Task::WhichDW::NewDW,d_transportVarLabel , Ghost::None, 0 );
 
   if( !d_weight ) {
-    tsk->requires( Task::NewDW,d_weightLabel , Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::NewDW,d_weightLabel , Ghost::None, 0 );
   }
 
   sched->addTask(tsk, level->eachPatch(), d_fieldLabels->d_materialManager->allMaterials( "Arches" ));

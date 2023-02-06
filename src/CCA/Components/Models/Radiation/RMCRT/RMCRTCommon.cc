@@ -846,10 +846,10 @@ void RMCRTCommon::sched_CarryForward_FineLevelLabels(const LevelP &level,
   Task *tsk =
       scinew Task(taskName, this, &RMCRTCommon::carryForward_FineLevelLabels);
 
-  tsk->requires(Task::OldDW, d_divQLabel, d_gn, 0);
-  tsk->requires(Task::OldDW, d_boundFluxLabel, d_gn, 0);
-  tsk->requires(Task::OldDW, d_radiationVolqLabel, d_gn, 0);
-  tsk->requires(Task::OldDW, d_sigmaT4Label, d_gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_divQLabel, d_gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_boundFluxLabel, d_gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_radiationVolqLabel, d_gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_sigmaT4Label, d_gn, 0);
 
   tsk->computes(d_divQLabel);
   tsk->computes(d_boundFluxLabel);
@@ -895,7 +895,7 @@ void RMCRTCommon::sched_carryForward_VarLabels(
                           varLabels);
 
   for (auto iter = varLabels.begin(); iter != varLabels.end(); iter++) {
-    tsk->requires(Task::OldDW, *iter, d_gn, 0);
+    tsk->requires(Task::WhichDW::OldDW, *iter, d_gn, 0);
     tsk->computes(*iter);
   }
 
@@ -935,7 +935,7 @@ void RMCRTCommon::sched_CarryForward_Var(const LevelP &level, SchedulerP &sched,
   Task *task =
       scinew Task(taskName, this, &RMCRTCommon::carryForward_Var, variable);
 
-  task->requires(Task::OldDW, variable, d_gn, 0);
+  task->requires(Task::WhichDW::OldDW, variable, d_gn, 0);
   task->computes(variable);
 
   sched->addTask(task, level->eachPatch(), d_matlSet, tg_num);
@@ -1025,7 +1025,7 @@ void RMCRTCommon::set_abskg_dw_perLevel(const LevelP &fineLevel,
   if (RMCRTCommon::d_FLT_DBL == TypeDescription::float_type) {
     std::ostringstream key1;
     key1 << d_abskgLabel->getName() << "_L-" << fineLevel->getIndex();
-    d_abskg_dw[key1.str()] = Task::NewDW;
+    d_abskg_dw[key1.str()] = Task::WhichDW::NewDW;
   }
 
   //__________________________________
@@ -1035,7 +1035,7 @@ void RMCRTCommon::set_abskg_dw_perLevel(const LevelP &fineLevel,
     if (L != fineLevel->getIndex()) {
       std::ostringstream key2;
       key2 << d_abskgLabel->getName() << "_L-" << L;
-      d_abskg_dw[key2.str()] = Task::NewDW;
+      d_abskg_dw[key2.str()] = Task::WhichDW::NewDW;
     }
   }
 

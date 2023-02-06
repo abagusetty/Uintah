@@ -433,6 +433,10 @@ int
 OnDemandDataWarehouse::getNumDevices() {
   int numDevices = 0;
   GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
+  if (numDevices == 0) {
+    SCI_THROW(InternalError("OnDemandDataWarehouse::getNumDevices(), no GPU devices found!", __FILE__, __LINE__));
+  }
+
   return numDevices;
 }
 
@@ -3490,20 +3494,20 @@ OnDemandDataWarehouse::checkGetAccess( const VarLabel         * label
         if (runningTask == nullptr || !(std::string(runningTask->getName()) == "Relocate::relocateParticles" || std::string(runningTask->getName()) == "SchedulerCommon::copyDataToNewGrid")) {
           std::string has{};
           switch (getWhichDW(&runningTaskInfo)) {
-            case Task::NewDW : {
-              has = "Task::NewDW";
+            case Task::WhichDW::NewDW : {
+              has = "Task::WhichDW::NewDW";
               break;
             }
-            case Task::OldDW : {
-              has = "Task::OldDW";
+            case Task::WhichDW::OldDW : {
+              has = "Task::WhichDW::OldDW";
               break;
             }
-            case Task::ParentNewDW : {
-              has = "Task::ParentNewDW";
+            case Task::WhichDW::ParentNewDW : {
+              has = "Task::WhichDW::ParentNewDW";
               break;
             }
-            case Task::ParentOldDW : {
-              has = "Task::ParentOldDW";
+            case Task::WhichDW::ParentOldDW : {
+              has = "Task::WhichDW::ParentOldDW";
               break;
             }
             default : {
@@ -3604,20 +3608,20 @@ OnDemandDataWarehouse::checkPutAccess( const VarLabel * label
           std::string has{};
           std::string needs{};
           switch (getWhichDW(&runningTaskInfo)) {
-            case Task::NewDW : {
-              has = "Task::NewDW";
+            case Task::WhichDW::NewDW : {
+              has = "Task::WhichDW::NewDW";
               break;
             }
-            case Task::OldDW : {
-              has = "Task::OldDW";
+            case Task::WhichDW::OldDW : {
+              has = "Task::WhichDW::OldDW";
               break;
             }
-            case Task::ParentNewDW : {
-              has = "Task::ParentNewDW";
+            case Task::WhichDW::ParentNewDW : {
+              has = "Task::WhichDW::ParentNewDW";
               break;
             }
-            case Task::ParentOldDW : {
-              has = "Task::ParentOldDW";
+            case Task::WhichDW::ParentOldDW : {
+              has = "Task::WhichDW::ParentOldDW";
               break;
             }
             default : {
@@ -3668,17 +3672,17 @@ OnDemandDataWarehouse::checkModifyAccess( const VarLabel * label
 inline Task::WhichDW
 OnDemandDataWarehouse::getWhichDW( RunningTaskInfo * info )
 {
-  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::NewDW, info)) {
-    return Task::NewDW;
+  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::WhichDW::NewDW, info)) {
+    return Task::WhichDW::NewDW;
   }
-  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::OldDW, info)) {
-    return Task::OldDW;
+  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::WhichDW::OldDW, info)) {
+    return Task::WhichDW::OldDW;
   }
-  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::ParentNewDW, info)) {
-    return Task::ParentNewDW;
+  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::WhichDW::ParentNewDW, info)) {
+    return Task::WhichDW::ParentNewDW;
   }
-  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::ParentOldDW, info)) {
-    return Task::ParentOldDW;
+  if (this == OnDemandDataWarehouse::getOtherDataWarehouse(Task::WhichDW::ParentOldDW, info)) {
+    return Task::WhichDW::ParentOldDW;
   }
 
   throw InternalError("Unknown DW\n", __FILE__, __LINE__);
@@ -3871,7 +3875,7 @@ OnDemandDataWarehouse::checkAccesses(       RunningTaskInfo  * currentTaskInfo
   for (; dep != nullptr; dep = dep->m_next) {
 
 #if 0
-    if ((isFinalized() && dep->m_whichdw == Task::NewDW) || (!isFinalized() && dep->m_whichdw == Task::OldDW)) {
+    if ((isFinalized() && dep->m_whichdw == Task::WhichDW::NewDW) || (!isFinalized() && dep->m_whichdw == Task::WhichDW::OldDW)) {
       continue;
     }
 #endif

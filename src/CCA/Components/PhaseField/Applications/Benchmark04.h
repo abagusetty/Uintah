@@ -578,7 +578,7 @@ Benchmark04<VAR, STN>::scheduleTimeAdvance_v (
 )
 {
     Task * task = scinew Task ( "Benchmark04::task_time_advance_v", this, &Benchmark04<VAR, STN>::task_time_advance_v );
-    task->requires ( Task::OldDW, u_label, GT, GN );
+    task->requires ( Task::WhichDW::OldDW, u_label, GT, GN );
     task->computes ( v_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -591,8 +591,8 @@ Benchmark04<VAR, STN>::scheduleTimeAdvance_u (
 )
 {
     Task * task = scinew Task ( "Benchmark04::task_time_advance_u", this, &Benchmark04<VAR, STN>::task_time_advance_u );
-    task->requires ( Task::OldDW, u_label, Ghost::None, 0 );
-    task->requires ( Task::NewDW, v_label, GT, GN );
+    task->requires ( Task::WhichDW::OldDW, u_label, Ghost::None, 0 );
+    task->requires ( Task::WhichDW::NewDW, v_label, GT, GN );
     task->computes ( u_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }
@@ -604,7 +604,7 @@ void Benchmark04<VAR, STN>::scheduleTimeAdvance_postprocess (
 )
 {
     Task * task = scinew Task ( "Benchmark04::task_time_advance_postprocess", this, &Benchmark04<VAR, STN>::task_time_advance_postprocess );
-    task->requires ( Task::NewDW, u_label, GT, GN );
+    task->requires ( Task::WhichDW::NewDW, u_label, GT, GN );
     task->computes ( energy_label );
     sched->addTask ( task, level->eachPatch(), this->m_materialManager->allMaterials() );
 }

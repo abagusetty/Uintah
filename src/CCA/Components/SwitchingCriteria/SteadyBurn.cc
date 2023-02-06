@@ -98,11 +98,11 @@ void SteadyBurnCriteria::scheduleSwitchTest(const LevelP& level, SchedulerP& sch
   Ghost::GhostType  gan = Ghost::AroundNodes;
   
   if (level->hasFinerLevel() == false){  // only on the finest level
-    t->requires(Task::OldDW, Ilb->vol_frac_CCLabel, mpm_matls, gac,1);
-    t->requires(Task::NewDW, Mlb->gMassLabel,       mpm_matls, gan,2);
-    t->requires(Task::OldDW, Mlb->pXLabel,          mpm_matls, gan,1);
-    t->requires(Task::NewDW, Mlb->gTemperatureLabel,one_matl,  gan,2);
-    t->requires(Task::OldDW, Mlb->NC_CCweightLabel, one_matl,  gan,2);
+    t->requires(Task::WhichDW::OldDW, Ilb->vol_frac_CCLabel, mpm_matls, gac,1);
+    t->requires(Task::WhichDW::NewDW, Mlb->gMassLabel,       mpm_matls, gan,2);
+    t->requires(Task::WhichDW::OldDW, Mlb->pXLabel,          mpm_matls, gan,1);
+    t->requires(Task::WhichDW::NewDW, Mlb->gTemperatureLabel,one_matl,  gan,2);
+    t->requires(Task::WhichDW::OldDW, Mlb->NC_CCweightLabel, one_matl,  gan,2);
   }
   
   t->computes(d_switch_label);

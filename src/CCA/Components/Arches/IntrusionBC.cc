@@ -404,7 +404,7 @@ IntrusionBC::sched_computeBCArea( SchedulerP& sched,
 
     tsk->computes( i->second.wetted_surface_area);
 
-    tsk->requires( Task::NewDW, _lab->d_volFractionLabel, Ghost::AroundCells, 1 );
+    tsk->requires( Task::WhichDW::NewDW, _lab->d_volFractionLabel, Ghost::AroundCells, 1 );
 
   }
 
@@ -560,10 +560,10 @@ IntrusionBC::sched_setAlphaG( SchedulerP& sched,
   tsk->computes( m_alpha_geom_label );
 
   if ( carryForward ){
-    tsk->requires( Task::OldDW, m_alpha_geom_label, Ghost::None, 0 );
+    tsk->requires( Task::WhichDW::OldDW, m_alpha_geom_label, Ghost::None, 0 );
   } else {
     for ( IntrusionMap::iterator iter = _intrusion_map.begin(); iter != _intrusion_map.end(); ++iter ){
-      tsk->requires( Task::NewDW, iter->second.wetted_surface_area );
+      tsk->requires( Task::WhichDW::NewDW, iter->second.wetted_surface_area );
     }
   }
 
@@ -928,7 +928,7 @@ IntrusionBC::sched_setIntrusionVelocities( SchedulerP& sched,
   for ( IntrusionMap::iterator i = _intrusion_map.begin(); i != _intrusion_map.end(); ++i ){
 
     if ( (i->second).type == INLET ){
-      tsk->requires( Task::NewDW, i->second.inlet_bc_area );
+      tsk->requires( Task::WhichDW::NewDW, i->second.inlet_bc_area );
       found_inlet_intrusion = true;
     }
 
@@ -1325,10 +1325,10 @@ IntrusionBC::sched_printIntrusionInformation( SchedulerP& sched,
   for ( IntrusionMap::iterator i = _intrusion_map.begin(); i != _intrusion_map.end(); ++i ){
 
     if ( i->second.type == INLET ){
-      tsk->requires( Task::NewDW, i->second.inlet_bc_area );
+      tsk->requires( Task::WhichDW::NewDW, i->second.inlet_bc_area );
     }
 
-    tsk->requires( Task::NewDW, i->second.wetted_surface_area );
+    tsk->requires( Task::WhichDW::NewDW, i->second.wetted_surface_area );
 
   }
 

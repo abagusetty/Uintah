@@ -224,8 +224,8 @@ KokkosOpenMPScheduler::execute( int tgnum       /* = 0 */
 
   g_num_tasks_done = 0;
 
-  if( m_reloc_new_pos_label && m_dws[m_dwmap[Task::OldDW]] != nullptr ) {
-    m_dws[m_dwmap[Task::OldDW]]->exchangeParticleQuantities(m_detailed_tasks, m_loadBalancer, m_reloc_new_pos_label, iteration);
+  if( m_reloc_new_pos_label && m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]] != nullptr ) {
+    m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]]->exchangeParticleQuantities(m_detailed_tasks, m_loadBalancer, m_reloc_new_pos_label, iteration);
   }
 
   m_curr_iteration.store(iteration, std::memory_order_relaxed);
@@ -428,7 +428,7 @@ KokkosOpenMPScheduler::runTasks()
             havework = true;
             markTaskConsumed(&g_num_tasks_done, m_curr_phase, m_num_phases, readyTask);
 
-            if ( readyTask->getTask()->getType() == Task::Hypre ) {
+            if ( readyTask->getTask()->getType() == Task::TaskType::Hypre ) {
               g_HypreTask = readyTask;
               g_have_hypre_task = true;
               return;
@@ -449,7 +449,7 @@ KokkosOpenMPScheduler::runTasks()
         else if (m_detailed_tasks->numInternalReadyTasks() > 0) {
           initTask = m_detailed_tasks->getNextInternalReadyTask();
           if (initTask != nullptr) {
-            if (initTask->getTask()->getType() == Task::Reduction || initTask->getTask()->usesMPI()) {
+            if (initTask->getTask()->getType() == Task::TaskType::Reduction || initTask->getTask()->usesMPI()) {
               DOUT(g_task_dbg, myRankThread() <<  " Task internal ready 1 " << *initTask);
               m_phase_sync_task[initTask->getTask()->m_phase] = initTask;
               ASSERT(initTask->getRequires().size() == 0)
@@ -501,7 +501,7 @@ KokkosOpenMPScheduler::runTasks()
 
       DOUT(g_task_dbg, myRankThread() << " Task external ready " << *readyTask);
 
-      if (readyTask->getTask()->getType() == Task::Reduction) {
+      if (readyTask->getTask()->getType() == Task::TaskType::Reduction) {
         MPIScheduler::initiateReduction(readyTask);
       }
       else {

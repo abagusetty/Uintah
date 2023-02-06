@@ -217,7 +217,7 @@ class DeviceInfo {
 public:
   DeviceInfo() {
     totalSize = 0;
-    for (int i = 0; i < Task::TotalDWs; i++) {
+    for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
       totalSizeForDataWarehouse[i] = 0;
       totalVars[i] = 0;
       totalMaterials[i] = 0;
@@ -226,10 +226,10 @@ public:
   }
 
   std::size_t totalSize;
-  std::size_t totalSizeForDataWarehouse[Task::TotalDWs];
-  unsigned int totalVars[Task::TotalDWs];
-  unsigned int totalMaterials[Task::TotalDWs];
-  unsigned int totalLevels[Task::TotalDWs];
+  std::size_t totalSizeForDataWarehouse[static_cast<int>(Task::WhichDW::TotalDWs)];
+  unsigned int totalVars[static_cast<int>(Task::WhichDW::TotalDWs)];
+  unsigned int totalMaterials[static_cast<int>(Task::WhichDW::TotalDWs)];
+  unsigned int totalLevels[static_cast<int>(Task::WhichDW::TotalDWs)];
 };
 
 class DeviceGridVariables {
@@ -290,9 +290,9 @@ public:
 
   std::size_t getSizeForDataWarehouse(const unsigned int whichGPU,
                                       const int dwIndex);
-
+  
   unsigned int getTotalVars(const unsigned int whichGPU,
-                            const int DWIndex) const;
+                            int DWIndex) const;
 
   unsigned int getTotalMaterials(const unsigned int whichGPU,
                                  const int DWIndex) const;

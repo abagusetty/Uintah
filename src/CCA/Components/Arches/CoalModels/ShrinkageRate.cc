@@ -172,14 +172,14 @@ ShrinkageRate::sched_computeModel( const LevelP& level, SchedulerP& sched, int t
 
   if (timeSubStep == 0 ) {
     tsk->computes(d_modelLabel);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
     tsk->modifies(d_modelLabel);
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
 
-  //tsk->requires( Task::NewDW, _surfacerate_varlabel, gn, 0 );
-  tsk->requires( Task::NewDW, m_charoxiSize_varlabel, gn, 0 ); 
+  //tsk->requires( Task::WhichDW::NewDW, _surfacerate_varlabel, gn, 0 );
+  tsk->requires( Task::WhichDW::NewDW, m_charoxiSize_varlabel, gn, 0 ); 
   tsk->requires( which_dw, m_weight_scaled_varlabel, gn, 0 ); 
   
   sched->addTask(tsk, level->eachPatch(), d_materialManager->allMaterials( "Arches" ));
@@ -210,11 +210,11 @@ ShrinkageRate::computeModel( const ProcessorGroup * pc,
     if ( timeSubStep == 0 ){
       new_dw->allocateAndPut( shr_rate, d_modelLabel, matlIndex, patch );
       shr_rate.initialize(0.0);
-      //which_dw = Task::OldDW;
+      //which_dw = Task::WhichDW::OldDW;
       which_dw = old_dw;
     } else {
       new_dw->getModifiable( shr_rate, d_modelLabel, matlIndex, patch );
-      //which_dw = Task::NewDW;
+      //which_dw = Task::WhichDW::NewDW;
       which_dw = new_dw;
     }
     constCCVariable<double> size_rate;

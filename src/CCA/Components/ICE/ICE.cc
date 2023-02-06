@@ -273,10 +273,10 @@ void ICE::problemSetup( const ProblemSpecP     & prob_spec,
     d_subsched = m_scheduler->createSubScheduler();
     d_subsched->initialize(3,1);
     d_subsched->clearMappings();
-    d_subsched->mapDataWarehouse( Task::ParentOldDW, 0 );
-    d_subsched->mapDataWarehouse( Task::ParentNewDW, 1 );
-    d_subsched->mapDataWarehouse( Task::OldDW, 2);
-    d_subsched->mapDataWarehouse( Task::NewDW, 3);
+    d_subsched->mapDataWarehouse( Task::WhichDW::ParentOldDW, 0 );
+    d_subsched->mapDataWarehouse( Task::WhichDW::ParentNewDW, 1 );
+    d_subsched->mapDataWarehouse( Task::WhichDW::OldDW, 2);
+    d_subsched->mapDataWarehouse( Task::WhichDW::NewDW, 3);
 
     d_recompileSubsched = true;
 
@@ -689,7 +689,7 @@ void ICE::scheduleInitialize(const LevelP & level,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  t->requires(Task::NewDW, lb->timeStepLabel);
+  t->requires(Task::WhichDW::NewDW, lb->timeStepLabel);
 
   t->computes( lb->vel_CCLabel );
   t->computes( lb->rho_CCLabel );
@@ -752,8 +752,8 @@ void ICE::scheduleInitialize(const LevelP & level,
     Task* t2 = scinew Task("ICE::initializeSubTask_hydrostaticAdj",
                      this, &ICE::initializeSubTask_hydrostaticAdj);
 
-    t2->requires( Task::NewDW,lb->gammaLabel,         ice_matls_sub, m_gn );
-    t2->requires( Task::NewDW,lb->specific_heatLabel, ice_matls_sub, m_gn );
+    t2->requires( Task::WhichDW::NewDW,lb->gammaLabel,         ice_matls_sub, m_gn );
+    t2->requires( Task::WhichDW::NewDW,lb->specific_heatLabel, ice_matls_sub, m_gn );
 
     t2->modifies( lb->rho_micro_CCLabel );
     t2->modifies( lb->temp_CCLabel );
@@ -849,13 +849,13 @@ void ICE::scheduleComputeStableTimeStep(const LevelP& level,
 
   const MaterialSet* ice_matls = m_materialManager->allMaterials( "ICE" );
 
-  t->requires( Task::NewDW, lb->vel_CCLabel,        m_gac,1, true );
-  t->requires( Task::NewDW, lb->speedSound_CCLabel, m_gac,1, true );
-  t->requires( Task::NewDW, lb->thermalCondLabel,   m_gn,  0, true );
-  t->requires( Task::NewDW, lb->gammaLabel,         m_gn,  0, true );
-  t->requires( Task::NewDW, lb->specific_heatLabel, m_gn,  0, true );
-  t->requires( Task::NewDW, lb->sp_vol_CCLabel,     m_gn,  0, true );
-  t->requires( Task::NewDW, lb->viscosityLabel,     m_gn,  0, true );
+  t->requires( Task::WhichDW::NewDW, lb->vel_CCLabel,        m_gac,1, true );
+  t->requires( Task::WhichDW::NewDW, lb->speedSound_CCLabel, m_gac,1, true );
+  t->requires( Task::WhichDW::NewDW, lb->thermalCondLabel,   m_gn,  0, true );
+  t->requires( Task::WhichDW::NewDW, lb->gammaLabel,         m_gn,  0, true );
+  t->requires( Task::WhichDW::NewDW, lb->specific_heatLabel, m_gn,  0, true );
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,     m_gn,  0, true );
+  t->requires( Task::WhichDW::NewDW, lb->viscosityLabel,     m_gn,  0, true );
 
   t->computes( lb->delTLabel,level.get_rep() );
   sched->addTask( t,level->eachPatch(), ice_matls );
@@ -1114,7 +1114,7 @@ void ICE::scheduleComputeThermoTransportProperties( SchedulerP        & sched,
   Task * t = scinew Task("ICE::computeThermoTransportProperties",
                    this, &ICE::computeThermoTransportProperties);
 
-  t->requires( Task::OldDW,lb->temp_CCLabel, ice_matls->getUnion(), m_gn, 0 );
+  t->requires( Task::WhichDW::OldDW,lb->temp_CCLabel, ice_matls->getUnion(), m_gn, 0 );
 
   t->computes( lb->viscosityLabel );
   t->computes( lb->thermalCondLabel );
@@ -1162,15 +1162,15 @@ void ICE::scheduleComputePressure( SchedulerP          & sched,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  t->requires( Task::OldDW,lb->timeStepLabel );
-  t->requires( Task::OldDW,lb->simulationTimeLabel );
-  t->requires( Task::OldDW,lb->delTLabel, getLevel(patches) );
-  t->requires( Task::OldDW,lb->press_CCLabel, press_matl, oims, m_gn );
-  t->requires( Task::OldDW,lb->rho_CCLabel,               m_gn );
-  t->requires( Task::OldDW,lb->temp_CCLabel,              m_gn );
-  t->requires( Task::OldDW,lb->sp_vol_CCLabel,            m_gn );
-  t->requires( Task::NewDW,lb->gammaLabel,                m_gn );
-  t->requires( Task::NewDW,lb->specific_heatLabel,        m_gn );
+  t->requires( Task::WhichDW::OldDW,lb->timeStepLabel );
+  t->requires( Task::WhichDW::OldDW,lb->simulationTimeLabel );
+  t->requires( Task::WhichDW::OldDW,lb->delTLabel, getLevel(patches) );
+  t->requires( Task::WhichDW::OldDW,lb->press_CCLabel, press_matl, oims, m_gn );
+  t->requires( Task::WhichDW::OldDW,lb->rho_CCLabel,               m_gn );
+  t->requires( Task::WhichDW::OldDW,lb->temp_CCLabel,              m_gn );
+  t->requires( Task::WhichDW::OldDW,lb->sp_vol_CCLabel,            m_gn );
+  t->requires( Task::WhichDW::NewDW,lb->gammaLabel,                m_gn );
+  t->requires( Task::WhichDW::NewDW,lb->specific_heatLabel,        m_gn );
 
   t->computes( lb->f_theta_CCLabel );
   t->computes( lb->speedSound_CCLabel );
@@ -1204,11 +1204,11 @@ void ICE::scheduleComputeTempFC(SchedulerP& sched,
     Task* t = scinew Task("ICE::computeTempFC", this,
                           &ICE::computeTempFC);
 
-    t->requires( Task::NewDW,lb->rho_CCLabel,   /*all_matls*/ m_gac,1 );
-    t->requires( Task::OldDW,lb->temp_CCLabel,  ice_matls,    m_gac,1 );
+    t->requires( Task::WhichDW::NewDW,lb->rho_CCLabel,   /*all_matls*/ m_gac,1 );
+    t->requires( Task::WhichDW::OldDW,lb->temp_CCLabel,  ice_matls,    m_gac,1 );
 
     if( mpm_matls ){
-      t->requires( Task::NewDW,lb->temp_CCLabel,  mpm_matls,   m_gac,1 );
+      t->requires( Task::WhichDW::NewDW,lb->temp_CCLabel,  mpm_matls,   m_gac,1 );
     }
 
     t->computes( lb->TempX_FCLabel );
@@ -1235,14 +1235,14 @@ void ICE::scheduleComputeVel_FC(SchedulerP            & sched,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  t->requires( Task::OldDW, lb->delTLabel, getLevel(patches) );
-  t->requires( Task::NewDW, lb->press_equil_CCLabel, press_mss, oims, m_gac,1 );
-  t->requires( Task::NewDW, lb->sp_vol_CCLabel,    /*all_matls*/ m_gac,1 );
-  t->requires( Task::NewDW, lb->rho_CCLabel,       /*all_matls*/ m_gac,1 );
-  t->requires( Task::OldDW, lb->vel_CCLabel,         ice_mss,    m_gac,1 );
+  t->requires( Task::WhichDW::OldDW, lb->delTLabel, getLevel(patches) );
+  t->requires( Task::WhichDW::NewDW, lb->press_equil_CCLabel, press_mss, oims, m_gac,1 );
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,    /*all_matls*/ m_gac,1 );
+  t->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,       /*all_matls*/ m_gac,1 );
+  t->requires( Task::WhichDW::OldDW, lb->vel_CCLabel,         ice_mss,    m_gac,1 );
 
   if( mpm_mss ){
-    t->requires( Task::NewDW,lb->vel_CCLabel,       mpm_mss,  m_gac,1 );
+    t->requires( Task::WhichDW::NewDW,lb->vel_CCLabel,       mpm_mss,  m_gac,1 );
   }
 
   t->computes( lb->uvel_FCLabel );
@@ -1340,10 +1340,10 @@ void ICE::scheduleUpdateVolumeFraction(SchedulerP           & sched,
     Task* task = scinew Task("ICE::updateVolumeFraction",
                        this, &ICE::updateVolumeFraction);
 
-    task->requires( Task::NewDW, lb->sp_vol_CCLabel,     m_gn );
-    task->requires( Task::NewDW, lb->rho_CCLabel,        m_gn );
-    task->requires( Task::NewDW, lb->modelVol_srcLabel,  m_gn );
-    task->requires( Task::NewDW, lb->compressibilityLabel,m_gn );
+    task->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,     m_gn );
+    task->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,        m_gn );
+    task->requires( Task::WhichDW::NewDW, lb->modelVol_srcLabel,  m_gn );
+    task->requires( Task::WhichDW::NewDW, lb->compressibilityLabel,m_gn );
     task->modifies( lb->sumKappaLabel, press_matl );
     task->modifies( lb->vol_frac_CCLabel );
     task->modifies( lb->f_theta_CCLabel );
@@ -1374,21 +1374,21 @@ void ICE::scheduleComputeDelPressAndUpdatePressCC(SchedulerP            & sched,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  task->requires( Task::OldDW, lb->timeStepLabel );
-  task->requires( Task::OldDW, lb->simulationTimeLabel );
-  task->requires( Task::OldDW, lb->delTLabel,getLevel(patches) );
-  task->requires( Task::NewDW, lb->vol_frac_CCLabel,   m_gac,2 );
-  task->requires( Task::NewDW, lb->uvel_FCMELabel,     m_gac,2 );
-  task->requires( Task::NewDW, lb->vvel_FCMELabel,     m_gac,2 );
-  task->requires( Task::NewDW, lb->wvel_FCMELabel,     m_gac,2 );
-  task->requires( Task::NewDW, lb->sp_vol_CCLabel,     m_gn );
-  task->requires( Task::NewDW, lb->rho_CCLabel,        m_gn );
-  task->requires( Task::NewDW, lb->speedSound_CCLabel, m_gn );
-  task->requires( Task::NewDW, lb->sumKappaLabel,      press_matl,oims,m_gn );
-  task->requires( Task::NewDW, lb->press_equil_CCLabel,press_matl,oims,m_gn );
+  task->requires( Task::WhichDW::OldDW, lb->timeStepLabel );
+  task->requires( Task::WhichDW::OldDW, lb->simulationTimeLabel );
+  task->requires( Task::WhichDW::OldDW, lb->delTLabel,getLevel(patches) );
+  task->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel,   m_gac,2 );
+  task->requires( Task::WhichDW::NewDW, lb->uvel_FCMELabel,     m_gac,2 );
+  task->requires( Task::WhichDW::NewDW, lb->vvel_FCMELabel,     m_gac,2 );
+  task->requires( Task::WhichDW::NewDW, lb->wvel_FCMELabel,     m_gac,2 );
+  task->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,     m_gn );
+  task->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,        m_gn );
+  task->requires( Task::WhichDW::NewDW, lb->speedSound_CCLabel, m_gn );
+  task->requires( Task::WhichDW::NewDW, lb->sumKappaLabel,      press_matl,oims,m_gn );
+  task->requires( Task::WhichDW::NewDW, lb->press_equil_CCLabel,press_matl,oims,m_gn );
   //__________________________________
   if(d_models.size() > 0){
-    task->requires( Task::NewDW, lb->modelMass_srcLabel, m_gn );
+    task->requires( Task::WhichDW::NewDW, lb->modelMass_srcLabel, m_gn );
   }
 
   computesRequires_CustomBCs(task, "update_press_CC", lb, ice_matls,
@@ -1424,8 +1424,8 @@ void ICE::scheduleComputePressFC( SchedulerP          & sched,
                      this, &ICE::computePressFC);
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
-  task->requires( Task::NewDW,lb->press_CCLabel,   press_matl,oims, m_gac,1 );
-  task->requires( Task::NewDW,lb->sum_rho_CCLabel, press_matl,oims, m_gac,1 );
+  task->requires( Task::WhichDW::NewDW,lb->press_CCLabel,   press_matl,oims, m_gac,1 );
+  task->requires( Task::WhichDW::NewDW,lb->sum_rho_CCLabel, press_matl,oims, m_gac,1 );
 
   task->computes( lb->pressX_FCLabel, press_matl, oims);
   task->computes( lb->pressY_FCLabel, press_matl, oims);
@@ -1452,7 +1452,7 @@ void ICE::scheduleVelTau_CC( SchedulerP         & sched,
   Task* t = scinew Task("ICE::VelTau_CC",
                   this, &ICE::VelTau_CC);
 
-  t->requires( Task::OldDW, lb->vel_CCLabel, m_gn,0 );
+  t->requires( Task::WhichDW::OldDW, lb->vel_CCLabel, m_gn,0 );
   t->computes( lb->velTau_CCLabel );
 
   sched->addTask(t, patches, ice_matls);
@@ -1472,19 +1472,19 @@ void ICE::scheduleViscousShearStress(SchedulerP        & sched,
                   this, &ICE::viscousShearStress);
 
   if(d_viscousFlow){
-    t->requires( Task::NewDW, lb->viscosityLabel,   m_gac, 2 );
-    t->requires( Task::NewDW, lb->velTau_CCLabel,   m_gac, 2 );
-    t->requires( Task::NewDW, lb->rho_CCLabel,      m_gac, 2 );
-    t->requires( Task::NewDW, lb->vol_frac_CCLabel, m_gac, 2 );
+    t->requires( Task::WhichDW::NewDW, lb->viscosityLabel,   m_gac, 2 );
+    t->requires( Task::WhichDW::NewDW, lb->velTau_CCLabel,   m_gac, 2 );
+    t->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,      m_gac, 2 );
+    t->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel, m_gac, 2 );
 
     t->computes( lb->tau_X_FCLabel );
     t->computes( lb->tau_Y_FCLabel );
     t->computes( lb->tau_Z_FCLabel );
   }
   if(d_turbulence){
-    t->requires( Task::NewDW,lb->uvel_FCMELabel,    m_gac, 3 );
-    t->requires( Task::NewDW,lb->vvel_FCMELabel,    m_gac, 3 );
-    t->requires( Task::NewDW,lb->wvel_FCMELabel,    m_gac, 3 );
+    t->requires( Task::WhichDW::NewDW,lb->uvel_FCMELabel,    m_gac, 3 );
+    t->requires( Task::WhichDW::NewDW,lb->vvel_FCMELabel,    m_gac, 3 );
+    t->requires( Task::WhichDW::NewDW,lb->wvel_FCMELabel,    m_gac, 3 );
     t->computes( lb->turb_viscosity_CCLabel );
     t->computes( lb->total_viscosity_CCLabel );
 #if 0
@@ -1532,13 +1532,13 @@ ICE::scheduleAccumulateMomentumSourceSinks(SchedulerP           & sched,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  t->requires( Task::OldDW, lb->delTLabel,getLevel(patches));
-  t->requires( Task::NewDW, lb->pressX_FCLabel,     press_mss, oims, m_gac,1);
-  t->requires( Task::NewDW, lb->pressY_FCLabel,     press_mss, oims, m_gac,1);
-  t->requires( Task::NewDW, lb->pressZ_FCLabel,     press_mss, oims, m_gac,1);
-  t->requires( Task::NewDW, lb->viscous_src_CCLabel, ice_mss,  m_gn,0);
-  t->requires( Task::NewDW, lb->rho_CCLabel,         m_gn,0);
-  t->requires( Task::NewDW, lb->vol_frac_CCLabel,    m_gn,0);
+  t->requires( Task::WhichDW::OldDW, lb->delTLabel,getLevel(patches));
+  t->requires( Task::WhichDW::NewDW, lb->pressX_FCLabel,     press_mss, oims, m_gac,1);
+  t->requires( Task::WhichDW::NewDW, lb->pressY_FCLabel,     press_mss, oims, m_gac,1);
+  t->requires( Task::WhichDW::NewDW, lb->pressZ_FCLabel,     press_mss, oims, m_gac,1);
+  t->requires( Task::WhichDW::NewDW, lb->viscous_src_CCLabel, ice_mss,  m_gn,0);
+  t->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,         m_gn,0);
+  t->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel,    m_gn,0);
 
   t->computes( lb->mom_source_CCLabel );
   sched->addTask(t, patches, matls);
@@ -1563,19 +1563,19 @@ void ICE::scheduleAccumulateEnergySourceSinks(SchedulerP          & sched,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  t->requires( Task::OldDW, lb->simulationTimeLabel );
-  t->requires( Task::OldDW, lb->delTLabel, getLevel(patches) );
-  t->requires( Task::NewDW, lb->press_CCLabel,     press_mss,oims, m_gn );
-  t->requires( Task::NewDW, lb->delP_DilatateLabel,press_mss,oims, m_gn );
-  t->requires( Task::NewDW, lb->compressibilityLabel,              m_gn );
-  t->requires( Task::OldDW, lb->temp_CCLabel,      ice_mss, m_gac,1 );
-  t->requires( Task::NewDW, lb->thermalCondLabel,  ice_mss, m_gac,1 );
-  t->requires( Task::NewDW, lb->rho_CCLabel,                m_gac,1 );
-  t->requires( Task::NewDW, lb->sp_vol_CCLabel,             m_gac,1 );
-  t->requires( Task::NewDW, lb->vol_frac_CCLabel,           m_gac,1 );
+  t->requires( Task::WhichDW::OldDW, lb->simulationTimeLabel );
+  t->requires( Task::WhichDW::OldDW, lb->delTLabel, getLevel(patches) );
+  t->requires( Task::WhichDW::NewDW, lb->press_CCLabel,     press_mss,oims, m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->delP_DilatateLabel,press_mss,oims, m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->compressibilityLabel,              m_gn );
+  t->requires( Task::WhichDW::OldDW, lb->temp_CCLabel,      ice_mss, m_gac,1 );
+  t->requires( Task::WhichDW::NewDW, lb->thermalCondLabel,  ice_mss, m_gac,1 );
+  t->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,                m_gac,1 );
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,             m_gac,1 );
+  t->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel,           m_gac,1 );
 
   if(d_with_mpm){
-   t->requires( Task::NewDW,lb->TMV_CCLabel,       press_mss,oims, m_gn);
+   t->requires( Task::WhichDW::NewDW,lb->TMV_CCLabel,       press_mss,oims, m_gn);
   }
 
   t->computes( lb->int_eng_source_CCLabel );
@@ -1598,17 +1598,17 @@ void ICE::scheduleComputeLagrangianValues(SchedulerP        & sched,
                         &ICE::computeLagrangianValues);
 
 
-  t->requires( Task::NewDW,lb->specific_heatLabel,      m_gn );
-  t->requires( Task::NewDW,lb->rho_CCLabel,             m_gn );
-  t->requires( Task::OldDW,lb->vel_CCLabel,             m_gn );
-  t->requires( Task::OldDW,lb->temp_CCLabel,            m_gn );
-  t->requires( Task::NewDW,lb->mom_source_CCLabel,      m_gn );
-  t->requires( Task::NewDW,lb->int_eng_source_CCLabel,  m_gn );
+  t->requires( Task::WhichDW::NewDW,lb->specific_heatLabel,      m_gn );
+  t->requires( Task::WhichDW::NewDW,lb->rho_CCLabel,             m_gn );
+  t->requires( Task::WhichDW::OldDW,lb->vel_CCLabel,             m_gn );
+  t->requires( Task::WhichDW::OldDW,lb->temp_CCLabel,            m_gn );
+  t->requires( Task::WhichDW::NewDW,lb->mom_source_CCLabel,      m_gn );
+  t->requires( Task::WhichDW::NewDW,lb->int_eng_source_CCLabel,  m_gn );
 
   if(d_models.size() > 0){
-    t->requires( Task::NewDW, lb->modelMass_srcLabel,   m_gn );
-    t->requires( Task::NewDW, lb->modelMom_srcLabel,    m_gn );
-    t->requires( Task::NewDW, lb->modelEng_srcLabel,    m_gn );
+    t->requires( Task::WhichDW::NewDW, lb->modelMass_srcLabel,   m_gn );
+    t->requires( Task::WhichDW::NewDW, lb->modelMom_srcLabel,    m_gn );
+    t->requires( Task::WhichDW::NewDW, lb->modelEng_srcLabel,    m_gn );
   }
 
   t->computes( lb->mom_L_CCLabel );
@@ -1636,29 +1636,29 @@ void ICE::scheduleComputeLagrangianSpecificVolume(SchedulerP            & sched,
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
 
-  t->requires( Task::OldDW, lb->delTLabel,getLevel(patches));
-  t->requires( Task::NewDW, lb->rho_CCLabel,         m_gn );
-  t->requires( Task::NewDW, lb->sp_vol_CCLabel,      m_gn );
-  t->requires( Task::NewDW, lb->Tdot_CCLabel,        m_gn );
-  t->requires( Task::NewDW, lb->f_theta_CCLabel,     m_gn );
-  t->requires( Task::NewDW, lb->compressibilityLabel,m_gn );
-  t->requires( Task::NewDW, lb->vol_frac_CCLabel,    m_gac,1 );
+  t->requires( Task::WhichDW::OldDW, lb->delTLabel,getLevel(patches));
+  t->requires( Task::WhichDW::NewDW, lb->rho_CCLabel,         m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,      m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->Tdot_CCLabel,        m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->f_theta_CCLabel,     m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->compressibilityLabel,m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel,    m_gac,1 );
 
-  t->requires( Task::OldDW, lb->temp_CCLabel,        ice_mss, m_gn );
-  t->requires( Task::NewDW, lb->specific_heatLabel,  ice_mss, m_gn );
+  t->requires( Task::WhichDW::OldDW, lb->temp_CCLabel,        ice_mss, m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->specific_heatLabel,  ice_mss, m_gn );
 
   if( mpm_mss ){
-    t->requires( Task::NewDW, lb->temp_CCLabel,      mpm_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW, lb->temp_CCLabel,      mpm_mss, m_gn );
   }
 
-  t->requires( Task::NewDW, lb->delP_DilatateLabel,  press_mss,oims,m_gn );
-  t->requires( Task::NewDW, lb->press_CCLabel,       press_mss,oims,m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->delP_DilatateLabel,  press_mss,oims,m_gn );
+  t->requires( Task::WhichDW::NewDW, lb->press_CCLabel,       press_mss,oims,m_gn );
   if(d_with_mpm){
-   t->requires( Task::NewDW,lb->TMV_CCLabel,       press_mss,oims, m_gn );
+   t->requires( Task::WhichDW::NewDW,lb->TMV_CCLabel,       press_mss,oims, m_gn );
   }
 
   if(d_models.size() > 0){
-    t->requires( Task::NewDW, lb->modelVol_srcLabel,    m_gn);
+    t->requires( Task::WhichDW::NewDW, lb->modelVol_srcLabel,    m_gn);
   }
 
   t->computes( lb->sp_vol_L_CCLabel );
@@ -1704,8 +1704,8 @@ void ICE::scheduleComputeLagrangian_Transported_Vars(SchedulerP        & sched,
     Task* t = scinew Task("ICE::computeLagrangian_Transported_Vars",
                      this,&ICE::computeLagrangian_Transported_Vars);
 
-    t->requires( Task::OldDW, lb->timeStepLabel );
-    t->requires( Task::NewDW, lb->mass_L_CCLabel, m_gn);
+    t->requires( Task::WhichDW::OldDW, lb->timeStepLabel );
+    t->requires( Task::WhichDW::NewDW, lb->mass_L_CCLabel, m_gn);
 
     // computes and requires for each transported variable
     for(vector<ModelInterface*>::iterator m_iter  = d_models.begin();
@@ -1721,10 +1721,10 @@ void ICE::scheduleComputeLagrangian_Transported_Vars(SchedulerP        & sched,
           TransportedVariable* tvar = *t_iter;
 
           // require q_old
-          t->requires( Task::OldDW, tvar->var,  tvar->matls, m_gn,0 );
+          t->requires( Task::WhichDW::OldDW, tvar->var,  tvar->matls, m_gn,0 );
 
           if(tvar->src){     // require q_src
-            t->requires( Task::NewDW, tvar->src,tvar->matls, m_gn,0 );
+            t->requires( Task::WhichDW::NewDW, tvar->src,tvar->matls, m_gn,0 );
           }
 
           t->computes( tvar->var_Lagrangian, tvar->matls );
@@ -1751,8 +1751,8 @@ void ICE::scheduleMaxMach_on_Lodi_BC_Faces(SchedulerP       & sched,
     Task* t = scinew Task("ICE::maxMach_on_Lodi_BC_Faces",
                        this, &ICE::maxMach_on_Lodi_BC_Faces);
 
-    t->requires( Task::OldDW, lb->vel_CCLabel,        m_gn );
-    t->requires( Task::OldDW, lb->speedSound_CCLabel, m_gn );
+    t->requires( Task::WhichDW::OldDW, lb->vel_CCLabel,        m_gn );
+    t->requires( Task::WhichDW::OldDW, lb->speedSound_CCLabel, m_gn );
 
     //__________________________________
     // loop over the Lodi face
@@ -1839,14 +1839,14 @@ void ICE::scheduleAdvectAndAdvanceInTime(SchedulerP     & sched,
                         &ICE::advectAndAdvanceInTime);
 
 
-  t->requires( Task::OldDW, lb->delTLabel,getLevel(patches));
-  t->requires( Task::NewDW, lb->uvel_FCMELabel,   m_gac,2 );
-  t->requires( Task::NewDW, lb->vvel_FCMELabel,   m_gac,2 );
-  t->requires( Task::NewDW, lb->wvel_FCMELabel,   m_gac,2 );
-  t->requires( Task::NewDW, lb->mom_L_ME_CCLabel, m_gac,2 );
-  t->requires( Task::NewDW, lb->mass_L_CCLabel,   m_gac,2 );
-  t->requires( Task::NewDW, lb->eng_L_ME_CCLabel, m_gac,2 );
-  t->requires( Task::NewDW, lb->sp_vol_L_CCLabel, m_gac,2 );
+  t->requires( Task::WhichDW::OldDW, lb->delTLabel,getLevel(patches));
+  t->requires( Task::WhichDW::NewDW, lb->uvel_FCMELabel,   m_gac,2 );
+  t->requires( Task::WhichDW::NewDW, lb->vvel_FCMELabel,   m_gac,2 );
+  t->requires( Task::WhichDW::NewDW, lb->wvel_FCMELabel,   m_gac,2 );
+  t->requires( Task::WhichDW::NewDW, lb->mom_L_ME_CCLabel, m_gac,2 );
+  t->requires( Task::WhichDW::NewDW, lb->mass_L_CCLabel,   m_gac,2 );
+  t->requires( Task::WhichDW::NewDW, lb->eng_L_ME_CCLabel, m_gac,2 );
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_L_CCLabel, m_gac,2 );
 
   if(d_doRefluxing){
     computesRequires_AMR_Refluxing(t, ice_matls);
@@ -1872,7 +1872,7 @@ void ICE::scheduleAdvectAndAdvanceInTime(SchedulerP     & sched,
             t_iter != fb_model->d_transVars.end(); t_iter++){
           TransportedVariable* tvar = *t_iter;
 
-          t->requires( Task::NewDW, tvar->var_Lagrangian, tvar->matls, m_gac, 2);
+          t->requires( Task::WhichDW::NewDW, tvar->var_Lagrangian, tvar->matls, m_gac, 2);
           t->computes( tvar->var_adv, tvar->matls);
         }
       }
@@ -1923,19 +1923,19 @@ void ICE::scheduleConservedtoPrimitive_Vars(SchedulerP          & sched,
 
   Task* t = scinew Task(name, this, &ICE::conservedtoPrimitive_Vars);
 
-  t->requires( Task::OldDW, lb->timeStepLabel );
-  t->requires( Task::OldDW, lb->simulationTimeLabel );
-  t->requires( Task::OldDW, lb->delTLabel,getLevel(patches) );
+  t->requires( Task::WhichDW::OldDW, lb->timeStepLabel );
+  t->requires( Task::WhichDW::OldDW, lb->simulationTimeLabel );
+  t->requires( Task::WhichDW::OldDW, lb->delTLabel,getLevel(patches) );
 
-  t->requires( Task::NewDW, lb->mass_advLabel,      m_gn,0 );
-  t->requires( Task::NewDW, lb->mom_advLabel,       m_gn,0 );
-  t->requires( Task::NewDW, lb->eng_advLabel,       m_gn,0 );
-  t->requires( Task::NewDW, lb->sp_vol_advLabel,    m_gn,0 );
+  t->requires( Task::WhichDW::NewDW, lb->mass_advLabel,      m_gn,0 );
+  t->requires( Task::WhichDW::NewDW, lb->mom_advLabel,       m_gn,0 );
+  t->requires( Task::WhichDW::NewDW, lb->eng_advLabel,       m_gn,0 );
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_advLabel,    m_gn,0 );
 
-  t->requires( Task::NewDW, lb->specific_heatLabel, m_gn,0, fat );
-  t->requires( Task::NewDW, lb->speedSound_CCLabel, m_gn,0, fat );
-  t->requires( Task::NewDW, lb->vol_frac_CCLabel,   m_gn,0, fat );
-  t->requires( Task::NewDW, lb->gammaLabel,         m_gn,0, fat );
+  t->requires( Task::WhichDW::NewDW, lb->specific_heatLabel, m_gn,0, fat );
+  t->requires( Task::WhichDW::NewDW, lb->speedSound_CCLabel, m_gn,0, fat );
+  t->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel,   m_gn,0, fat );
+  t->requires( Task::WhichDW::NewDW, lb->gammaLabel,         m_gn,0, fat );
 
   computesRequires_CustomBCs( t, "Advection", lb, ice_matlsub, d_BC_globalVars);
 
@@ -1970,7 +1970,7 @@ void ICE::scheduleConservedtoPrimitive_Vars(SchedulerP          & sched,
             t_iter != fb_model->d_transVars.end(); t_iter++){
           TransportedVariable* tvar = *t_iter;
 
-          t->requires( Task::NewDW, tvar->var_adv, tvar->matls, m_gn,0);
+          t->requires( Task::WhichDW::NewDW, tvar->var_adv, tvar->matls, m_gn,0);
 
           if( where == "afterAdvection" ){
             t->computes( tvar->var, tvar->matls );
@@ -2004,20 +2004,20 @@ void ICE::scheduleTestConservation(SchedulerP            & sched,
     Task* t= scinew Task("ICE::TestConservation",
                    this, &ICE::TestConservation);
 
-    t->requires( Task::OldDW, lb->delTLabel, getLevel(patches) );
-    t->requires( Task::NewDW,lb->rho_CCLabel,        ice_mss, m_gn );
-    t->requires( Task::NewDW,lb->vel_CCLabel,        ice_mss, m_gn );
-    t->requires( Task::NewDW,lb->temp_CCLabel,       ice_mss, m_gn );
-    t->requires( Task::NewDW,lb->specific_heatLabel, ice_mss, m_gn );
-    t->requires( Task::NewDW,lb->uvel_FCMELabel,     ice_mss, m_gn );
-    t->requires( Task::NewDW,lb->vvel_FCMELabel,     ice_mss, m_gn );
-    t->requires( Task::NewDW,lb->wvel_FCMELabel,     ice_mss, m_gn );
+    t->requires( Task::WhichDW::OldDW, lb->delTLabel, getLevel(patches) );
+    t->requires( Task::WhichDW::NewDW,lb->rho_CCLabel,        ice_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->vel_CCLabel,        ice_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->temp_CCLabel,       ice_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->specific_heatLabel, ice_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->uvel_FCMELabel,     ice_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->vvel_FCMELabel,     ice_mss, m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->wvel_FCMELabel,     ice_mss, m_gn );
 
                                  // A L L  M A T L S
-    t->requires( Task::NewDW,lb->mom_L_CCLabel,      m_gn );
-    t->requires( Task::NewDW,lb->int_eng_L_CCLabel,  m_gn );
-    t->requires( Task::NewDW,lb->mom_L_ME_CCLabel,   m_gn );
-    t->requires( Task::NewDW,lb->eng_L_ME_CCLabel,   m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->mom_L_CCLabel,      m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->int_eng_L_CCLabel,  m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->mom_L_ME_CCLabel,   m_gn );
+    t->requires( Task::WhichDW::NewDW,lb->eng_L_ME_CCLabel,   m_gn );
 
     //__________________________________
     //  Create reductionMatlSubSet that includes all ice matls
@@ -3393,8 +3393,8 @@ void ICE::updateVel_FC(const ProcessorGroup *,
     //__________________________________
     // define parent data warehouse
     if(recursion) {
-      pNewDW  = new_dw->getOtherDataWarehouse(Task::ParentNewDW);
-      pOldDW  = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+      pNewDW  = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentNewDW);
+      pOldDW  = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
     }
     else {
       pNewDW  = new_dw;

@@ -57,7 +57,7 @@ private:
   }
 
 public:
-  void *allocateGpuSpaceFromPool(int device_id, std::size_t memSize) {
+  void *allocate(int device_id, std::size_t memSize) {
     auto &streamPool = GPUStreamPool<>::getInstance();
     void *addr = per_device_mr_[device_id].get()->allocate(
         memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
@@ -65,7 +65,7 @@ public:
   }
   // TODO: ABB 08/27/22 check to ensure that the pointer, memSize returned to
   // the pool were obtained using the above API
-  void freeGpuSpaceToPool(int device_id, void *addr, std::size_t memSize) {
+  void deallocate(int device_id, void *addr, std::size_t memSize) {
     auto &streamPool = GPUStreamPool<>::getInstance();
     per_device_mr_[device_id].get()->deallocate(
         addr, memSize, streamPool.getDefaultGpuStreamFromPool(device_id));

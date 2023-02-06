@@ -255,7 +255,7 @@ Relocate::scheduleParticleRelocation(       Scheduler                           
     t->usesMPI( true );
   }
 
-  t->requires( Task::NewDW, m_reloc_old_posLabel, Ghost::None);
+  t->requires( Task::WhichDW::NewDW, m_reloc_old_posLabel, Ghost::None);
   //t->modifies( m_reloc_old_posLabel );
 
   for(int m=0;m < numMatls;m++){
@@ -263,7 +263,7 @@ Relocate::scheduleParticleRelocation(       Scheduler                           
     thismatl->add(matlsub->get(m));
 
     for(int i=0;i<(int)m_reloc_old_labels[m].size();i++){
-      t->requires( Task::NewDW, m_reloc_old_labels[m][i], Ghost::None);
+      t->requires( Task::WhichDW::NewDW, m_reloc_old_labels[m][i], Ghost::None);
 //      t->modifies( m_reloc_old_labels[m][i] );
     }
 
@@ -299,7 +299,7 @@ Relocate::scheduleParticleRelocation(       Scheduler                           
 
   printSchedule(patches,g_reloc,"Relocate::scheduleRelocateParticles");
 
-  t->setType(Task::OncePerProc);
+  t->setType(Task::TaskType::OncePerProc);
   sched->addTask(t, patches, matls);
   m_lb = lb;
 }
@@ -352,14 +352,14 @@ Relocate::scheduleParticleRelocation( Scheduler                                 
   if(lb){
     t->usesMPI(true);
   }
-  t->requires( Task::NewDW, old_posLabel, Ghost::None);
+  t->requires( Task::WhichDW::NewDW, old_posLabel, Ghost::None);
 
   for(int m=0;m < numMatls;m++){
     MaterialSubset* thismatl = scinew MaterialSubset();
     thismatl->add(matlsub->get(m));
 
     for(int i=0;i<(int)old_labels[m].size();i++){
-      t->requires( Task::NewDW, old_labels[m][i], thismatl, Ghost::None);
+      t->requires( Task::WhichDW::NewDW, old_labels[m][i], thismatl, Ghost::None);
     }
 
     t->computes( new_posLabel, thismatl);
@@ -394,7 +394,7 @@ Relocate::scheduleParticleRelocation( Scheduler                                 
 
   printSchedule(patches,g_reloc,"Relocate::scheduleRelocateParticles");
 
-  t->setType(Task::OncePerProc);
+  t->setType(Task::TaskType::OncePerProc);
   sched->addTask(t, patches, matls);
   m_lb = lb;
 }

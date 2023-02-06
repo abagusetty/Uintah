@@ -22,10 +22,10 @@
  * IN THE SOFTWARE.
  */
 
-#include <CCA/Components/Models/Radiation/RMCRT/RayGPU.cuh>
+#include <CCA/Components/Models/Radiation/RMCRT/RayGPU.h>
 #include <CCA/Components/Schedulers/DetailedTasks.h>
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
-#include <CCA/Components/Schedulers/GPUMemoryPool.h>
+#include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 
 #include <Core/Grid/Variables/GPUGridVariable.h>
 #include <Core/Grid/Variables/GPUStencil7.h>
@@ -366,15 +366,15 @@ __global__
 __launch_bounds__(640, 1) // For 96 registers with 320 threads.  Allows two kernels to fit within an SM.
                           // Seems to be the performance sweet spot in release mode.
 #endif
-    void
-    rayTraceDataOnionKernel(
-        dim3 dimGrid, dim3 dimBlock, int matl, patchParams finePatch,
-        gridParams gridP, GPUIntVector fineLevel_ROI_Lo,
-        GPUIntVector fineLevel_ROI_Hi, int3 *regionLo, int3 *regionHi,
-        gpurandState *randNumStates, RMCRT_flags RT_flags, int curTimeStep,
-        GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
-        GPUDataWarehouse *cellType_gdw, GPUDataWarehouse *old_gdw,
-        GPUDataWarehouse *new_gdw) {
+void
+rayTraceDataOnionKernel(
+  dim3 dimGrid, dim3 dimBlock, int matl, patchParams finePatch,
+  gridParams gridP, GPUIntVector fineLevel_ROI_Lo,
+  GPUIntVector fineLevel_ROI_Hi, int3 *regionLo, int3 *regionHi,
+  gpurandState *randNumStates, RMCRT_flags RT_flags, int curTimeStep,
+  GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
+  GPUDataWarehouse *cellType_gdw, GPUDataWarehouse *old_gdw,
+  GPUDataWarehouse *new_gdw) {
 
   int maxLevels = gridP.maxLevels;
   int fineL = maxLevels - 1;
@@ -1609,7 +1609,7 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
   int numStates =
       dimGrid.x * dimGrid.y * dimGrid.z * dimBlock.x * dimBlock.y * dimBlock.z;
 
-  randNumStates = (gpurandState *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(
+  randNumStates = (gpurandState *)GPUMemoryPool::getInstance().allocate(
       0, numStates * sizeof(gpurandState));
 
   // Create a host array, load it with data, and send it over to the GPU
@@ -1617,7 +1617,7 @@ launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
   double *d_debugRandNums;
   size_t randNumsByteSize = nRandNums * sizeof(double);
   d_debugRandNums =
-      (double *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(0, randNumsByteSize);
+      (double *)GPUMemoryPool::getInstance().allocate(0, randNumsByteSize);
 
   // Making sure we have kernel/mem copy overlapping
   double *h_debugRandNums = new double[nRandNums];
@@ -1656,8 +1656,8 @@ void launchRayTraceDataOnionKernel(
   int3 *dev_regionHi;
 
   size_t size = d_MAXLEVELS * sizeof(int3);
-  dev_regionLo = (int3 *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(0, size);
-  dev_regionHi = (int3 *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(0, size);
+  dev_regionLo = (int3 *)GPUMemoryPool::getInstance().allocate(0, size);
+  dev_regionHi = (int3 *)GPUMemoryPool::getInstance().allocate(0, size);
 
   // More GPU stuff to allow kernel/copy overlapping
   int3 *myLo = new int3[d_MAXLEVELS];
@@ -1688,7 +1688,7 @@ void launchRayTraceDataOnionKernel(
       dimGrid.x * dimGrid.y * dimGrid.z * dimBlock.x * dimBlock.y * dimBlock.z;
 
   gpurandState *randNumStates;
-  randNumStates = (gpurandState *)GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(
+  randNumStates = (gpurandState *)GPUMemoryPool::getInstance().allocate(
       0, numStates * sizeof(gpurandState));
 
   rayTraceDataOnionKernel<T><<<dimGrid, dimBlock, 0, *stream>>>(

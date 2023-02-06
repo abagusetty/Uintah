@@ -194,7 +194,7 @@ void PostProcessUda::sched_readDataArchive(const LevelP& level,
   Task* t = scinew Task("PostProcessUda::readDataArchive", this,
                         &PostProcessUda::readDataArchive);
 
-  t->requires(Task::OldDW, getTimeStepLabel());
+  t->requires(Task::WhichDW::OldDW, getTimeStepLabel());
   
   GridP grid = level->getGrid();
   const PatchSet* perProcPatches = m_loadBalancer->getPerProcessorPatchSet(grid);
@@ -243,7 +243,7 @@ void PostProcessUda::sched_readDataArchive(const LevelP& level,
   allMatls->addAll_unique(allMatls_vec);
   allMatls->addReference();
 
-  t->setType(Task::OncePerProc);
+  t->setType(Task::TaskType::OncePerProc);
   sched->addTask(t, perProcPatches, allMatls );
   
   if (allMatls && allMatls->removeReference()){
@@ -337,7 +337,7 @@ void PostProcessUda::scheduleComputeStableTimeStep(const LevelP& level,
   GridP grid = level->getGrid();
   const PatchSet* perProcPatches = m_loadBalancer->getPerProcessorPatchSet(grid);
 
-  t->setType(Task::OncePerProc);
+  t->setType(Task::TaskType::OncePerProc);
   sched->addTask( t, perProcPatches, m_materialManager->allMaterials() );
 }
 

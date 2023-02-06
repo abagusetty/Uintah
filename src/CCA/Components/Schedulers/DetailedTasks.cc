@@ -118,15 +118,15 @@ DetailedTasks::DetailedTasks(
     : m_sched_common{sc}, m_proc_group{pg}, m_task_graph{taskgraph},
       m_must_consider_internal_deps{mustConsiderInternalDependencies} {
   // Set up mappings for the initial send tasks
-  int dwmap[Task::TotalDWs];
-  for (int i = 0; i < Task::TotalDWs; i++) {
+  int dwmap[static_cast<int>(Task::WhichDW::TotalDWs)];
+  for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
     dwmap[i] = Task::InvalidDW;
   }
 
-  dwmap[Task::OldDW] = 0;
-  dwmap[Task::NewDW] = Task::NoDW;
+  dwmap[static_cast<int>(Task::WhichDW::OldDW)] = 0;
+  dwmap[static_cast<int>(Task::WhichDW::NewDW)] = Task::NoDW;
 
-  m_send_old_data = scinew Task("send_old_data", Task::InitialSend);
+  m_send_old_data = scinew Task("send_old_data", Task::TaskType::InitialSend);
   m_send_old_data->m_phase = 0;
   m_send_old_data->setMapping(dwmap);
 
@@ -353,7 +353,7 @@ void DetailedTasks::computeLocalTasks() {
     ASSERTRANGE(task->getAssignedResourceIndex(), 0, m_proc_group->nRanks());
 
     if (task->getAssignedResourceIndex() == me ||
-        task->getTask()->getType() == Task::Reduction) {
+        task->getTask()->getType() == Task::TaskType::Reduction) {
       m_local_tasks.push_back(task);
 
       if (task->areInternalDependenciesSatisfied()) {
@@ -372,7 +372,7 @@ void DetailedTasks::initializeScrubs(std::vector<OnDemandDataWarehouseP> &dws,
        "Rank-" << Parallel::getMPIRank() << " Begin initialize scrubs");
 
   std::vector<bool> initialized(dws.size(), false);
-  for (int i = 0; i < (int)Task::TotalDWs; i++) {
+  for (int i = 0; i < (int)Task::WhichDW::TotalDWs; i++) {
     if (dwmap[i] < 0) {
       continue;
     }
@@ -393,15 +393,15 @@ void DetailedTasks::initializeScrubs(std::vector<OnDemandDataWarehouseP> &dws,
                                       << " ADD=" << initialized[dwmap[i]]);
         dw->initializeScrubs(i, &m_scrub_count_table, initialized[dwmap[i]]);
       }
-      if (i != Task::OldDW && tgtype != Scheduler::IntermediateTaskGraph &&
-          dwmap[Task::NewDW] - dwmap[Task::OldDW] > 1) {
+      if (i != static_cast<int>(Task::WhichDW::OldDW) && tgtype != Scheduler::IntermediateTaskGraph &&
+          dwmap[static_cast<int>(Task::WhichDW::NewDW)] - dwmap[static_cast<int>(Task::WhichDW::OldDW)] > 1) {
         // add the CoarseOldDW's scrubs to the OldDW, so we keep it around for
         // future task graphs
-        OnDemandDataWarehouse *olddw = dws[dwmap[Task::OldDW]].get_rep();
+      OnDemandDataWarehouse *olddw = dws[dwmap[static_cast<int>(Task::WhichDW::OldDW)]].get_rep();
         DOUT(g_scrubbing_dbg,
              "Rank-" << Parallel::getMPIRank() << " Initializing scrubs on dw: "
                      << olddw->getID() << " for DW type " << i << " ADD=" << 1);
-        ASSERT(initialized[dwmap[Task::OldDW]]);
+        ASSERT(initialized[dwmap[Task::WhichDW::OldDW]]);
         olddw->initializeScrubs(i, &m_scrub_count_table, true);
       }
       initialized[dwmap[i]] = true;
@@ -421,11 +421,11 @@ void DetailedTasks::addScrubCount(const VarLabel *var, int matlindex,
   if (patch->isVirtual()) {
     patch = patch->getRealPatch();
   }
-  ScrubItem key(var, matlindex, patch, dw);
+  ScrubItem key(var, matlindex, patch, static_cast<int>(dw));
   ScrubItem *result;
   result = m_scrub_count_table.lookup(&key);
   if (!result) {
-    result = scinew ScrubItem(var, matlindex, patch, dw);
+    result = scinew ScrubItem(var, matlindex, patch, static_cast<int>(dw));
     m_scrub_count_table.insert(result);
   }
   result->m_count++;
@@ -453,7 +453,7 @@ void DetailedTasks::setScrubCount(const Task::Dependency *req, int matl,
       (scrubmode == DataWarehouse::ScrubNonPermanent &&
        initialRequires.find(req->m_var) == initialRequires.end())) {
     int scrubcount;
-    if (!getScrubCount(req->m_var, matl, patch, req->m_whichdw, scrubcount)) {
+    if (!getScrubCount(req->m_var, matl, patch, static_cast<int>(req->m_whichdw), scrubcount)) {
       SCI_THROW(InternalError("No scrub count for received MPIVariable: " +
                                   req->m_var->getName(),
                               __FILE__, __LINE__));
@@ -504,7 +504,7 @@ void DetailedTasks::createScrubCounts() {
           req->getPatchesUnderDomain(dtask->getPatches());
       constHandle<MaterialSubset> matls =
           req->getMaterialsUnderDomain(dtask->getMaterials());
-      int whichdw = req->m_whichdw;
+      int whichdw = static_cast<int>(req->m_whichdw);
       TypeDescription::Type type = req->m_var->typeDescription()->getType();
       if (type != TypeDescription::ReductionVariable) {
         for (int i = 0; i < patches->size(); i++) {
@@ -531,7 +531,7 @@ void DetailedTasks::createScrubCounts() {
           req->getPatchesUnderDomain(dtask->getPatches());
       constHandle<MaterialSubset> matls =
           req->getMaterialsUnderDomain(dtask->getMaterials());
-      int whichdw = req->m_whichdw;
+      int whichdw = static_cast<int>(req->m_whichdw);
       TypeDescription::Type type = req->m_var->typeDescription()->getType();
       if (type != TypeDescription::ReductionVariable) {
         for (int i = 0; i < patches->size(); i++) {
@@ -710,10 +710,10 @@ void DetailedTasks::possiblyCreateDependency(
   }
 
   if ((toresource == my_rank ||
-       (req->m_patches_dom != Task::ThisLevel && fromresource == my_rank)) &&
+       (req->m_patches_dom != Task::PatchDomainSpec::ThisLevel && fromresource == my_rank)) &&
       fromPatch && !req->m_var->typeDescription()->isReductionVariable()) {
     // add scrub counts for local tasks, and not for non-data deps
-    addScrubCount(req->m_var, matl, fromPatch, req->m_whichdw);
+    addScrubCount(req->m_var, matl, fromPatch, static_cast<int>(req->m_whichdw));
   }
 
   // if the dependency is on the same processor then add an internal dependency
@@ -832,7 +832,7 @@ void DetailedTasks::possiblyCreateDependency(
     // erase particle sends/recvs
     if (req->m_var->typeDescription()->getType() ==
             TypeDescription::ParticleVariable &&
-        req->m_whichdw == Task::OldDW) {
+        req->m_whichdw == Task::WhichDW::OldDW) {
       PSPatchMatlGhostRange pmg(fromPatch, matl, matching_dep->m_low,
                                 matching_dep->m_high, (int)cond);
 
@@ -915,7 +915,7 @@ void DetailedTasks::possiblyCreateDependency(
   //  TG::createDetailedDepenedencies
   if (req->m_var->typeDescription()->getType() ==
           TypeDescription::ParticleVariable &&
-      req->m_whichdw == Task::OldDW) {
+      req->m_whichdw == Task::WhichDW::OldDW) {
     PSPatchMatlGhostRange pmg = PSPatchMatlGhostRange(
         fromPatch, matl, new_dep->m_low, new_dep->m_high, (int)cond, 1);
 
@@ -1603,7 +1603,7 @@ void DetailedTasks::createInternalDependencyBatch(
     // erase particle sends/recvs
     if (req->m_var->typeDescription()->getType() ==
             TypeDescription::ParticleVariable &&
-        req->m_whichdw == Task::OldDW) {
+        req->m_whichdw == Task::WhichDW::OldDW) {
       PSPatchMatlGhostRange pmg(fromPatch, matl, matching_dep->m_low,
                                 matching_dep->m_high, (int)cond);
 
@@ -1683,7 +1683,7 @@ void DetailedTasks::createInternalDependencyBatch(
   //  TG::createDetailedDepenedencies
   if (req->m_var->typeDescription()->getType() ==
           TypeDescription::ParticleVariable &&
-      req->m_whichdw == Task::OldDW) {
+      req->m_whichdw == Task::WhichDW::OldDW) {
     PSPatchMatlGhostRange pmg = PSPatchMatlGhostRange(
         fromPatch, matl, new_dep->m_low, new_dep->m_high, (int)cond, 1);
 

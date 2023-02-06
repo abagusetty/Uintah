@@ -28,7 +28,7 @@
 #include <Core/Grid/DbgOutput.h>
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP)
-#include <CCA/Components/Models/Radiation/RMCRT/RayGPU.cuh>
+#include <CCA/Components/Models/Radiation/RMCRT/RayGPU.h>
 #elif defined(HAVE_SYCL)
 #include <CCA/Components/Models/Radiation/RMCRT/RayGPU.hpp>
 #endif
@@ -56,7 +56,7 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
                       Task::WhichDW which_abskg_dw,
                       Task::WhichDW which_sigmaT4_dw,
                       Task::WhichDW which_celltype_dw) {
-  if (event == Task::GPU) {
+  if (event == Task::CallBackEvent::GPU) {
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     const Level *level = getLevel(patches);
 
@@ -78,17 +78,17 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
     GPUDataWarehouse *abskg_gdw = nullptr;
     GPUDataWarehouse *sigmaT4_gdw = nullptr;
     GPUDataWarehouse *celltype_gdw = nullptr;
-    if (which_abskg_dw == Task::OldDW) {
+    if (which_abskg_dw == Task::WhichDW::OldDW) {
       abskg_gdw = static_cast<GPUDataWarehouse *>(oldTaskGpuDW);
     } else {
       abskg_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
     }
-    if (which_sigmaT4_dw == Task::OldDW) {
+    if (which_sigmaT4_dw == Task::WhichDW::OldDW) {
       sigmaT4_gdw = static_cast<GPUDataWarehouse *>(oldTaskGpuDW);
     } else {
       sigmaT4_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
     }
-    if (which_celltype_dw == Task::OldDW) {
+    if (which_celltype_dw == Task::WhichDW::OldDW) {
       celltype_gdw = static_cast<GPUDataWarehouse *>(oldTaskGpuDW);
     } else {
       celltype_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
@@ -228,7 +228,7 @@ void Ray::rayTraceDataOnionGPU(
     void *newTaskGpuDW, gpuStream_t *stream, unsigned short deviceID,
     bool modifies_divQ, int timeStep, Task::WhichDW which_abskg_dw,
     Task::WhichDW which_sigmaT4_dw, Task::WhichDW which_celltype_dw) {
-  if (event == Task::GPU) {
+  if (event == Task::CallBackEvent::GPU) {
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     //__________________________________
@@ -240,7 +240,7 @@ void Ray::rayTraceDataOnionGPU(
       warn << "\nERROR:  RMCRT:GPU The maximum number of levels allowed ("
            << d_MAXLEVELS << ") has been exceeded." << endl;
       warn << " To increase that value see "
-              "/src/CCA/Components/Models/Radiation/RMCRT/RayGPU.cuh \n";
+              "/src/CCA/Components/Models/Radiation/RMCRT/RayGPU.h \n";
       throw InternalError(warn.str(), __FILE__, __LINE__);
     }
     if (d_nDivQRays > d_MAX_RAYS || d_nFluxRays > d_MAX_RAYS) {
@@ -248,7 +248,7 @@ void Ray::rayTraceDataOnionGPU(
       warn << "\nERROR:  RMCRT:GPU The maximum number of rays allows ("
            << d_MAX_RAYS << ") has been exceeded." << endl;
       warn << " To increase that value see "
-              "/src/CCA/Components/Models/Radiation/RMCRT/RayGPU.cuh \n";
+              "/src/CCA/Components/Models/Radiation/RMCRT/RayGPU.h \n";
       throw InternalError(warn.str(), __FILE__, __LINE__);
     }
 
@@ -301,18 +301,18 @@ void Ray::rayTraceDataOnionGPU(
     GPUDataWarehouse *sigmaT4_gdw = nullptr;
     GPUDataWarehouse *celltype_gdw = nullptr;
 
-    if (which_abskg_dw == Task::OldDW) {
+    if (which_abskg_dw == Task::WhichDW::OldDW) {
       abskg_gdw = static_cast<GPUDataWarehouse *>(oldTaskGpuDW);
     } else {
       abskg_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
     }
 
-    if (which_sigmaT4_dw == Task::OldDW) {
+    if (which_sigmaT4_dw == Task::WhichDW::OldDW) {
       sigmaT4_gdw = static_cast<GPUDataWarehouse *>(oldTaskGpuDW);
     } else {
       sigmaT4_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
     }
-    if (which_celltype_dw == Task::OldDW) {
+    if (which_celltype_dw == Task::WhichDW::OldDW) {
       celltype_gdw = static_cast<GPUDataWarehouse *>(oldTaskGpuDW);
     } else {
       celltype_gdw = static_cast<GPUDataWarehouse *>(newTaskGpuDW);
@@ -337,9 +337,6 @@ void Ray::rayTraceDataOnionGPU(
     RT_flags.nFluxRays = d_nFluxRays;
     RT_flags.whichROI_algo = d_ROI_algo;
     RT_flags.rayDirSampleAlgo = d_rayDirSampleAlgo;
-
-    std::cout << "modifies :" << modifies_divQ << ", " << RT_flags.usingFloats
-              << std::endl;
 
     //______________________________________________________________________
     //  patch loop
@@ -499,7 +496,7 @@ void Ray::rayTraceDataOnionGPU(
 
       //The number of streams defines how many kernels per patch we run
       int numKernels = dtask->getTask()->maxStreamsPerTask();
-
+      std::cout << "number of kernels: " << numKernels << std::endl;
       for (int i = 0; i < numKernels; i++) {
         RT_flags.startCell = (i / static_cast<double>(numKernels)) * numCells;
         RT_flags.endCell = ((i + 1) / static_cast<double>(numKernels)) * numCells;

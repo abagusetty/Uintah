@@ -130,8 +130,8 @@ DOSweep::scheduleTimeAdvance( const LevelP& level, SchedulerP& sched)
   sched->addTask(task, level->eachPatch(), m_materialManager->allMaterials());
 
   solver->scheduleSolve(level, sched, m_materialManager->allMaterials(), 
-                        lb_->pressure_matrix, Task::NewDW, lb_->pressure, 
-                        false, lb_->pressure_rhs, Task::NewDW, 0, Task::OldDW,true);
+                        lb_->pressure_matrix, Task::WhichDW::NewDW, lb_->pressure, 
+                        false, lb_->pressure_rhs, Task::WhichDW::NewDW, 0, Task::WhichDW::OldDW,true);
 
 }
 //__________________________________

@@ -76,20 +76,20 @@ void ICE::scheduleSetupMatrix(  SchedulerP& sched,
 
   const MaterialSubset* press_matl = one_matl;
 
-  Task::WhichDW whichDW = Task::OldDW;
+  Task::WhichDW whichDW = Task::WhichDW::OldDW;
   //__________________________________
   //  Form the matrix
   printSchedule(level,cout_doing,"ICE::scheduleSetupMatrix");
 
   t = scinew Task("ICE::setupMatrix", this, &ICE::setupMatrix);
-  t->requires( Task::ParentOldDW, lb->delTLabel, getLevel(patches));
+  t->requires( Task::WhichDW::ParentOldDW, lb->delTLabel, getLevel(patches));
   t->requires( whichDW,   lb->sp_volX_FCLabel,    gaf,1);
   t->requires( whichDW,   lb->sp_volY_FCLabel,    gaf,1);
   t->requires( whichDW,   lb->sp_volZ_FCLabel,    gaf,1);
   t->requires( whichDW,   lb->vol_fracX_FCLabel,  gaf,1);
   t->requires( whichDW,   lb->vol_fracY_FCLabel,  gaf,1);
   t->requires( whichDW,   lb->vol_fracZ_FCLabel,  gaf,1);
-  t->requires( Task::ParentNewDW,
+  t->requires( Task::WhichDW::ParentNewDW,
                           lb->sumKappaLabel, one_matl,oims,gn,0);
 
   t->computes(lb->matrixLabel,   one_matl,   oims);
@@ -120,11 +120,11 @@ void ICE::scheduleSetupRHS(  SchedulerP& sched,
   Task::WhichDW pNewDW;
   Task::WhichDW pOldDW;
   if(insideOuterIterLoop) {
-    pNewDW  = Task::ParentNewDW;
-    pOldDW  = Task::ParentOldDW;
+    pNewDW  = Task::WhichDW::ParentNewDW;
+    pOldDW  = Task::WhichDW::ParentOldDW;
   } else {
-    pNewDW  = Task::NewDW;
-    pOldDW  = Task::OldDW;
+    pNewDW  = Task::WhichDW::NewDW;
+    pOldDW  = Task::WhichDW::OldDW;
   }
 
   const MaterialSubset* press_matl = one_matl;
@@ -138,10 +138,10 @@ void ICE::scheduleSetupRHS(  SchedulerP& sched,
   t->requires( pNewDW,      lb->sp_vol_CCLabel,                gn,0);
   t->requires( pNewDW,      lb->speedSound_CCLabel,            gn,0);
   t->requires( pNewDW,      lb->vol_frac_CCLabel,              gac,2);
-  t->requires( Task::NewDW, lb->uvel_FCMELabel,                gac,2);
-  t->requires( Task::NewDW, lb->vvel_FCMELabel,                gac,2);
-  t->requires( Task::NewDW, lb->wvel_FCMELabel,                gac,2);
-  t->requires( Task::NewDW, lb->sum_imp_delPLabel,  press_matl,oims,gn,0);
+  t->requires( Task::WhichDW::NewDW, lb->uvel_FCMELabel,                gac,2);
+  t->requires( Task::WhichDW::NewDW, lb->vvel_FCMELabel,                gac,2);
+  t->requires( Task::WhichDW::NewDW, lb->wvel_FCMELabel,                gac,2);
+  t->requires( Task::WhichDW::NewDW, lb->sum_imp_delPLabel,  press_matl,oims,gn,0);
 
   t->computes(lb->vol_fracX_FCLabel);
   t->computes(lb->vol_fracY_FCLabel);
@@ -181,7 +181,7 @@ void ICE::scheduleCompute_maxRHS(SchedulerP& sched,
   t = scinew Task("ICE::compute_maxRHS", this, &ICE::compute_maxRHS);
 
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
-  t->requires( Task::NewDW, lb->rhsLabel,  one_matl,oims,Ghost::None,0);
+  t->requires( Task::WhichDW::NewDW, lb->rhsLabel,  one_matl,oims,Ghost::None,0);
   t->computes(lb->max_RHSLabel);
 
   sched->addTask(t, level->eachPatch(), allMatls);
@@ -208,17 +208,17 @@ void ICE::scheduleUpdatePressure(  SchedulerP& sched,
 
   t = scinew Task("ICE::updatePressure", this, &ICE::updatePressure);
 
-  t->requires(Task::ParentOldDW, lb->timeStepLabel);
-  t->requires(Task::ParentOldDW, lb->delTLabel, getLevel(patches));
-  t->requires(Task::ParentNewDW, lb->press_equil_CCLabel,press_matl,oims,gn);
-  t->requires(Task::ParentNewDW, lb->sp_vol_CCLabel                     ,gn);
-  t->requires(Task::OldDW,       lb->sum_imp_delPLabel,  press_matl,oims,gn);
+  t->requires(Task::WhichDW::ParentOldDW, lb->timeStepLabel);
+  t->requires(Task::WhichDW::ParentOldDW, lb->delTLabel, getLevel(patches));
+  t->requires(Task::WhichDW::ParentNewDW, lb->press_equil_CCLabel,press_matl,oims,gn);
+  t->requires(Task::WhichDW::ParentNewDW, lb->sp_vol_CCLabel                     ,gn);
+  t->requires(Task::WhichDW::OldDW,       lb->sum_imp_delPLabel,  press_matl,oims,gn);
 
   // for setting the boundary conditions
   // you need gac,1 for funky multilevel patch configurations
   t->modifies(lb->imp_delPLabel,     press_matl, oims);
   if (level->getIndex() > 0){
-    t->requires(Task::NewDW, lb->imp_delPLabel, 0,Task::CoarseLevel, press_matl, oims, gac,1);
+    t->requires(Task::WhichDW::NewDW, lb->imp_delPLabel, 0,Task::PatchDomainSpec::CoarseLevel, press_matl, oims, gac,1);
   }
 
   t->computes(lb->sum_imp_delPLabel, press_matl, oims);
@@ -250,20 +250,20 @@ void ICE::scheduleRecomputeVel_FC(SchedulerP& sched,
   Ghost::GhostType  gac = Ghost::AroundCells;
   Ghost::GhostType  gn  = Ghost::None;
   Task::MaterialDomainSpec oims = Task::OutOfDomain;  //outside of ice matlSet.
-  t->requires(Task::ParentOldDW,lb->delTLabel,getLevel(patches));
+  t->requires(Task::WhichDW::ParentOldDW,lb->delTLabel,getLevel(patches));
 
   //__________________________________
   // define parent data warehouse
-  Task::WhichDW pNewDW = Task::NewDW;
+  Task::WhichDW pNewDW = Task::WhichDW::NewDW;
   if(recursion) {
-    pNewDW  = Task::ParentNewDW;
+    pNewDW  = Task::WhichDW::ParentNewDW;
   }
 
   t->requires(pNewDW,           lb->sp_vol_CCLabel, /*all_matls*/ gac,1);
-  t->requires(Task::NewDW,      lb->imp_delPLabel,   press_matl, oims, gac,1);
-  t->requires(Task::OldDW,      lb->uvel_FCLabel,                gn,0);
-  t->requires(Task::OldDW,      lb->vvel_FCLabel,                gn,0);
-  t->requires(Task::OldDW,      lb->wvel_FCLabel,                gn,0);
+  t->requires(Task::WhichDW::NewDW,      lb->imp_delPLabel,   press_matl, oims, gac,1);
+  t->requires(Task::WhichDW::OldDW,      lb->uvel_FCLabel,                gn,0);
+  t->requires(Task::WhichDW::OldDW,      lb->vvel_FCLabel,                gn,0);
+  t->requires(Task::WhichDW::OldDW,      lb->wvel_FCLabel,                gn,0);
 
   t->computes(lb->uvel_FCLabel);
   t->computes(lb->vvel_FCLabel);
@@ -303,10 +303,10 @@ void ICE::scheduleComputeDel_P(  SchedulerP& sched,
 
   t = scinew Task("ICE::computeDel_P", this, &ICE::computeDel_P);
 
-  t->requires(Task::NewDW, lb->sum_imp_delPLabel,    press_matl, oims, gn);
-  t->requires(Task::NewDW, lb->sumKappaLabel,        one_matl,   oims, gn);
-  t->requires(Task::NewDW, lb->term2Label,           one_matl,   oims, gn);
-  t->requires(Task::NewDW, lb->rho_CCLabel,                       gn);
+  t->requires(Task::WhichDW::NewDW, lb->sum_imp_delPLabel,    press_matl, oims, gn);
+  t->requires(Task::WhichDW::NewDW, lb->sumKappaLabel,        one_matl,   oims, gn);
+  t->requires(Task::WhichDW::NewDW, lb->term2Label,           one_matl,   oims, gn);
+  t->requires(Task::WhichDW::NewDW, lb->rho_CCLabel,                       gn);
 
   t->computes(lb->delP_DilatateLabel, press_matl,oims);
   t->computes(lb->delP_MassXLabel,    press_matl,oims);
@@ -347,7 +347,7 @@ void ICE::scheduleImplicitPressureSolve(  SchedulerP& sched,
   // NewDW = ParentNewDW
 #ifdef HAVE_HYPRE
   if (m_solver->getName() == "hypre") {
-    t->requires(Task::OldDW, hypre_solver_label);
+    t->requires(Task::WhichDW::OldDW, hypre_solver_label);
     t->computes(hypre_solver_label);
     //(string var, bool treatAsOld, bool copyData, bool noScrub, bool notCopyData, bool noCheckpoint)
     sched->overrideVariableBehavior(hypre_solver_label->getName(),false,true,false,false,true);
@@ -356,34 +356,34 @@ void ICE::scheduleImplicitPressureSolve(  SchedulerP& sched,
 
   //__________________________________
   // common Variables
-  t->requires( Task::OldDW, lb->timeStepLabel);
-  t->requires( Task::NewDW, lb->vol_frac_CCLabel,   gac,2);
-  t->requires( Task::NewDW, lb->sp_vol_CCLabel,     gac,1);
-  t->requires( Task::NewDW, lb->rhsLabel,           one_matl,   oims,gn,0);
-//t->requires( Task::OldDW, lb->initialGuessLabel,  one_matl,   oims,gac,1);
+  t->requires( Task::WhichDW::OldDW, lb->timeStepLabel);
+  t->requires( Task::WhichDW::NewDW, lb->vol_frac_CCLabel,   gac,2);
+  t->requires( Task::WhichDW::NewDW, lb->sp_vol_CCLabel,     gac,1);
+  t->requires( Task::WhichDW::NewDW, lb->rhsLabel,           one_matl,   oims,gn,0);
+//t->requires( Task::WhichDW::OldDW, lb->initialGuessLabel,  one_matl,   oims,gac,1);
 
   //__________________________________
   // SetupRHS
   if(d_models.size() > 0){
-    t->requires(Task::NewDW,lb->modelMass_srcLabel, gn,0);
+    t->requires(Task::WhichDW::NewDW,lb->modelMass_srcLabel, gn,0);
   }
-  t->requires( Task::NewDW, lb->speedSound_CCLabel, gn,0);
-  t->requires( Task::NewDW, lb->max_RHSLabel);
+  t->requires( Task::WhichDW::NewDW, lb->speedSound_CCLabel, gn,0);
+  t->requires( Task::WhichDW::NewDW, lb->max_RHSLabel);
 
   //__________________________________
   // setup Matrix
-  t->requires( Task::NewDW, lb->sp_volX_FCLabel,    gaf,1);
-  t->requires( Task::NewDW, lb->sp_volY_FCLabel,    gaf,1);
-  t->requires( Task::NewDW, lb->sp_volZ_FCLabel,    gaf,1);
-  t->requires( Task::NewDW, lb->vol_fracX_FCLabel,  gaf,1);
-  t->requires( Task::NewDW, lb->vol_fracY_FCLabel,  gaf,1);
-  t->requires( Task::NewDW, lb->vol_fracZ_FCLabel,  gaf,1);
-  t->requires( Task::NewDW, lb->sumKappaLabel,  press_matl,oims,gn,0);
+  t->requires( Task::WhichDW::NewDW, lb->sp_volX_FCLabel,    gaf,1);
+  t->requires( Task::WhichDW::NewDW, lb->sp_volY_FCLabel,    gaf,1);
+  t->requires( Task::WhichDW::NewDW, lb->sp_volZ_FCLabel,    gaf,1);
+  t->requires( Task::WhichDW::NewDW, lb->vol_fracX_FCLabel,  gaf,1);
+  t->requires( Task::WhichDW::NewDW, lb->vol_fracY_FCLabel,  gaf,1);
+  t->requires( Task::WhichDW::NewDW, lb->vol_fracZ_FCLabel,  gaf,1);
+  t->requires( Task::WhichDW::NewDW, lb->sumKappaLabel,  press_matl,oims,gn,0);
 
   //__________________________________
   // Update Pressure
-  t->requires( Task::NewDW, lb->press_equil_CCLabel, press_matl, oims, gac,1);
-  t->requires( Task::NewDW, lb->sum_imp_delPLabel,   press_matl, oims, gac,1);
+  t->requires( Task::WhichDW::NewDW, lb->press_equil_CCLabel, press_matl, oims, gac,1);
+  t->requires( Task::WhichDW::NewDW, lb->sum_imp_delPLabel,   press_matl, oims, gac,1);
 
   computesRequires_CustomBCs(t, "implicitPressureSolve", lb, ice_matls,
                              d_BC_globalVars, true);
@@ -394,9 +394,9 @@ void ICE::scheduleImplicitPressureSolve(  SchedulerP& sched,
 
   //__________________________________
   // ImplicitVel_FC
-  t->requires(Task::NewDW, lb->uvel_FCLabel,    gn,0);
-  t->requires(Task::NewDW, lb->vvel_FCLabel,    gn,0);
-  t->requires(Task::NewDW, lb->wvel_FCLabel,    gn,0);
+  t->requires(Task::WhichDW::NewDW, lb->uvel_FCLabel,    gn,0);
+  t->requires(Task::WhichDW::NewDW, lb->vvel_FCLabel,    gn,0);
+  t->requires(Task::WhichDW::NewDW, lb->wvel_FCLabel,    gn,0);
 
   //__________________________________
   //  what's produced from this task
@@ -444,8 +444,8 @@ ICE::setupMatrix( const ProcessorGroup *,
 
     DataWarehouse* whichDW = old_dw;
 
-    DataWarehouse* parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
-    DataWarehouse* parent_new_dw = new_dw->getOtherDataWarehouse(Task::ParentNewDW);
+    DataWarehouse* parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
+    DataWarehouse* parent_new_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentNewDW);
 
     delt_vartype delT;
     parent_old_dw->get(delT, lb->delTLabel,level);
@@ -568,8 +568,8 @@ void ICE::setupRHS(const ProcessorGroup*,
     DataWarehouse* pNewDW;
     DataWarehouse* pOldDW;
     if(insideOuterIterLoop) {
-      pNewDW  = new_dw->getOtherDataWarehouse(Task::ParentNewDW);
-      pOldDW  = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+      pNewDW  = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentNewDW);
+      pOldDW  = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
     } else {
       pNewDW  = new_dw;
       pOldDW  = old_dw;
@@ -793,9 +793,9 @@ void ICE::updatePressure(const ProcessorGroup*,
 {
   // define parent_dw
   DataWarehouse* parent_new_dw =
-    new_dw->getOtherDataWarehouse(Task::ParentNewDW);
+    new_dw->getOtherDataWarehouse(Task::WhichDW::ParentNewDW);
   DataWarehouse* parent_old_dw =
-    new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
 
   timeStep_vartype timeStep;
   parent_old_dw->get(timeStep, lb->timeStepLabel);
@@ -970,7 +970,7 @@ void ICE::implicitPressureSolve(const ProcessorGroup* pg,
   
   const VarLabel* initialGuessLabel = nullptr;
 //const VarLabel* initialGuessLabel = lb->initialGuessLabel;
-  Task::WhichDW initialGuess_DW     = Task::OldDW;
+  Task::WhichDW initialGuess_DW     = Task::WhichDW::OldDW;
   
   
   DataWarehouse* subOldDW = d_subsched->get_dw(2);
@@ -989,7 +989,7 @@ void ICE::implicitPressureSolve(const ProcessorGroup* pg,
       ParentOldDW->get( hypre_solverP, hypre_solver_label );
       subNewDW->put(    hypre_solverP, hypre_solver_label );
     }
-    m_solver->getParameters()->setWhichOldDW( Task::ParentOldDW );
+    m_solver->getParameters()->setWhichOldDW( Task::WhichDW::ParentOldDW );
   }
 #endif
 
@@ -1049,9 +1049,9 @@ void ICE::implicitPressureSolve(const ProcessorGroup* pg,
 
 
       m_solver->scheduleSolve(level, d_subsched, d_press_matlSet,
-                              lb->matrixLabel,   Task::NewDW,
+                              lb->matrixLabel,   Task::WhichDW::NewDW,
                               lb->imp_delPLabel, modifies_X,
-                              lb->rhsLabel,      Task::OldDW,
+                              lb->rhsLabel,      Task::WhichDW::OldDW,
                               initialGuessLabel, initialGuess_DW,
                               true);
 
@@ -1091,7 +1091,7 @@ void ICE::implicitPressureSolve(const ProcessorGroup* pg,
 
     counter ++;
 //  initialGuessLabel = lb->sum_imp_delPLabel;
-//  initialGuess_DW   = Task::OldDW;
+//  initialGuess_DW   = Task::WhichDW::OldDW;
 
     //__________________________________
     // diagnostics

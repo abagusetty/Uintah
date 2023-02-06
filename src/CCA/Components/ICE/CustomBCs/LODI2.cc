@@ -212,17 +212,17 @@ void addRequires_Lodi(Task* t,
   press_matl->add(0);
   press_matl->addReference();
 
-  Task::WhichDW whichDW = Task::NewDW;
+  Task::WhichDW whichDW = Task::WhichDW::NewDW;
   bool setLODI_bcs = false;
   
   if(where == "EqPress"){
     setLODI_bcs = true;
-    t->requires(Task::OldDW, lb->vel_CCLabel,       ice_matls, gn);
-    // requires(Task::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
-    // requires(Task::NewDW, lb->rho_CCLabel,       ice_matls, gn); 
-    // requires(Task::NewDW, lb->speedSound_CCLabel,ice_matls, gn); 
+    t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel,       ice_matls, gn);
+    // requires(Task::WhichDW::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
+    // requires(Task::WhichDW::NewDW, lb->rho_CCLabel,       ice_matls, gn); 
+    // requires(Task::WhichDW::NewDW, lb->speedSound_CCLabel,ice_matls, gn); 
     /*`==========TESTING==========*/
-    t->requires(Task::OldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
+    t->requires(Task::WhichDW::OldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
     /*===========TESTING==========`*/
   }
   else if(where == "velFC_Exchange"){
@@ -230,46 +230,46 @@ void addRequires_Lodi(Task* t,
   }
   else if(where == "update_press_CC"){
     setLODI_bcs = true;
-    //t->requires(Task::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
-    t->requires(Task::OldDW, lb->vel_CCLabel,       ice_matls, gn);
-    t->requires(Task::NewDW, lb->rho_CCLabel,       ice_matls, gn); 
-    t->requires(Task::NewDW, lb->speedSound_CCLabel,ice_matls, gn);
+    //t->requires(Task::WhichDW::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
+    t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel,       ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->rho_CCLabel,       ice_matls, gn); 
+    t->requires(Task::WhichDW::NewDW, lb->speedSound_CCLabel,ice_matls, gn);
 /*`==========TESTING==========*/
-     t->requires(Task::OldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
+     t->requires(Task::WhichDW::OldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
 /*===========TESTING==========`*/
   }
   else if(where == "implicitPressureSolve"){
     setLODI_bcs = true;
-    t->requires(Task::OldDW, lb->vel_CCLabel,        ice_matls, gn);
-    t->requires(Task::NewDW, lb->speedSound_CCLabel, ice_matls, gn);
-    t->requires(Task::NewDW, lb->rho_CCLabel,        ice_matls, gn);
+    t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel,        ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->speedSound_CCLabel, ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->rho_CCLabel,        ice_matls, gn);
 /*`==========TESTING==========*/
-     t->requires(Task::OldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
+     t->requires(Task::WhichDW::OldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
 /*===========TESTING==========`*/
   }
    
   else if(where == "imp_update_press_CC"){
     setLODI_bcs = true;
-    whichDW  = Task::ParentNewDW;
-    t->requires(Task::ParentOldDW, lb->vel_CCLabel,        ice_matls, gn);
-    t->requires(Task::ParentNewDW, lb->speedSound_CCLabel, ice_matls, gn);
-    t->requires(Task::ParentNewDW, lb->rho_CCLabel,        ice_matls, gn);
-    //t->requires(Task::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
+    whichDW  = Task::WhichDW::ParentNewDW;
+    t->requires(Task::WhichDW::ParentOldDW, lb->vel_CCLabel,        ice_matls, gn);
+    t->requires(Task::WhichDW::ParentNewDW, lb->speedSound_CCLabel, ice_matls, gn);
+    t->requires(Task::WhichDW::ParentNewDW, lb->rho_CCLabel,        ice_matls, gn);
+    //t->requires(Task::WhichDW::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
 /*`==========TESTING==========*/
-     t->requires(Task::ParentOldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
+     t->requires(Task::WhichDW::ParentOldDW, lb->press_CCLabel, press_matl, oims, gn,0); 
 /*===========TESTING==========`*/
   }
   else if(where == "CC_Exchange"){
     setLODI_bcs = true;
-    t->requires(Task::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
-    t->requires(Task::NewDW, lb->rho_CCLabel,       ice_matls, gn);    
-    t->requires(Task::NewDW, lb->gammaLabel,        ice_matls, gn);
-    t->requires(Task::NewDW, lb->speedSound_CCLabel,ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
+    t->requires(Task::WhichDW::NewDW, lb->rho_CCLabel,       ice_matls, gn);    
+    t->requires(Task::WhichDW::NewDW, lb->gammaLabel,        ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->speedSound_CCLabel,ice_matls, gn);
     
 /*`==========TESTING==========*/
-     t->requires(Task::OldDW, lb->rho_CCLabel, ice_matls, gn);
-     t->requires(Task::OldDW, lb->temp_CCLabel, ice_matls, gn);
-     t->requires(Task::OldDW, lb->vel_CCLabel,  ice_matls, gn); 
+     t->requires(Task::WhichDW::OldDW, lb->rho_CCLabel, ice_matls, gn);
+     t->requires(Task::WhichDW::OldDW, lb->temp_CCLabel, ice_matls, gn);
+     t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel,  ice_matls, gn); 
 /*===========TESTING==========`*/
     
     t->computes(lb->vel_CC_XchangeLabel);
@@ -277,18 +277,18 @@ void addRequires_Lodi(Task* t,
   }
   else if(where == "Advection"){
     setLODI_bcs = true;
-    t->requires(Task::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
-    t->requires(Task::NewDW, lb->gammaLabel,        ice_matls, gn); 
-    // requires(Task::NewDW, lb->vel_CCLabel,       ice_matls, gn); 
-    // requires(Task::NewDW, lb->rho_CCLabel,       ice_matls, gn); 
-    // requires(Task::NewDW, lb->speedSound_CCLabel,ice_matls, gn);
+    t->requires(Task::WhichDW::NewDW, lb->press_CCLabel,     press_matl,oims,gn, 0);
+    t->requires(Task::WhichDW::NewDW, lb->gammaLabel,        ice_matls, gn); 
+    // requires(Task::WhichDW::NewDW, lb->vel_CCLabel,       ice_matls, gn); 
+    // requires(Task::WhichDW::NewDW, lb->rho_CCLabel,       ice_matls, gn); 
+    // requires(Task::WhichDW::NewDW, lb->speedSound_CCLabel,ice_matls, gn);
 /*`==========TESTING==========*/
-    t->requires(Task::OldDW, lb->rho_CCLabel, ice_matls, gn);
-    t->requires(Task::OldDW, lb->temp_CCLabel,ice_matls, gn);
-    t->requires(Task::OldDW, lb->vel_CCLabel, ice_matls, gn); 
+    t->requires(Task::WhichDW::OldDW, lb->rho_CCLabel, ice_matls, gn);
+    t->requires(Task::WhichDW::OldDW, lb->temp_CCLabel,ice_matls, gn);
+    t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel, ice_matls, gn); 
 /*===========TESTING==========`*/
     
-    t->requires(Task::OldDW, lb->vel_CCLabel,ice_matls, gn);
+    t->requires(Task::WhichDW::OldDW, lb->vel_CCLabel,ice_matls, gn);
   }else{
     throw InternalError("ERROR:ICE: addRequires_Lodi: no preprocessing for this task ("+where+")", __FILE__, __LINE__);
   }
@@ -379,7 +379,7 @@ void  preprocess_Lodi_BCs(DataWarehouse* old_dw,
   }
   else if(where == "imp_update_press_CC"){ 
     setLodiBcs = true;
-    DataWarehouse* sub_new_dw = new_dw->getOtherDataWarehouse(Task::NewDW);
+    DataWarehouse* sub_new_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::NewDW);
     old_dw->get(lv->vel_CC,     lb->vel_CCLabel,        indx,patch,gn,0); 
     new_dw->get(lv->rho_CC,     lb->rho_CCLabel,        indx,patch,gn,0);
     new_dw->get(lv->speedSound, lb->speedSound_CCLabel, indx,patch,gn,0); 
@@ -840,7 +840,7 @@ void computeLi(std::vector<CCVariable<Vector> >& L,
       // get the maxMach for that face
       DataWarehouse* pNewDW;
       if(recursion) {
-        pNewDW  = new_dw->getOtherDataWarehouse(Task::ParentNewDW);
+        pNewDW  = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentNewDW);
       } else {
         pNewDW  = new_dw;
       }

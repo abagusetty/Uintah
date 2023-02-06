@@ -389,7 +389,7 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
             // tsk->modifiesWithScratchGhost( ivar.label,
             //                                localPatches,
             //                                Uintah::Task::ThisLevel,
-            //                                matls->getSubset(0), Uintah::Task::NormalDomain,
+            //                                matls->getSubset(0), Uintah::Task::MaterialDomainSpec::NormalDomain,
             //                                ivar.ghost_type, ivar.nGhost );
             // end uncomment
             DOUT( dbg_arches_task, "[TaskFactoryBase]      modifying: " << ivar.name );
@@ -397,7 +397,7 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
           } else {
             DOUT( dbg_arches_task, "[TaskFactoryBase]      computing: " << ivar.name );
             // tsk->computesWithScratchGhost( ivar.label, matls->getSubset(0),
-            //                                Uintah::Task::NormalDomain, ivar.ghost_type,
+            //                                Uintah::Task::MaterialDomainSpec::NormalDomain, ivar.ghost_type,
             //                                ivar.nGhost );
             tsk->computes( ivar.label );   //only compute on the zero time substep
           }
@@ -411,7 +411,7 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
           // tsk->modifiesWithScratchGhost( ivar.label,
           //                                localPatches,
           //                                Uintah::Task::ThisLevel,
-          //                                matls->getSubset(0), Uintah::Task::NormalDomain,
+          //                                matls->getSubset(0), Uintah::Task::MaterialDomainSpec::NormalDomain,
           //                                ivar.ghost_type, ivar.nGhost );
           // end ucomment
           DOUT( dbg_arches_task, "[TaskFactoryBase]      modifying: " << ivar.name );
@@ -423,7 +423,7 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
         if ( time_substep == 0 ){
           DOUT( dbg_arches_task, "[TaskFactoryBase]  computing (wsg): " << ivar.name );
           tsk->computesWithScratchGhost( ivar.label, matls->getSubset(0),
-                                         Uintah::Task::NormalDomain, ivar.ghost_type,
+                                         Uintah::Task::MaterialDomainSpec::NormalDomain, ivar.ghost_type,
                                          ivar.nGhost );
         } else {
           const Uintah::PatchSet* const allPatches =
@@ -434,7 +434,7 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
           tsk->modifiesWithScratchGhost( ivar.label,
                                          localPatches,
                                          Uintah::Task::ThisLevel,
-                                         matls->getSubset(0), Uintah::Task::NormalDomain,
+                                         matls->getSubset(0), Uintah::Task::MaterialDomainSpec::NormalDomain,
                                          ivar.ghost_type, ivar.nGhost );
         }
       }
@@ -450,7 +450,7 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
         // tsk->modifiesWithScratchGhost( ivar.label,
         //                                 localPatches,
         //                                 Uintah::Task::ThisLevel,
-        //                                 matls->getSubset(0), Uintah::Task::NormalDomain,
+        //                                 matls->getSubset(0), Uintah::Task::MaterialDomainSpec::NormalDomain,
         //                                 ivar.ghost_type, ivar.nGhost );
         // end uncomment
         DOUT( dbg_arches_task, "[TaskFactoryBase]      modifying: " << ivar.name );
@@ -476,8 +476,8 @@ void TaskFactoryBase::factory_schedule_task( const LevelP& level,
 
   //other variables:
   if ( sched->get_dw(0) != nullptr ){
-    tsk->requires(Task::OldDW, VarLabel::find("delT"));
-    tsk->requires(Task::OldDW, VarLabel::find(simTime_name));
+    tsk->requires(Task::WhichDW::OldDW, VarLabel::find("delT"));
+    tsk->requires(Task::WhichDW::OldDW, VarLabel::find(simTime_name));
   }
 
   if ( counter > 0 )

@@ -180,12 +180,12 @@ namespace Uintah {
 
       case ArchesFieldContainer::OLDDW:
 
-        info.uintah_task_dw = Task::OldDW;
+        info.uintah_task_dw = Task::WhichDW::OldDW;
         break;
 
       case ArchesFieldContainer::NEWDW:
 
-        info.uintah_task_dw = Task::NewDW;
+        info.uintah_task_dw = Task::WhichDW::NewDW;
         break;
 
       default:

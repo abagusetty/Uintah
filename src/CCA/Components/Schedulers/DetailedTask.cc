@@ -29,7 +29,7 @@
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 
 #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
-#include <CCA/Components/Schedulers/GPUMemoryPool.h>
+#include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 #endif
 
 #include <Core/Containers/ConsecutiveRangeSet.h>
@@ -104,7 +104,7 @@ DetailedTask::~DetailedTask() {
 void DetailedTask::doit(const ProcessorGroup *pg,
                         std::vector<OnDemandDataWarehouseP> &oddws,
                         std::vector<DataWarehouseP> &dws,
-                        Task::CallBackEvent event /* = Task::CPU */
+                        Task::CallBackEvent event /* = Task::CallBackEvent::CPU */
 ) {
   // stop timing the task wait
   m_wait_timer.stop();
@@ -149,12 +149,12 @@ void DetailedTask::doit(const ProcessorGroup *pg,
 
     for (auto currentDeviceID : deviceNums_) {
       OnDemandDataWarehouse::uintahSetGpuDevice(currentDeviceID);
-      GPUDataWarehouse *host_oldtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::OldDW);
+      GPUDataWarehouse *host_oldtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::WhichDW::OldDW);
       GPUDataWarehouse *device_oldtaskdw = nullptr;
       if (host_oldtaskdw) {
         device_oldtaskdw = host_oldtaskdw->getdevice_ptr();
       }
-      GPUDataWarehouse *host_newtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::NewDW);
+      GPUDataWarehouse *host_newtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::WhichDW::NewDW);
       GPUDataWarehouse *device_newtaskdw = nullptr;
       if (host_newtaskdw) {
         device_newtaskdw = host_newtaskdw->getdevice_ptr();
@@ -216,8 +216,8 @@ void DetailedTask::scrub(std::vector<OnDemandDataWarehouseP> &dws) {
           Patch::selectType neighbors;
           IntVector low, high;
 
-          if (req->m_patches_dom == Task::CoarseLevel ||
-              req->m_patches_dom == Task::FineLevel ||
+          if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel ||
+              req->m_patches_dom == Task::PatchDomainSpec::FineLevel ||
               req->m_num_ghost_cells == 0) {
             // we already have the right patches
             neighbors.push_back(patch);
@@ -230,7 +230,7 @@ void DetailedTask::scrub(std::vector<OnDemandDataWarehouseP> &dws) {
           for (unsigned int i = 0; i < neighbors.size(); i++) {
             const Patch *neighbor = neighbors[i];
 
-            if (req->m_patches_dom == Task::ThisLevel && patch != neighbor) {
+            if (req->m_patches_dom == Task::PatchDomainSpec::ThisLevel && patch != neighbor) {
               // don't scrub on AMR overlapping patches...
               IntVector l = Max(neighbor->getExtraLowIndex(
                                     basis, req->m_var->getBoundaryLayer()),
@@ -247,7 +247,7 @@ void DetailedTask::scrub(std::vector<OnDemandDataWarehouseP> &dws) {
               }
             }
 
-            if (req->m_patches_dom == Task::FineLevel) {
+            if (req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
               // don't count if it only overlaps extra cells
               IntVector l = patch->getExtraLowIndex(basis, IntVector(0, 0, 0)),
                         h = patch->getExtraHighIndex(basis, IntVector(0, 0, 0));
@@ -347,7 +347,7 @@ void DetailedTask::scrub(std::vector<OnDemandDataWarehouseP> &dws) {
 
     if (type != TypeDescription::ReductionVariable &&
         type != TypeDescription::SoleVariable) {
-      int whichdw = comp->m_whichdw;
+      Task::WhichDW whichdw = comp->m_whichdw;
       int dw = comp->mapDataWarehouse();
       DataWarehouse::ScrubMode scrubmode = dws[dw]->getScrubMode();
 
@@ -370,7 +370,7 @@ void DetailedTask::scrub(std::vector<OnDemandDataWarehouseP> &dws) {
             int matl = matls->get(m);
             int count;
 
-            if (m_task_group->getScrubCount(comp->m_var, matl, patch, whichdw,
+            if (m_task_group->getScrubCount(comp->m_var, matl, patch, static_cast<int>(whichdw),
                                             count)) {
 
               if (g_scrubbing_dbg &&
@@ -694,8 +694,8 @@ std::ostream &operator<<(std::ostream &out, const DetailedTask &dtask) {
       }
       // a once-per-proc task is liable to have multiple levels, and thus calls
       // to getLevel(patches) will fail
-      if (dtask.getTask()->getType() == Task::OncePerProc ||
-          dtask.getTask()->getType() == Task::Hypre) {
+      if (dtask.getTask()->getType() == Task::TaskType::OncePerProc ||
+          dtask.getTask()->getType() == Task::TaskType::Hypre) {
         out << ", on multiple levels";
       } else {
         out << ", Level " << getLevel(patches)->getIndex();
@@ -740,29 +740,26 @@ gpuStream_t* DetailedTask::getGpuStreamForThisTask(int device_id) const {
   if (it != d_gpuStreams.end()) {
     return it->second;
   } else {
-    printf("ERROR! - DetailedTask::getGpuStreamForThisTask() - This task %s "
-           "already had a stream assigned for device %d\n",
-           getName().c_str(), device_id);
     SCI_THROW(InternalError(
-        "Detected CUDA/HIP/SYCL kernel execution failure on task: " + getName(),
+        "A GPU stream not assigned to the task: " + getName(),
         __FILE__, __LINE__));
     exit(-1);
   }
 }
 
-void DetailedTask::setGpuStreamForThisTask(int device_id, gpuStream_t *stream) {
-  if (d_gpuStreams.find(device_id) == d_gpuStreams.end()) {
+void DetailedTask::setGpuStreamForThisTask(int device_id) {
+  //if (!deviceNums_.contains(device_id)) {
+  if (deviceNums_.find(device_id) == deviceNums_.end()) {
     deviceNums_.insert(device_id);
-    d_gpuStreams.try_emplace(device_id, stream);
-  } else {
-    printf("ERROR! - DetailedTask::setGpuStreamForThisTask() - This task %s "
-           "already had a stream assigned for device %d\n",
-           getName().c_str(), device_id);
-    SCI_THROW(InternalError(
-        "Detected CUDA/HIP/SYCL kernel execution failure on task: " + getName(),
-        __FILE__, __LINE__));
-    exit(-1);
+    d_gpuStreams.try_emplace(device_id, GPUStreamPool<>::getInstance().getGpuStreamFromPool(device_id));
   }
+  return;
+  // else {
+  //   SCI_THROW(InternalError(
+  //       "A GPU stream was already assigned to the task: " + getName(),
+  //       __FILE__, __LINE__));
+  //   exit(-1);
+  // }
 };
 
 void DetailedTask::clearGpuStreamsForThisTask() {
@@ -808,12 +805,12 @@ void DetailedTask::setTaskGpuDataWarehouse(const int whichDevice,
 
   auto iter = TaskGpuDWs.find(whichDevice);
   if (iter != TaskGpuDWs.end()) {
-    iter->second.TaskGpuDW[DW] = TaskDW;
+    iter->second.TaskGpuDW[static_cast<int>(DW)] = TaskDW;
   } else {
     TaskGpuDataWarehouses temp;
     temp.TaskGpuDW[0] = nullptr;
     temp.TaskGpuDW[1] = nullptr;
-    temp.TaskGpuDW[DW] = TaskDW;
+    temp.TaskGpuDW[static_cast<int>(DW)] = TaskDW;
     TaskGpuDWs.try_emplace(whichDevice, temp);
   }
 }
@@ -824,7 +821,7 @@ GPUDataWarehouse *DetailedTask::getTaskGpuDataWarehouse(const int whichDevice,
                                                         Task::WhichDW DW) {
   auto iter = TaskGpuDWs.find(whichDevice);
   if (iter != TaskGpuDWs.end()) {
-    return iter->second.TaskGpuDW[DW];
+    return iter->second.TaskGpuDW[static_cast<int>(DW)];
   }
   return nullptr;
 }
@@ -862,7 +859,7 @@ void *
 DetailedTask::addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id,
                                                     std::size_t sizeinbytes) {
   void *dev_ptr{nullptr};
-  dev_ptr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(device_id, sizeinbytes);
+  dev_ptr = GPUMemoryPool::getInstance().allocate(device_id, sizeinbytes);
   gpuMemoryPoolDevicePtrItem gpuItem(device_id, dev_ptr, sizeinbytes);
   taskGpuMemoryPoolItems.push_back(gpuItem);
 
@@ -883,7 +880,7 @@ void DetailedTask::deleteTemporaryTaskVars() {
   // and the device
   auto &memGPUPool = GPUMemoryPool::getInstance();
   for (auto p : taskGpuMemoryPoolItems) {
-    memGPUPool.freeGpuSpaceToPool(p.device_id, p.ptr, p.sizeinbytes);
+    memGPUPool.deallocate(p.device_id, p.ptr, p.sizeinbytes);
   }
   taskGpuMemoryPoolItems.clear();
 }

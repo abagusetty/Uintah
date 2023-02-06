@@ -57,7 +57,7 @@ namespace Uintah {
                          setupFrequency(1),
                          updateCoefFrequency(1),
                          outputFileName("nullptr"),
-                         m_which_old_dw(Task::OldDW) {}
+                         m_which_old_dw(Task::WhichDW::OldDW) {}
     
     void setSolveOnExtraCells(bool s) {
       solveOnExtraCells = s;
@@ -128,7 +128,7 @@ namespace Uintah {
     
     // oldDW or ParentOldDW
     void setWhichOldDW(Task::WhichDW dw){
-      ASSERT( ((dw == Task::OldDW ) || ( dw == Task::ParentOldDW)) );
+      ASSERT( ((dw == Task::WhichDW::OldDW ) || ( dw == Task::WhichDW::ParentOldDW)) );
       m_which_old_dw = dw;
     }
     

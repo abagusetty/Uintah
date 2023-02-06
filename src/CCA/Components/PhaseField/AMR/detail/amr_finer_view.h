@@ -139,7 +139,7 @@ private: // METHODS
             Variable < PP, SubProblems<Problem> > subproblems_fine;
 
             // get fine subproblems (all logic for handling correctly all possible fine geometries is already there)
-            dw->getOtherDataWarehouse ( Task::NewDW )->get ( subproblems_fine, m_subproblems_label, m_material, patch_fine );
+            dw->getOtherDataWarehouse ( Task::WhichDW::NewDW )->get ( subproblems_fine, m_subproblems_label, m_material, patch_fine );
             auto problems_fine = subproblems_fine.get().get_rep();
 
             for ( const auto & p : *problems_fine )

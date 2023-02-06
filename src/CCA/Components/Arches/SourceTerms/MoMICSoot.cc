@@ -540,9 +540,9 @@ MoMICSoot::sched_computeSource( const LevelP& level, SchedulerP& sched, int time
     tsk->computes(m_Msoot5_src_label);
     tsk->computes(m_Msurface_src_label);
     tsk->computes(m_balance_src_label);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
     tsk->modifies(m_PAH0_src_label);
     tsk->modifies(m_PAH1_src_label);
     tsk->modifies(m_PAH2_src_label);

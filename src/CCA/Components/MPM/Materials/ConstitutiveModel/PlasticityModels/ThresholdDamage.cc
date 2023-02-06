@@ -260,11 +260,11 @@ ThresholdDamage::addComputesAndRequires(Task* task,
 
 //  VarLabel* TotalLocalizedParticleLabel  = VarLabel::find( "TotalLocalizedParticle" );
 
-  task->requires(Task::OldDW, pFailureStressOrStrainLabel,    matls, gnone);
-  task->requires(Task::OldDW, d_lb->pParticleIDLabel,         matls, gnone);
-  task->requires(Task::NewDW, d_lb->pDeformationMeasureLabel_preReloc,                  
+  task->requires(Task::WhichDW::OldDW, pFailureStressOrStrainLabel,    matls, gnone);
+  task->requires(Task::WhichDW::OldDW, d_lb->pParticleIDLabel,         matls, gnone);
+  task->requires(Task::WhichDW::NewDW, d_lb->pDeformationMeasureLabel_preReloc,                  
                                                               matls, gnone);
-  task->requires(Task::OldDW, d_lb->pLocalizedMPMLabel,       matls, gnone);
+  task->requires(Task::WhichDW::OldDW, d_lb->pLocalizedMPMLabel,       matls, gnone);
   
   task->modifies(d_lb->pStressLabel_preReloc,          matls);
 

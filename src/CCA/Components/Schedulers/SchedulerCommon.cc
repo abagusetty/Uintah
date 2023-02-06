@@ -87,13 +87,13 @@ char* SchedulerCommon::start_addr = nullptr;
 SchedulerCommon::SchedulerCommon( const ProcessorGroup * myworld )
   : UintahParallelComponent( myworld )
 {
-  for (int i = 0; i < Task::TotalDWs; i++) {
+  for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
     m_dwmap[i] = Task::InvalidDW;
   }
 
   // Default mapping...
-  m_dwmap[Task::OldDW] = 0;
-  m_dwmap[Task::NewDW] = 1;
+  m_dwmap[static_cast<int>(Task::WhichDW::OldDW)] = 0;
+  m_dwmap[static_cast<int>(Task::WhichDW::NewDW)] = 1;
 
   m_locallyComputedPatchVarMap = scinew LocallyComputedPatchVarMap;
 }
@@ -414,28 +414,28 @@ SchedulerCommon::problemSetup( const ProblemSpecP     & prob_spec
         std::string dw = attributes["dw"];
 
         if (dw == "OldDW") {
-          m_tracking_dws.push_back(Task::OldDW);
+          m_tracking_dws.push_back(Task::WhichDW::OldDW);
         }
         else if (dw == "NewDW") {
-          m_tracking_dws.push_back(Task::NewDW);
+          m_tracking_dws.push_back(Task::WhichDW::NewDW);
         }
         else if (dw == "CoarseNewDW") {
-          m_tracking_dws.push_back(Task::CoarseNewDW);
+          m_tracking_dws.push_back(Task::WhichDW::CoarseNewDW);
         }
         else if (dw == "CoarseOldDW") {
-          m_tracking_dws.push_back(Task::CoarseOldDW);
+          m_tracking_dws.push_back(Task::WhichDW::CoarseOldDW);
         }
         else if (dw == "ParentOldDW") {
-          m_tracking_dws.push_back(Task::ParentOldDW);
+          m_tracking_dws.push_back(Task::WhichDW::ParentOldDW);
         }
         else if (dw == "ParentOldDW") {
-          m_tracking_dws.push_back(Task::ParentNewDW);
+          m_tracking_dws.push_back(Task::WhichDW::ParentNewDW);
         }
         else {
           // This error message most likely can go away once the .ups validation is put into place:
           printf("WARNING: Hit switch statement default... using NewDW... (This could possibly be"
                  "an error in input file specification.)\n");
-          m_tracking_dws.push_back(Task::NewDW);
+          m_tracking_dws.push_back(Task::WhichDW::NewDW);
         }
         if (d_myworld->myRank() == 0) {
           std::cout << "--  Tracking variable '" << name << "' in DataWarehouse '" << dw << "'\n";
@@ -714,8 +714,8 @@ SchedulerCommon::printTrackedVars( DetailedTask * dtask
     // a once-per-proc or hypre task could execute on multiple levels, and thus calls to getLevel(patches) will fail
     // The task could also run on a different level (coarse or fine).
     const Task::TaskType TT    = dtask->getTask()->getType();
-    const bool not_oncePerProc = ( TT != Task::OncePerProc );
-    const bool not_hypre       = ( TT != Task::Hypre );
+    const bool not_oncePerProc = ( TT != Task::TaskType::OncePerProc );
+    const bool not_hypre       = ( TT != Task::TaskType::Hypre );
     const int Lindx            = getLevel(patches)->getIndex();
     const bool not_rightLevel  = (!patches || Lindx != levelnum);
     
@@ -739,8 +739,8 @@ SchedulerCommon::printTrackedVars( DetailedTask * dtask
       }
 
       // Don't print ghost patches (dw->get will yell at you).
-      if ((m_tracking_dws[i] == Task::OldDW && m_loadBalancer->getOldProcessorAssignment(patch) != d_myworld->myRank()) ||
-          (m_tracking_dws[i] == Task::NewDW && m_loadBalancer->getPatchwiseProcessorAssignment(patch) != d_myworld->myRank())) {
+      if ((m_tracking_dws[i] == Task::WhichDW::OldDW && m_loadBalancer->getOldProcessorAssignment(patch) != d_myworld->myRank()) ||
+          (m_tracking_dws[i] == Task::WhichDW::NewDW && m_loadBalancer->getPatchwiseProcessorAssignment(patch) != d_myworld->myRank())) {
         continue;
       }
 
@@ -964,22 +964,22 @@ SchedulerCommon::addTask(       Task        * task
       std::ostringstream taskname;
       taskname << "SchedulerCommon::Reduction: " << dep->m_var->getName() << ", level " << levelidx << ", dw " << dw;
 
-      Task* reduction_task = scinew Task(taskname.str(), Task::Reduction);
+      Task* reduction_task = scinew Task(taskname.str(), Task::TaskType::Reduction);
       
-      int dwmap[Task::TotalDWs];
+      int dwmap[static_cast<int>(Task::WhichDW::TotalDWs)];
       
-      for (int i = 0; i < Task::TotalDWs; i++) {
+      for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
         dwmap[i] = Task::InvalidDW;
       }
 
-      dwmap[Task::OldDW] = Task::NoDW;
-      dwmap[Task::NewDW] = dw;
+      dwmap[static_cast<int>(Task::WhichDW::OldDW)] = Task::NoDW;
+      dwmap[static_cast<int>(Task::WhichDW::NewDW)] = dw;
       reduction_task->setMapping(dwmap);
 
       int matlIdx = -1;
       if (dep->m_matls != nullptr) {
       
-        reduction_task->modifies(dep->m_var, dep->m_reduction_level, dep->m_matls, Task::OutOfDomain);
+        reduction_task->modifies(dep->m_var, dep->m_reduction_level, dep->m_matls, Task::MaterialDomainSpec::OutOfDomain);
       
         for (int i = 0; i < dep->m_matls->size(); i++) {
         
@@ -1006,7 +1006,7 @@ SchedulerCommon::addTask(       Task        * task
         
           const MaterialSubset* matlSubset = task->getMaterialSet()->getSubset(m);
         
-          reduction_task->modifies(dep->m_var, dep->m_reduction_level, matlSubset, Task::OutOfDomain);
+          reduction_task->modifies(dep->m_var, dep->m_reduction_level, matlSubset, Task::MaterialDomainSpec::OutOfDomain);
           
           for (int i = 0; i < matlSubset->size(); ++i) {
           
@@ -1151,7 +1151,7 @@ SchedulerCommon::setParentDWs( DataWarehouse * parent_old_dw
 void
 SchedulerCommon::clearMappings()
 {
-  for (int i = 0; i < Task::TotalDWs; i++) {
+  for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
     m_dwmap[i] = -1;
   }
 }
@@ -1163,10 +1163,10 @@ SchedulerCommon::mapDataWarehouse( Task::WhichDW which
                                  , int           dwTag
                                  )
 {
-  ASSERTRANGE(which, 0, Task::TotalDWs);
+  ASSERTRANGE(which, 0, static_cast<int>(Task::WhichDW::TotalDWs));
   ASSERTRANGE(dwTag, 0, static_cast<int>(m_dws.size()));
 
-  m_dwmap[which] = dwTag;
+  m_dwmap[static_cast<int>(which)] = dwTag;
 }
 
 //______________________________________________________________________
@@ -1515,13 +1515,13 @@ SchedulerCommon::scheduleAndDoDataCopy( const GridP & grid )
     TaskGraph* tg = m_task_graphs[t];
     for (int i = 0; i < tg->getNumTasks(); i++) {
       Task* task = tg->getTask(i);
-      if (task->getType() == Task::Output) {
+      if (task->getType() == Task::TaskType::Output) {
         continue;
       }
 
       for (const Task::Dependency* dep = task->getRequires(); dep != 0; dep = dep->m_next) {
         
-        bool copyThisVar = (dep->m_whichdw == Task::OldDW);
+        bool copyThisVar = (dep->m_whichdw == Task::WhichDW::OldDW);
         
         // override to manually copy a var
         if (!copyThisVar) {
@@ -1557,8 +1557,8 @@ SchedulerCommon::scheduleAndDoDataCopy( const GridP & grid )
           // we don't want data with an invalid level, or requiring from a different level (remember, we are
           // using an old task graph).  That will be copied later (and chances are, it's to modify anyway).
           if (level == -1 || level > grid->numLevels() - 1 ||
-              dep->m_patches_dom == Task::CoarseLevel      ||
-              dep->m_patches_dom == Task::FineLevel) {
+              dep->m_patches_dom == Task::PatchDomainSpec::CoarseLevel      ||
+              dep->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
             continue;
           }
 
@@ -1591,10 +1591,10 @@ SchedulerCommon::scheduleAndDoDataCopy( const GridP & grid )
   this->initialize(1, 1);
   this->advanceDataWarehouse(grid, true);
   this->clearMappings();
-  this->mapDataWarehouse(Task::OldDW, 0);
-  this->mapDataWarehouse(Task::NewDW, 1);
-  this->mapDataWarehouse(Task::CoarseOldDW, 0);
-  this->mapDataWarehouse(Task::CoarseNewDW, 1);
+  this->mapDataWarehouse(Task::WhichDW::OldDW, 0);
+  this->mapDataWarehouse(Task::WhichDW::NewDW, 1);
+  this->mapDataWarehouse(Task::WhichDW::CoarseOldDW, 0);
+  this->mapDataWarehouse(Task::WhichDW::CoarseNewDW, 1);
 
   DataWarehouse* oldDataWarehouse = this->get_dw(0);
   DataWarehouse* newDataWarehouse = this->getLastDW();
@@ -1730,7 +1730,7 @@ SchedulerCommon::scheduleAndDoDataCopy( const GridP & grid )
         const VarLabel* var = iter->first;
         MaterialSubset* matls = iter->second;
 
-        dataTasks.back()->requires(Task::OldDW, var, 0, Task::OtherGridDomain, matls, Task::NormalDomain, Ghost::None, 0);
+        dataTasks.back()->requires(Task::WhichDW::OldDW, var, 0, Task::PatchDomainSpec::OtherGridDomain, matls, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0);
         DOUTR(g_schedulercommon_dbg, "  Scheduling copy for var " << *var << " matl " << *matls << " Copies: " << *copyPatchSets[L].get_rep());
         dataTasks.back()->computes(var, matls);
       }
@@ -1749,7 +1749,7 @@ SchedulerCommon::scheduleAndDoDataCopy( const GridP & grid )
         const VarLabel* var = iter->first;
         MaterialSubset* matls = iter->second;
 
-        dataTasks.back()->requires(Task::OldDW, var, nullptr, Task::OtherGridDomain, matls, Task::NormalDomain, Ghost::None, 0);
+        dataTasks.back()->requires(Task::WhichDW::OldDW, var, nullptr, Task::PatchDomainSpec::OtherGridDomain, matls, Task::MaterialDomainSpec::NormalDomain, Ghost::None, 0);
         DOUTR(g_schedulercommon_dbg, "  Scheduling modify for var " << *var << " matl " << *matls << " Modifies: " << *refinePatchSets[L].get_rep());
         dataTasks.back()->modifies(var, matls);
       }
@@ -2202,7 +2202,7 @@ SchedulerCommon::scheduleTaskMonitoring( const LevelP& level )
   {
     for( const auto &it : m_monitoring_tasks[i] )
     {
-      t->computes( it.second, m_dummy_matl, Task::OutOfDomain );
+      t->computes( it.second, m_dummy_matl, Task::MaterialDomainSpec::OutOfDomain );
       
       // treatAsOld copyData noScrub notCopyData noCheckpoint
       overrideVariableBehavior(it.second->getName(), false, false, true, true, true);
@@ -2234,7 +2234,7 @@ SchedulerCommon::scheduleTaskMonitoring( const PatchSet* patches )
   {
     for( const auto &it : m_monitoring_tasks[i] )
     {
-      t->computes( it.second, m_dummy_matl, Task::OutOfDomain );
+      t->computes( it.second, m_dummy_matl, Task::MaterialDomainSpec::OutOfDomain );
 
       overrideVariableBehavior(it.second->getName(), false, false, true, true, true);
       // treatAsOld copyData noScrub notCopyData noCheckpoint
@@ -2328,7 +2328,7 @@ SchedulerCommon::sumTaskMonitoringValues( DetailedTask * dtask )
             // (MPIScheduler and UnifiedScheduler) to use the task
             // execution time which is then weighted by the number of
             // cells in CostModelForecaster::addContribution
-            if (!dtask->getTask()->getHasSubScheduler() && !m_is_copy_data_timestep && dtask->getTask()->getType() != Task::Output) {
+            if (!dtask->getTask()->getHasSubScheduler() && !m_is_copy_data_timestep && dtask->getTask()->getType() != Task::TaskType::Output) {
               value = dtask->task_exec_time() / num_cells;
               loadBalancerCost = true;
             }

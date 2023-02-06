@@ -164,9 +164,9 @@ PartVel::schedComputePartVel( const LevelP& level, SchedulerP& sched, const int 
   Task::WhichDW which_dw;
 
   if ( rkStep == 0 ){
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
   }
 
   //--New
@@ -178,7 +178,7 @@ PartVel::schedComputePartVel( const LevelP& level, SchedulerP& sched, const int 
     else
       tsk->modifies( i->second );
     // also get the old one
-    tsk->requires( Task::OldDW, i->second, gn, 0);
+    tsk->requires( Task::WhichDW::OldDW, i->second, gn, 0);
   }
 
 

@@ -1144,10 +1144,10 @@ DataArchiver::sched_allOutputTasks( const GridP      & grid,
       SaveItem& saveItem = m_saveGlobalLabels[i];
 
       const MaterialSubset* mss = saveItem.getMaterialSubset(0);
-      task->requires( Task::NewDW, saveItem.label, mss, true);
+      task->requires( Task::WhichDW::NewDW, saveItem.label, mss, true);
     }
 
-    task->setType( Task::OutputGlobalVars ); 
+    task->setType( Task::TaskType::OutputGlobalVars ); 
     sched->addTask(task, nullptr , nullptr);
 
     // schedule task for non-global variables
@@ -1170,7 +1170,7 @@ DataArchiver::sched_allOutputTasks( const GridP      & grid,
       SaveItem& saveItem = m_checkpointGlobalLabels[i];
 
       const MaterialSubset* mss = saveItem.getMaterialSubset(0);
-      task->requires(Task::NewDW, saveItem.label, mss, true);
+      task->requires(Task::WhichDW::NewDW, saveItem.label, mss, true);
     }
 
     sched->addTask(task, nullptr, nullptr);
@@ -2514,7 +2514,7 @@ DataArchiver::sched_outputVariables(       vector<SaveItem> & saveLabels,
     //             deterministic order
     if( isThisCheckpoint ) {
       Ghost::GhostType  gn  = Ghost::None;
-      task->requires( Task::NewDW, m_sync_io_label, gn, 0 );
+      task->requires( Task::WhichDW::NewDW, m_sync_io_label, gn, 0 );
     }
     else {
       task->computes( m_sync_io_label );
@@ -2526,7 +2526,7 @@ DataArchiver::sched_outputVariables(       vector<SaveItem> & saveLabels,
       const MaterialSubset* matlSubset = saveIter->getMaterialSubset( level.get_rep() );
 
       if ( matlSubset != nullptr ) {
-        task->requires( Task::NewDW, (*saveIter).label, matlSubset, Task::OutOfDomain, Ghost::None, 0, true );
+        task->requires( Task::WhichDW::NewDW, (*saveIter).label, matlSubset, Task::MaterialDomainSpec::OutOfDomain, Ghost::None, 0, true );
 
         // Do not scrub any variables that are saved so they can be
         // accessed at any time after all of the tasks are finished.
@@ -2544,7 +2544,7 @@ DataArchiver::sched_outputVariables(       vector<SaveItem> & saveLabels,
     msg = "DataArchiver::sched_outputVariables for (" + Uintah::to_string(var_cnt) + ") variables on";
     printSchedule( level, g_DA_dbg, msg );
 
-    task->setType( Task::Output );
+    task->setType( Task::TaskType::Output );
     sched->addTask( task, patches, m_materialManager->allMaterials() );
   }
 
@@ -3925,7 +3925,7 @@ DataArchiver::initCheckpoints( const SchedulerP & sched )
 
     // adjust the patchSubset if the dependency requires coarse or fine level patches
     constHandle<PatchSubset> patches;
-    if ( dep->m_patches_dom == Task::CoarseLevel || dep->m_patches_dom == Task::FineLevel ){
+    if ( dep->m_patches_dom == Task::PatchDomainSpec::CoarseLevel || dep->m_patches_dom == Task::PatchDomainSpec::FineLevel ){
       patches = dep->getPatchesUnderDomain( patchSubset );
       patchSubset = patches.get_rep();
     }

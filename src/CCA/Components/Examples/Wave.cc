@@ -54,7 +54,7 @@ Wave::Wave(const ProcessorGroup* myworld,
   phi_label = VarLabel::create("phi", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
   pi_label = VarLabel::create("pi", CCVariable<double>::getTypeDescription());
 
-  rk4steps[0].cur_dw = Task::OldDW;
+  rk4steps[0].cur_dw = Task::WhichDW::OldDW;
   rk4steps[0].curphi_label = VarLabel::create("phi", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
   rk4steps[0].curpi_label = VarLabel::create("pi", CCVariable<double>::getTypeDescription());
   rk4steps[0].newphi_label = VarLabel::create("phi1", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
@@ -62,7 +62,7 @@ Wave::Wave(const ProcessorGroup* myworld,
   rk4steps[0].stepweight = 0.5;
   rk4steps[0].totalweight = 1/6.0;
 
-  rk4steps[1].cur_dw = Task::NewDW;
+  rk4steps[1].cur_dw = Task::WhichDW::NewDW;
   rk4steps[1].curphi_label = VarLabel::create("phi1", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
   rk4steps[1].curpi_label = VarLabel::create("pi1", CCVariable<double>::getTypeDescription());
   rk4steps[1].newphi_label = VarLabel::create("phi2", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
@@ -70,7 +70,7 @@ Wave::Wave(const ProcessorGroup* myworld,
   rk4steps[1].stepweight = 0.5;
   rk4steps[1].totalweight = 1/3.0;
 
-  rk4steps[2].cur_dw = Task::NewDW;
+  rk4steps[2].cur_dw = Task::WhichDW::NewDW;
   rk4steps[2].curphi_label = VarLabel::create("phi2", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
   rk4steps[2].curpi_label = VarLabel::create("pi2", CCVariable<double>::getTypeDescription());
   rk4steps[2].newphi_label = VarLabel::create("phi3", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
@@ -78,7 +78,7 @@ Wave::Wave(const ProcessorGroup* myworld,
   rk4steps[2].stepweight = 1.0;
   rk4steps[2].totalweight = 1/3.0;
 
-  rk4steps[3].cur_dw = Task::NewDW;
+  rk4steps[3].cur_dw = Task::WhichDW::NewDW;
   rk4steps[3].curphi_label = VarLabel::create("phi3", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
   rk4steps[3].curpi_label = VarLabel::create("pi3", CCVariable<double>::getTypeDescription());
   rk4steps[3].newphi_label = VarLabel::create("phi4", CCVariable<double>::getTypeDescription(), IntVector(1,1,1));
@@ -156,20 +156,20 @@ Wave::scheduleTimeAdvance( const LevelP& level, SchedulerP& sched)
   if(integration == "Euler"){
     Task* task = scinew Task("timeAdvance",
                              this, &Wave::timeAdvanceEuler);
-    task->requires(Task::OldDW, phi_label, Ghost::AroundCells, 1);
-    task->requires(Task::OldDW, pi_label,  Ghost::None, 0);
+    task->requires(Task::WhichDW::OldDW, phi_label, Ghost::AroundCells, 1);
+    task->requires(Task::WhichDW::OldDW, pi_label,  Ghost::None, 0);
     if(level->getIndex()>0){        // REFINE 
       addRefineDependencies(task, phi_label, true, true);
     }
-    //task->requires(Task::OldDW, getDelTLabel());
+    //task->requires(Task::WhichDW::OldDW, getDelTLabel());
     task->computes(phi_label);
     task->computes(pi_label);
     sched->addTask(task, level->eachPatch(), m_materialManager->allMaterials());
   } else if(integration == "RK4"){
     Task* task = scinew Task("setupRK4",
                              this, &Wave::setupRK4);
-    task->requires(Task::OldDW, phi_label, Ghost::AroundCells, 1);
-    task->requires(Task::OldDW, pi_label,  Ghost::None, 0);
+    task->requires(Task::WhichDW::OldDW, phi_label, Ghost::AroundCells, 1);
+    task->requires(Task::WhichDW::OldDW, pi_label,  Ghost::None, 0);
     if(level->getIndex()>0){        // REFINE 
       // TODO, fix calls to addRefineDependencies and refineFaces
       addRefineDependencies(task, phi_label, true, true);
@@ -183,9 +183,9 @@ Wave::scheduleTimeAdvance( const LevelP& level, SchedulerP& sched)
       Task* task = scinew Task("timeAdvance",
                                this, &Wave::timeAdvanceRK4, s);
                                
-      task->requires(Task::OldDW, getDelTLabel(), level.get_rep());
-      task->requires(Task::OldDW, phi_label,      Ghost::None);
-      task->requires(Task::OldDW, pi_label,       Ghost::None);
+      task->requires(Task::WhichDW::OldDW, getDelTLabel(), level.get_rep());
+      task->requires(Task::WhichDW::OldDW, phi_label,      Ghost::None);
+      task->requires(Task::WhichDW::OldDW, pi_label,       Ghost::None);
       task->requires(s->cur_dw, s->curphi_label,  Ghost::AroundCells, 1);
       task->requires(s->cur_dw, s->curpi_label,   Ghost::None, 0);
 
@@ -262,8 +262,8 @@ void Wave::timeAdvanceEuler(const ProcessorGroup*,
   DataWarehouse* cndw = 0;
   if (level->getIndex() > 0) {
     coarseLevel = level->getCoarserLevel().get_rep();
-    codw = old_dw->getOtherDataWarehouse(Task::CoarseOldDW);
-    cndw = old_dw->getOtherDataWarehouse(Task::CoarseNewDW);
+    codw = old_dw->getOtherDataWarehouse(Task::WhichDW::CoarseOldDW);
+    cndw = old_dw->getOtherDataWarehouse(Task::WhichDW::CoarseNewDW);
   }
   //Loop for all patches on this processor
   for(int p=0;p<patches->size();p++){
@@ -336,8 +336,8 @@ void Wave::setupRK4(const ProcessorGroup*,
   DataWarehouse* cndw = 0;
   if (level->getIndex() > 0) {
     coarseLevel = level->getCoarserLevel().get_rep();
-    codw = old_dw->getOtherDataWarehouse(Task::CoarseOldDW);
-    cndw = old_dw->getOtherDataWarehouse(Task::CoarseNewDW);
+    codw = old_dw->getOtherDataWarehouse(Task::WhichDW::CoarseOldDW);
+    cndw = old_dw->getOtherDataWarehouse(Task::WhichDW::CoarseNewDW);
   }
 
   //Loop for all patches on this processor
@@ -383,8 +383,8 @@ void Wave::timeAdvanceRK4(const ProcessorGroup*,
   DataWarehouse* cndw = 0;
   if (level->getIndex() > 0) {
     coarseLevel = level->getCoarserLevel().get_rep();
-    codw = old_dw->getOtherDataWarehouse(Task::CoarseOldDW);
-    cndw = old_dw->getOtherDataWarehouse(Task::CoarseNewDW);
+    codw = old_dw->getOtherDataWarehouse(Task::WhichDW::CoarseOldDW);
+    cndw = old_dw->getOtherDataWarehouse(Task::WhichDW::CoarseNewDW);
   }
 
   //Loop for all patches on this processor

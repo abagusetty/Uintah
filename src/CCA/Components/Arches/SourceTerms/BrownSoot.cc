@@ -93,9 +93,9 @@ BrownSoot::sched_computeSource( const LevelP& level, SchedulerP& sched, int time
     tsk->computes(m_nd_src_label);
     tsk->computes(m_soot_mass_src_label);
     tsk->computes(m_balance_src_label);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
     tsk->modifies(m_tar_src_label);
     tsk->modifies(m_nd_src_label);
     tsk->modifies(m_soot_mass_src_label);
@@ -123,7 +123,7 @@ BrownSoot::sched_computeSource( const LevelP& level, SchedulerP& sched, int time
   tsk->requires( which_dw, m_h2o_label,                          Ghost::None, 0 );
   tsk->requires( which_dw, m_temperature_label,                  Ghost::None, 0 );
   tsk->requires( which_dw, m_rho_label,                          Ghost::None, 0 );
-  tsk->requires( Task::OldDW, VarLabel::find("volFraction"), Ghost::None, 0 ); 
+  tsk->requires( Task::WhichDW::OldDW, VarLabel::find("volFraction"), Ghost::None, 0 ); 
 
   sched->addTask(tsk, level->eachPatch(), _materialManager->allMaterials( "Arches" ));
   

@@ -25,7 +25,7 @@
 /* GPU DataWarehouse device & host access*/
 
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
-#include <CCA/Components/Schedulers/GPUMemoryPool.h>
+#include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
 #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
@@ -506,7 +506,7 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
     }
     }
 
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
     // Also update the var object itself (i.e., addr)
     GPUGridVariableBase_offset = offset;
@@ -658,7 +658,7 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
   // Now allocate it
   if (allocationNeeded) {
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, var.getMemSize());
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, var.getMemSize());
 
     // Also update the var object itself (i.e., addr)
     var.setArray3(offset, size, addr);
@@ -1027,7 +1027,7 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
     }
     }
 
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
     // Also update the var object itself
     GPUReductionPerPatchVariableBase = addr;
@@ -1093,7 +1093,7 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
     // We are the first task to request allocation.  Do it.
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     std::size_t memSize = var.getMemSize();
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
     // Also update the var object itself
     var.setData(addr);
@@ -1158,7 +1158,7 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
     // We are the first task to request allocation.  Do it.
     OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
     std::size_t memSize = var.getMemSize();
-    addr = GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, memSize);
+    addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
     // Also update the var object itself
     var.setData(addr);
@@ -1218,7 +1218,7 @@ void GPUDataWarehouse::init_device(std::size_t objectSizeInBytes,
   this->d_maxdVarDBItems = d_maxdVarDBItems;
 
   OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
-  this->d_device_copy = reinterpret_cast<GPUDataWarehouse*>(GPUMemoryPool::getInstance().allocateGpuSpaceFromPool(d_device_id, objectSizeInBytes));
+  this->d_device_copy = reinterpret_cast<GPUDataWarehouse*>(GPUMemoryPool::getInstance().allocate(d_device_id, objectSizeInBytes));
 
   d_dirty = true;
 }
@@ -1270,7 +1270,7 @@ void GPUDataWarehouse::clear() {
       if (compareAndSwapDeallocating(stagingIter.second.atomicStatusInGpuMemory)) {
         // The counter hit zero, so lets deallocate the var.
 
-        memPool.freeGpuSpaceToPool(d_device_id, stagingIter.second.device_ptr, stagingIter.second.sizeInBytesDevicePtr);
+        memPool.deallocate(d_device_id, stagingIter.second.device_ptr, stagingIter.second.sizeInBytesDevicePtr);
         stagingIter.second.device_ptr = nullptr;
 
       }
@@ -1285,7 +1285,7 @@ void GPUDataWarehouse::clear() {
     // varPointers map to only hold staging vars
     if (compareAndSwapDeallocating(varIter.second.var->atomicStatusInGpuMemory)) {
       if (varIter.second.var->device_ptr) {
-        memPool.freeGpuSpaceToPool(d_device_id, varIter.second.var->device_ptr, varIter.second.var->sizeInBytesDevicePtr);
+        memPool.deallocate(d_device_id, varIter.second.var->device_ptr, varIter.second.var->sizeInBytesDevicePtr);
       }
     }
   }
@@ -1300,7 +1300,7 @@ void GPUDataWarehouse::deleteSelfOnDevice() {
   // Note: in SYCL no need to set the GPU active device before calling any SYCL APIs, unlike CUDA/HIP
   if (d_device_copy) {
     OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
-    GPUMemoryPool::getInstance().freeGpuSpaceToPool(d_device_id, d_device_copy, objectSizeInBytes);
+    GPUMemoryPool::getInstance().deallocate(d_device_id, d_device_copy, objectSizeInBytes);
     d_device_copy = nullptr;
   }
 }

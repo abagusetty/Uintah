@@ -45,7 +45,7 @@
 #include <Core/Util/DebugStream.h>
 #include <Core/Util/DOUT.hpp>
 
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
 #  include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
 #endif
 
@@ -184,7 +184,7 @@ AMRSimulationController::run()
   finalSetup();
 
   // Once the grid is set up pass it on to the GPU.
-#if defined(HAVE_CUDA) || defined(HAVE_SYCL)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
   GpuUtilities::assignPatchesToGpus( m_current_gridP );
 #endif
 
@@ -469,10 +469,10 @@ AMRSimulationController::run()
 void
 AMRSimulationController::doInitialTimeStep()
 {
-  m_scheduler->mapDataWarehouse(Task::OldDW, 0);
-  m_scheduler->mapDataWarehouse(Task::NewDW, 1);
-  m_scheduler->mapDataWarehouse(Task::CoarseOldDW, 0);
-  m_scheduler->mapDataWarehouse(Task::CoarseNewDW, 1);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::OldDW, 0);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::NewDW, 1);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, 0);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, 1);
   
   Timers::Simple taskGraphTimer;          // Task graph time
 
@@ -869,10 +869,10 @@ AMRSimulationController::compileTaskGraph( int totalFine )
 
   // Set up new DWs, DW mappings.
   m_scheduler->clearMappings();
-  m_scheduler->mapDataWarehouse( Task::OldDW, 0 );
-  m_scheduler->mapDataWarehouse( Task::NewDW, totalFine );
-  m_scheduler->mapDataWarehouse( Task::CoarseOldDW, 0 );
-  m_scheduler->mapDataWarehouse( Task::CoarseNewDW, totalFine );
+  m_scheduler->mapDataWarehouse( Task::WhichDW::OldDW, 0 );
+  m_scheduler->mapDataWarehouse( Task::WhichDW::NewDW, totalFine );
+  m_scheduler->mapDataWarehouse( Task::WhichDW::CoarseOldDW, 0 );
+  m_scheduler->mapDataWarehouse( Task::WhichDW::CoarseNewDW, totalFine );
   
   int my_rank = d_myworld->myRank();
   if (m_do_multi_taskgraphing) {
@@ -921,8 +921,8 @@ AMRSimulationController::compileTaskGraph( int totalFine )
     subCycleCompile( 0, totalFine, 0, 0 );
 
     m_scheduler->clearMappings();
-    m_scheduler->mapDataWarehouse( Task::OldDW, 0 );
-    m_scheduler->mapDataWarehouse( Task::NewDW, totalFine );
+    m_scheduler->mapDataWarehouse( Task::WhichDW::OldDW, 0 );
+    m_scheduler->mapDataWarehouse( Task::WhichDW::NewDW, totalFine );
   }
 
   // If regridding schedule error estimates
@@ -1014,10 +1014,10 @@ AMRSimulationController::subCycleCompile( int startDW,
   
   ASSERT(dwStride > 0 && numLevel < m_current_gridP->numLevels())
     m_scheduler->clearMappings();
-  m_scheduler->mapDataWarehouse(Task::OldDW, startDW);
-  m_scheduler->mapDataWarehouse(Task::NewDW, startDW+dwStride);
-  m_scheduler->mapDataWarehouse(Task::CoarseOldDW, coarseStartDW);
-  m_scheduler->mapDataWarehouse(Task::CoarseNewDW, coarseStartDW+coarseDWStride);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::OldDW, startDW);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::NewDW, startDW+dwStride);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, coarseStartDW);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, coarseStartDW+coarseDWStride);
 
   m_application->scheduleTimeAdvance(fineLevel, m_scheduler);
 
@@ -1032,19 +1032,19 @@ AMRSimulationController::subCycleCompile( int startDW,
 
       // Coarsen and then refine_CFI at the end of the W-cycle
       m_scheduler->clearMappings();
-      m_scheduler->mapDataWarehouse( Task::OldDW, 0 );
-      m_scheduler->mapDataWarehouse( Task::NewDW, startDW + dwStride );
-      m_scheduler->mapDataWarehouse( Task::CoarseOldDW, startDW );
-      m_scheduler->mapDataWarehouse( Task::CoarseNewDW, startDW + dwStride );
+      m_scheduler->mapDataWarehouse( Task::WhichDW::OldDW, 0 );
+      m_scheduler->mapDataWarehouse( Task::WhichDW::NewDW, startDW + dwStride );
+      m_scheduler->mapDataWarehouse( Task::WhichDW::CoarseOldDW, startDW );
+      m_scheduler->mapDataWarehouse( Task::WhichDW::CoarseNewDW, startDW + dwStride );
       m_application->scheduleCoarsen( fineLevel, m_scheduler );
     }
   }
 
   m_scheduler->clearMappings();
-  m_scheduler->mapDataWarehouse(Task::OldDW, startDW);
-  m_scheduler->mapDataWarehouse(Task::NewDW, startDW+dwStride);
-  m_scheduler->mapDataWarehouse(Task::CoarseOldDW, coarseStartDW);
-  m_scheduler->mapDataWarehouse(Task::CoarseNewDW, coarseStartDW+coarseDWStride);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::OldDW, startDW);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::NewDW, startDW+dwStride);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, coarseStartDW);
+  m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, coarseStartDW+coarseDWStride);
   m_application->scheduleFinalizeTimestep(fineLevel, m_scheduler);
 
   // do refineInterface after the freshest data we can get; after the
@@ -1058,14 +1058,14 @@ AMRSimulationController::subCycleCompile( int startDW,
         continue;
       }
       if (i == fineLevel->getIndex() && numLevel != 0) {
-        m_scheduler->mapDataWarehouse(Task::CoarseOldDW, coarseStartDW);
-        m_scheduler->mapDataWarehouse(Task::CoarseNewDW, coarseStartDW+coarseDWStride);
+        m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, coarseStartDW);
+        m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, coarseStartDW+coarseDWStride);
         m_application->scheduleRefineInterface(fineLevel, m_scheduler, true, true);
       }
       else {
         // look in the NewDW all the way down
-        m_scheduler->mapDataWarehouse(Task::CoarseOldDW, 0);
-        m_scheduler->mapDataWarehouse(Task::CoarseNewDW, startDW+dwStride);
+        m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, 0);
+        m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, startDW+dwStride);
         m_application->scheduleRefineInterface(fineLevel->getGrid()->getLevel(i), m_scheduler, false, true);
       }
     }
@@ -1109,10 +1109,10 @@ AMRSimulationController::subCycleExecute( int startDW,
     }
 
     m_scheduler->clearMappings();
-    m_scheduler->mapDataWarehouse(Task::OldDW, curDW);
-    m_scheduler->mapDataWarehouse(Task::NewDW, curDW+newDWStride);
-    m_scheduler->mapDataWarehouse(Task::CoarseOldDW, startDW);
-    m_scheduler->mapDataWarehouse(Task::CoarseNewDW, startDW+dwStride);
+    m_scheduler->mapDataWarehouse(Task::WhichDW::OldDW, curDW);
+    m_scheduler->mapDataWarehouse(Task::WhichDW::NewDW, curDW+newDWStride);
+    m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, startDW);
+    m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, startDW+dwStride);
 
     // we really only need to pass in whether the current DW is mapped to 0 or not
     // TODO - fix inter-Taskgraph scrubbing
@@ -1150,10 +1150,10 @@ AMRSimulationController::subCycleExecute( int startDW,
       // middle of the subcycle or at the end of level 0.
       // the end of the cycle will be taken care of by the parent level sybcycle
       m_scheduler->clearMappings();
-      m_scheduler->mapDataWarehouse(Task::OldDW, curDW);
-      m_scheduler->mapDataWarehouse(Task::NewDW, curDW+newDWStride);
-      m_scheduler->mapDataWarehouse(Task::CoarseOldDW, startDW);
-      m_scheduler->mapDataWarehouse(Task::CoarseNewDW, startDW+dwStride);
+      m_scheduler->mapDataWarehouse(Task::WhichDW::OldDW, curDW);
+      m_scheduler->mapDataWarehouse(Task::WhichDW::NewDW, curDW+newDWStride);
+      m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseOldDW, startDW);
+      m_scheduler->mapDataWarehouse(Task::WhichDW::CoarseNewDW, startDW+dwStride);
 
       m_scheduler->get_dw(curDW)->setScrubbing(oldScrubbing);                                 // OldDW
       m_scheduler->get_dw(curDW+newDWStride)->setScrubbing(DataWarehouse::ScrubNonPermanent); // NewDW

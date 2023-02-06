@@ -388,7 +388,7 @@ ApplicationCommon::scheduleReduceSystemVars(const GridP& grid,
   Task* task = scinew Task("ApplicationCommon::reduceSystemVars", this,
                            &ApplicationCommon::reduceSystemVars);
 
-  task->setType(Task::OncePerProc);
+  task->setType(Task::TaskType::OncePerProc);
   task->usesMPI(true);
 
   // coarsen delT task requires that delT is computed on every level,
@@ -400,7 +400,7 @@ ApplicationCommon::scheduleReduceSystemVars(const GridP& grid,
   task->computes(m_delTLabel);
 
   for (int i = 0; i < grid->numLevels(); i++) {
-    task->requires(Task::NewDW, m_delTLabel, grid->getLevel(i).get_rep());
+    task->requires(Task::WhichDW::NewDW, m_delTLabel, grid->getLevel(i).get_rep());
   }
   
   // These are the application reduction variables. An application may
@@ -415,7 +415,7 @@ ApplicationCommon::scheduleReduceSystemVars(const GridP& grid,
     if( scheduler->getComputedVars().find( label ) != scheduler->getComputedVars().end() ) {
       activateReductionVariable(var.first, true);
       
-      task->requires(Task::NewDW, label);
+      task->requires(Task::WhichDW::NewDW, label);
       task->computes(label);
     }
   }
@@ -566,7 +566,7 @@ ApplicationCommon::scheduleInitializeSystemVars( const GridP      & grid,
   Task* task = scinew Task("ApplicationCommon::initializeSystemVars", this,
                            &ApplicationCommon::initializeSystemVars);
 
-  task->setType(Task::OncePerProc);
+  task->setType(Task::TaskType::OncePerProc);
   
   task->computes(m_timeStepLabel);
   task->computes(m_simulationTimeLabel);
@@ -606,7 +606,7 @@ ApplicationCommon::scheduleUpdateSystemVars(const GridP& grid,
   Task* task = scinew Task("ApplicationCommon::updateSystemVars", this,
                            &ApplicationCommon::updateSystemVars);
 
-  task->setType(Task::OncePerProc);
+  task->setType(Task::TaskType::OncePerProc);
   
   task->computes(m_timeStepLabel);
   task->computes(m_simulationTimeLabel);
@@ -696,7 +696,7 @@ ApplicationCommon::getSubCycleProgress(DataWarehouse* fineDW)
 {
   // DWs are always created in order of time.
   int fineID = fineDW->getID();  
-  int coarseNewID = fineDW->getOtherDataWarehouse(Task::CoarseNewDW)->getID();
+  int coarseNewID = fineDW->getOtherDataWarehouse(Task::WhichDW::CoarseNewDW)->getID();
 
   // Need to do this check, on init timestep, old DW is nullptr, and
   // getOtherDW will throw exception.
@@ -704,7 +704,7 @@ ApplicationCommon::getSubCycleProgress(DataWarehouse* fineDW)
     return 1.0;
   }
 
-  int coarseOldID = fineDW->getOtherDataWarehouse(Task::CoarseOldDW)->getID();
+  int coarseOldID = fineDW->getOtherDataWarehouse(Task::WhichDW::CoarseOldDW)->getID();
   
   return ((double)fineID-coarseOldID) / (coarseNewID-coarseOldID);
 }

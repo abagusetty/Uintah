@@ -250,9 +250,9 @@ psNOx::sched_computeSource( const LevelP& level, SchedulerP& sched, int timeSubS
     tsk->computes(NO_src_label);
     tsk->computes(HCN_src_label);
     tsk->computes(NH3_src_label);
-    which_dw = Task::OldDW;
+    which_dw = Task::WhichDW::OldDW;
   } else {
-    which_dw = Task::NewDW;
+    which_dw = Task::WhichDW::NewDW;
     tsk->modifies(NO_src_label);
     tsk->modifies(HCN_src_label);
     tsk->modifies(NH3_src_label);
@@ -323,7 +323,7 @@ psNOx::sched_computeSource( const LevelP& level, SchedulerP& sched, int timeSubS
   tsk->requires( which_dw, m_NO_RHS_label,        Ghost::None, 0 );
   tsk->requires( which_dw, m_NH3_RHS_label,       Ghost::None, 0 );
   tsk->requires( which_dw, m_HCN_RHS_label,       Ghost::None, 0 );
-  tsk->requires( Task::OldDW, _field_labels->d_volFractionLabel, Ghost::None, 0 );
+  tsk->requires( Task::WhichDW::OldDW, _field_labels->d_volFractionLabel, Ghost::None, 0 );
   sched->addTask(tsk, level->eachPatch(), _materialManager->allMaterials( "Arches" ));
 }
 //---------------------------------------------------------------------------

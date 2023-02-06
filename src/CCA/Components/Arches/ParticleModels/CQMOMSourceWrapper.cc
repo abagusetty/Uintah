@@ -209,32 +209,32 @@ CQMOMSourceWrapper::sched_buildSourceTerm( const LevelP& level, SchedulerP& sche
   }
 
   volfrac_label = VarLabel::find( "volFraction" );
-  tsk->requires( Task::OldDW, volfrac_label, Ghost::None, 0);
+  tsk->requires( Task::WhichDW::OldDW, volfrac_label, Ghost::None, 0);
   
   //loop over requires for weights and abscissas needed
   for (ArchesLabel::WeightMap::iterator iW = d_fieldLabels->CQMOMWeights.begin(); iW != d_fieldLabels->CQMOMWeights.end(); ++iW) {
     const VarLabel* tempLabel = iW->second;
     if (timeSubStep == 0 ) {
-      tsk->requires( Task::OldDW, tempLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::OldDW, tempLabel, Ghost::None, 0 );
     } else {
-      tsk->requires( Task::NewDW, tempLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, tempLabel, Ghost::None, 0 );
     }
   }
   for (ArchesLabel::AbscissaMap::iterator iA = d_fieldLabels->CQMOMAbscissas.begin(); iA != d_fieldLabels->CQMOMAbscissas.end(); ++iA) {
     const VarLabel* tempLabel = iA->second;
     if (timeSubStep == 0 ) {
-      tsk->requires( Task::OldDW, tempLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::OldDW, tempLabel, Ghost::None, 0 );
     } else {
-      tsk->requires( Task::NewDW, tempLabel, Ghost::None, 0 );
+      tsk->requires( Task::WhichDW::NewDW, tempLabel, Ghost::None, 0 );
     }
   }
 
   //loop over all the d\phi/dt sources
   Task::WhichDW which_dw; 
   if ( timeSubStep == 0 ){ 
-    which_dw = Task::OldDW; 
+    which_dw = Task::WhichDW::OldDW; 
   } else { 
-    which_dw = Task::NewDW; 
+    which_dw = Task::WhichDW::NewDW; 
   }
   for ( int i = 0; i < _N * nSources; i++ ) {
     const VarLabel* tempLabel = d_nodeSources[i];

@@ -240,31 +240,31 @@ public:
       modifies_x(modifies_x)
   {
     switch(which_A_dw){
-    case Task::OldDW:
-      parent_which_A_dw = Task::ParentOldDW;
+    case Task::WhichDW::OldDW:
+      parent_which_A_dw = Task::WhichDW::ParentOldDW;
       break;
-    case Task::NewDW:
-      parent_which_A_dw = Task::ParentNewDW;
+    case Task::WhichDW::NewDW:
+      parent_which_A_dw = Task::WhichDW::ParentNewDW;
       break;
     default:
       throw ProblemSetupException("Unknown data warehouse for A matrix", __FILE__, __LINE__);
     }
     switch(which_b_dw){
-    case Task::OldDW:
-      parent_which_b_dw = Task::ParentOldDW;
+    case Task::WhichDW::OldDW:
+      parent_which_b_dw = Task::WhichDW::ParentOldDW;
       break;
-    case Task::NewDW:
-      parent_which_b_dw = Task::ParentNewDW;
+    case Task::WhichDW::NewDW:
+      parent_which_b_dw = Task::WhichDW::ParentNewDW;
       break;
     default:
       throw ProblemSetupException("Unknown data warehouse for b rhs", __FILE__, __LINE__);
     }
     switch(which_guess_dw){
-    case Task::OldDW:
-      parent_which_guess_dw = Task::ParentOldDW;
+    case Task::WhichDW::OldDW:
+      parent_which_guess_dw = Task::WhichDW::ParentOldDW;
       break;
-    case Task::NewDW:
-      parent_which_guess_dw = Task::ParentNewDW;
+    case Task::WhichDW::NewDW:
+      parent_which_guess_dw = Task::WhichDW::ParentNewDW;
       break;
     default:
       throw ProblemSetupException("Unknown data warehouse for initial guess", __FILE__, __LINE__);
@@ -655,10 +655,10 @@ public:
     subsched->initialize(3, 1);
     subsched->setParentDWs(old_dw, new_dw);
     subsched->clearMappings();
-    subsched->mapDataWarehouse(Task::ParentOldDW, 0);
-    subsched->mapDataWarehouse(Task::ParentNewDW, 1);
-    subsched->mapDataWarehouse(Task::OldDW, 2);
-    subsched->mapDataWarehouse(Task::NewDW, 3);
+    subsched->mapDataWarehouse(Task::WhichDW::ParentOldDW, 0);
+    subsched->mapDataWarehouse(Task::WhichDW::ParentNewDW, 1);
+    subsched->mapDataWarehouse(Task::WhichDW::OldDW, 2);
+    subsched->mapDataWarehouse(Task::WhichDW::NewDW, 3);
 
     GridP grid = level->getGrid();
     IntVector l, h;
@@ -738,10 +738,10 @@ public:
       subsched->initialize(3, 1);
       subsched->setParentDWs(old_dw, new_dw);
       subsched->clearMappings();
-      subsched->mapDataWarehouse(Task::ParentOldDW, 0);
-      subsched->mapDataWarehouse(Task::ParentNewDW, 1);
-      subsched->mapDataWarehouse(Task::OldDW, 2);
-      subsched->mapDataWarehouse(Task::NewDW, 3);
+      subsched->mapDataWarehouse(Task::WhichDW::ParentOldDW, 0);
+      subsched->mapDataWarehouse(Task::WhichDW::ParentNewDW, 1);
+      subsched->mapDataWarehouse(Task::WhichDW::OldDW, 2);
+      subsched->mapDataWarehouse(Task::WhichDW::NewDW, 3);
 
       //__________________________________
       // Step 1 - requires A(parent), D(old, 1 ghost) computes aden(new)
@@ -749,7 +749,7 @@ public:
         cout_doing << "CGSolver::schedule Step 1" << endl;
       task = scinew Task("CGSolver:step1", this, &CGStencil7<GridVarType>::step1);
       task->requires(parent_which_A_dw, A_label, Ghost::None, 0);
-      task->requires(Task::OldDW,       D_label, Around, 1);
+      task->requires(Task::WhichDW::OldDW,       D_label, Around, 1);
       task->computes(aden_label);
       task->computes(Q_label);
       task->computes(flop_label);
@@ -762,12 +762,12 @@ public:
       if(cout_doing.active())
         cout_doing << "CGSolver::schedule Step 2" << endl;
       task = scinew Task("CGSolver:step2", this, &CGStencil7<GridVarType>::step2);
-      task->requires(Task::OldDW, d_label);
-      task->requires(Task::NewDW, aden_label);
-      task->requires(Task::OldDW, D_label,    Ghost::None, 0);
-      task->requires(Task::OldDW, X_label,    Ghost::None, 0);
-      task->requires(Task::OldDW, R_label,    Ghost::None, 0);
-      task->requires(Task::OldDW, diag_label, Ghost::None, 0);
+      task->requires(Task::WhichDW::OldDW, d_label);
+      task->requires(Task::WhichDW::NewDW, aden_label);
+      task->requires(Task::WhichDW::OldDW, D_label,    Ghost::None, 0);
+      task->requires(Task::WhichDW::OldDW, X_label,    Ghost::None, 0);
+      task->requires(Task::WhichDW::OldDW, R_label,    Ghost::None, 0);
+      task->requires(Task::WhichDW::OldDW, diag_label, Ghost::None, 0);
       task->computes(X_label);
       task->computes(R_label);
       task->modifies(Q_label);
@@ -788,10 +788,10 @@ public:
       if(cout_doing.active())
         cout_doing << "CGSolver::schedule Step 3" << endl;
       task = scinew Task("CGSolver:step3", this, &CGStencil7<GridVarType>::step3);
-      task->requires(Task::OldDW, D_label, Ghost::None, 0);
-      task->requires(Task::NewDW, Q_label, Ghost::None, 0);
-      task->requires(Task::NewDW, d_label);
-      task->requires(Task::OldDW, d_label);
+      task->requires(Task::WhichDW::OldDW, D_label, Ghost::None, 0);
+      task->requires(Task::WhichDW::NewDW, Q_label, Ghost::None, 0);
+      task->requires(Task::WhichDW::NewDW, d_label);
+      task->requires(Task::WhichDW::OldDW, d_label);
       task->computes(D_label);
       task->computes(flop_label);
       task->modifies(memref_label);

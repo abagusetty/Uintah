@@ -116,7 +116,7 @@ void TaskGraph::nullSort(std::vector<Task *> &tasks) {
     // For all reduction tasks filtering out the one that is not in
     // ReductionTasksMap
     Task *task = task_iter->get();
-    if (task->getType() == Task::Reduction) {
+    if (task->getType() == Task::TaskType::Reduction) {
       for (auto reduction_task_iter = m_scheduler->m_reduction_tasks.begin();
            reduction_task_iter != m_scheduler->m_reduction_tasks.end();
            ++reduction_task_iter) {
@@ -184,7 +184,7 @@ void TaskGraph::createDetailedTask(Task *task, const PatchSubset *patches,
       scinew DetailedTask(task, patches, matls, m_detailed_tasks);
 
 #if SCI_ASSERTION_LEVEL > 0
-  if (task->getType() == Task::Reduction) {
+  if (task->getType() == Task::TaskType::Reduction) {
     // reduction tasks should have exactly 1 require, and it should be a modify
     ASSERT(task->getModifies() != nullptr);
   }
@@ -309,9 +309,9 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
 
       const int levelOffset = req->m_level_offset;
       int trueLevel = levelID;
-      if (req->m_patches_dom == Task::CoarseLevel) {
+      if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
         trueLevel -= levelOffset;
-      } else if (req->m_patches_dom == Task::FineLevel) {
+      } else if (req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
         trueLevel += levelOffset;
       }
 
@@ -340,9 +340,9 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
       std::string key = modifies->m_var->getName();
       int levelOffset = modifies->m_level_offset;
       int trueLevel = levelID;
-      if (modifies->m_patches_dom == Task::CoarseLevel) {
+      if (modifies->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
         trueLevel -= levelOffset;
-      } else if (modifies->m_patches_dom == Task::FineLevel) {
+      } else if (modifies->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
         trueLevel += levelOffset;
       }
       int ngc = modifies->m_num_ghost_cells;
@@ -403,9 +403,9 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
       std::string key = req->m_var->getName();
       int levelOffset = req->m_level_offset;
       int trueLevel = levelID;
-      if (req->m_patches_dom == Task::CoarseLevel) {
+      if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
         trueLevel -= levelOffset;
-      } else if (req->m_patches_dom == Task::FineLevel) {
+      } else if (req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
         trueLevel += levelOffset;
       }
 
@@ -435,9 +435,9 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
       std::string key = modifies->m_var->getName();
       int levelOffset = modifies->m_level_offset;
       int trueLevel = levelID;
-      if (modifies->m_patches_dom == Task::CoarseLevel) {
+      if (modifies->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
         trueLevel -= levelOffset;
-      } else if (modifies->m_patches_dom == Task::FineLevel) {
+      } else if (modifies->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
         trueLevel += levelOffset;
       }
 
@@ -467,9 +467,9 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
       std::string key = comps->m_var->getName();
       int levelOffset = comps->m_level_offset;
       int trueLevel = levelID;
-      if (comps->m_patches_dom == Task::CoarseLevel) {
+      if (comps->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
         trueLevel -= levelOffset;
-      } else if (comps->m_patches_dom == Task::FineLevel) {
+      } else if (comps->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
         trueLevel += levelOffset;
       }
       DOUTR(g_proc_neighborhood_dbg,
@@ -535,8 +535,8 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
 
       // OncePerProc tasks - only create OncePerProc tasks and output tasks once
       // on each processor.
-      if (task->getType() == Task::OncePerProc ||
-          task->getType() == Task::Hypre) {
+      if (task->getType() == Task::TaskType::OncePerProc ||
+          task->getType() == Task::TaskType::Hypre) {
         // only schedule this task on processors in the neighborhood
 
         // NOTE THE MAP::AT METHOD NEEDS TO BE SAFEGUARDED.
@@ -569,7 +569,7 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
 
       //__________________________________
       // Output tasks
-      else if (task->getType() == Task::Output) {
+      else if (task->getType() == Task::TaskType::Output) {
         // Compute rank that handles output for this process.
         int handling_rank =
             (m_proc_group->myRank() / m_load_balancer->getNthRank()) *
@@ -668,15 +668,15 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
     // patches
     else if (!ps) {
 
-      if (task->getType() == Task::Reduction ||
-          task->getType() == Task::OutputGlobalVars) {
+      if (task->getType() == Task::TaskType::Reduction ||
+          task->getType() == Task::TaskType::OutputGlobalVars) {
         for (int m = 0; m < ms->size(); m++) {
 
           const MaterialSubset *mss = ms->getSubset(m);
           createDetailedTask(task, nullptr, mss);
           ++num_detailed_tasks;
 
-          if (task->getType() == Task::OutputGlobalVars) {
+          if (task->getType() == Task::TaskType::OutputGlobalVars) {
             ++tot_output_tasks;
           } else {
             ++tot_reduction_tasks;
@@ -776,7 +776,7 @@ void TaskGraph::createDetailedDependencies() {
 
     DOUTR(g_tg_phase_dbg, " Task: " << *dtask << " phase: " << currphase);
 
-    if (dtask->m_task->getType() == Task::Reduction) {
+    if (dtask->m_task->getType() == Task::TaskType::Reduction) {
       dtask->m_task->m_comm = curr_num_comms;
       curr_num_comms++;
       currphase++;
@@ -875,12 +875,12 @@ void TaskGraph::remapTaskDWs(int dwmap[]) {
     // we need to find the coarsest level.  The NewDW is relative to the
     // coarsest level executing in this taskgraph.
     if (m_type == Scheduler::IntermediateTaskGraph &&
-        (m_tasks[i]->getType() != Task::Output &&
-         m_tasks[i]->getType() != Task::OncePerProc &&
-         m_tasks[i]->getType() != Task::Hypre)) {
-      if (m_tasks[i]->getType() == Task::OncePerProc ||
-          m_tasks[i]->getType() == Task::Hypre ||
-          m_tasks[i]->getType() == Task::Output) {
+        (m_tasks[i]->getType() != Task::TaskType::Output &&
+         m_tasks[i]->getType() != Task::TaskType::OncePerProc &&
+         m_tasks[i]->getType() != Task::TaskType::Hypre)) {
+      if (m_tasks[i]->getType() == Task::TaskType::OncePerProc ||
+          m_tasks[i]->getType() == Task::TaskType::Hypre ||
+          m_tasks[i]->getType() == Task::TaskType::Output) {
         levelmin = 0;
         continue;
       }
@@ -894,20 +894,20 @@ void TaskGraph::remapTaskDWs(int dwmap[]) {
     }
   }
   DOUTR(g_detailed_task_dbg, " Basic mapping "
-                                 << "Old " << dwmap[Task::OldDW] << " New "
-                                 << dwmap[Task::NewDW] << " CO "
-                                 << dwmap[Task::CoarseOldDW] << " CN "
-                                 << dwmap[Task::CoarseNewDW] << " levelmin "
-                                 << levelmin);
+        << "Old " << dwmap[static_cast<int>(Task::WhichDW::OldDW)] << " New "
+        << dwmap[static_cast<int>(Task::WhichDW::NewDW)] << " CO "
+        << dwmap[static_cast<int>(Task::WhichDW::CoarseOldDW)] << " CN "
+        << dwmap[static_cast<int>(Task::WhichDW::CoarseNewDW)] << " levelmin "
+        << levelmin);
 
   if (m_type == Scheduler::IntermediateTaskGraph) {
     // fix the CoarseNewDW for finer levels.  The CoarseOld will only matter
     // on the level it was originally mapped, so leave it as it is
-    dwmap[Task::CoarseNewDW] = dwmap[Task::NewDW];
+    dwmap[static_cast<int>(Task::WhichDW::CoarseNewDW)] = dwmap[static_cast<int>(Task::WhichDW::NewDW)];
     for (unsigned i = 0; i < m_tasks.size(); i++) {
-      if (m_tasks[i]->getType() != Task::Output &&
-          m_tasks[i]->getType() != Task::OncePerProc &&
-          m_tasks[i]->getType() != Task::Hypre) {
+      if (m_tasks[i]->getType() != Task::TaskType::Output &&
+          m_tasks[i]->getType() != Task::TaskType::OncePerProc &&
+          m_tasks[i]->getType() != Task::TaskType::Hypre) {
         const PatchSet *ps = m_tasks[i]->getPatchSet();
         if (!ps) {
           continue;
@@ -916,10 +916,10 @@ void TaskGraph::remapTaskDWs(int dwmap[]) {
           m_tasks[i]->setMapping(dwmap);
           DOUTR(g_detailed_task_dbg, m_tasks[i]->getName()
                                          << " mapping "
-                                         << "Old " << dwmap[Task::OldDW]
-                                         << " New " << dwmap[Task::NewDW]
-                                         << " CO " << dwmap[Task::CoarseOldDW]
-                                         << " CN " << dwmap[Task::CoarseNewDW]
+                                         << "Old " << dwmap[static_cast<int>(Task::WhichDW::OldDW)]
+                                         << " New " << dwmap[static_cast<int>(Task::WhichDW::NewDW)]
+                                         << " CO " << dwmap[static_cast<int>(Task::WhichDW::CoarseOldDW)]
+                                         << " CN " << dwmap[static_cast<int>(Task::WhichDW::CoarseNewDW)]
                                          << " (levelmin=" << levelmin << ")");
         }
       }
@@ -974,8 +974,8 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
     const Level *origLevel = nullptr;
     const bool uses_SHRT_MAX = (req->m_num_ghost_cells == SHRT_MAX);
     if ((dtask->m_patches) &&
-        (dtask->getTask()->getType() != Task::OncePerProc) &&
-        (dtask->getTask()->getType() != Task::Hypre)) {
+        (dtask->getTask()->getType() != Task::TaskType::OncePerProc) &&
+        (dtask->getTask()->getType() != Task::TaskType::Hypre)) {
       origPatch = dtask->m_patches->get(0);
       origLevel = origPatch->getLevel();
       levelID = origLevel->getID();
@@ -984,15 +984,15 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
         req->m_level_offset; // The level offset indicates how many levels up or
                              // down from the patches assigned to the task.
     int trueLevel = levelID;
-    if (req->m_patches_dom == Task::CoarseLevel) {
+    if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
       trueLevel -= levelOffset;
-    } else if (req->m_patches_dom == Task::FineLevel) {
+    } else if (req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
       trueLevel += levelOffset;
     }
     IntVector otherLevelLow, otherLevelHigh;
-    if (req->m_patches_dom == Task::CoarseLevel ||
-        req->m_patches_dom == Task::FineLevel) {
-      // the requires should have been done with Task::CoarseLevel or FineLevel,
+    if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel ||
+        req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
+      // the requires should have been done with Task::PatchDomainSpec::CoarseLevel or FineLevel,
       // with null patches and the task->patches should be size one (so we don't
       // have to worry about overlapping regions)
       origPatch = dtask->m_patches->get(0);
@@ -1001,7 +1001,7 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
       ASSERT(dtask->m_patches->size() == 1);
       ASSERT(req->m_level_offset > 0);
 
-      if (req->m_patches_dom == Task::CoarseLevel) {
+      if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel) {
         // change the ghost cells to reflect coarse level
         LevelP nextLevel = origPatch->getLevelP();
         IntVector ratio = origPatch->getLevel()->getRefinementRatio();
@@ -1025,7 +1025,7 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
             ratio - IntVector(1, 1, 1);
       } else { // This covers when req->m_patches_dom == Task::ThisLevel (single
                // level problems) or when req->m_patches_dom ==
-               // Task::OtherGridDomain. (AMR problems)
+               // Task::PatchDomainSpec::OtherGridDomain. (AMR problems)
         if (uses_SHRT_MAX) {
           // Finer patches probably shouldn't be using SHRT_MAX ghost cells, but
           // just in case they do, at least compute the low and high
@@ -1077,14 +1077,14 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
               req->m_num_ghost_cells, low, high);
         }
 
-        if (req->m_patches_dom == Task::CoarseLevel ||
-            req->m_patches_dom == Task::FineLevel) {
+        if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel ||
+            req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
           // make sure the bounds of the dep are limited to the original patch's
           // (see above) also limit to current patch, as patches already loops
           // over all patches
           IntVector origlow = low;
           IntVector orighigh = high;
-          if (req->m_patches_dom == Task::FineLevel) {
+          if (req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
             // don't coarsen the extra cells
             low =
                 patch->getExtraLowIndex(basis, req->m_var->getBoundaryLayer());
@@ -1182,7 +1182,7 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
             neighbor = neighbor->getRealPatch();
           }
 
-          if (req->m_patches_dom == Task::OtherGridDomain) {
+          if (req->m_patches_dom == Task::PatchDomainSpec::OtherGridDomain) {
             // this is when we are copying data between two grids (currently
             // between timesteps) the grid assigned to the old dw should be the
             // old grid. This should really only impact things required from the
@@ -1237,7 +1237,7 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
             IntVector from_l;
             IntVector from_h;
 
-            if (req->m_patches_dom == Task::OtherGridDomain &&
+            if (req->m_patches_dom == Task::PatchDomainSpec::OtherGridDomain &&
                 fromNeighbor->getLevel()->getIndex() > 0) {
               // DON'T send extra cells (unless they're on the domain boundary)
               from_l = Max(fromNeighbor->getLowIndexWithDomainLayer(basis), l);
@@ -1407,7 +1407,7 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
               }
 
               DetailedDep::CommCondition cond = DetailedDep::Always;
-              if (proc != -1 && req->m_patches_dom != Task::OtherGridDomain) {
+              if (proc != -1 && req->m_patches_dom != Task::PatchDomainSpec::OtherGridDomain) {
                 // for OldDW tasks - see comment in class DetailedDep by
                 // CommCondition
                 int subsequentProc =
@@ -1472,10 +1472,10 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
     // ARS - FIX ME
     // else if (patches && patches->empty() &&
     else if (patches && (patches->empty() || patches->size() <= 1) &&
-             (req->m_patches_dom == Task::FineLevel ||
-              dtask->getTask()->getType() == Task::OncePerProc ||
-              dtask->getTask()->getType() == Task::Hypre ||
-              dtask->getTask()->getType() == Task::Output ||
+             (req->m_patches_dom == Task::PatchDomainSpec::FineLevel ||
+              dtask->getTask()->getType() == Task::TaskType::OncePerProc ||
+              dtask->getTask()->getType() == Task::TaskType::Hypre ||
+              dtask->getTask()->getType() == Task::TaskType::Output ||
               dtask->getTask()->getName() ==
                   "SchedulerCommon::copyDataToNewGrid")) {
 
@@ -1534,8 +1534,8 @@ int TaskGraph::findVariableLocation(Task::Dependency *req, const Patch *patch,
   // This needs to be improved, especially for re-distribution on restart from
   // checkpoint.
   int proc;
-  if ((req->m_task->mapDataWarehouse(Task::ParentNewDW) != -1 &&
-       req->m_whichdw != Task::ParentOldDW) ||
+  if ((req->m_task->mapDataWarehouse(Task::WhichDW::ParentNewDW) != -1 &&
+       req->m_whichdw != Task::WhichDW::ParentOldDW) ||
       iteration > 0 ||
       (req->m_look_in_old_tg && m_type == Scheduler::IntermediateTaskGraph)) {
     // Provide some accommodation for Dynamic load balancers and sub schedulers.
@@ -1619,7 +1619,7 @@ void CompTable::remembercomp(Data *newData, const ProcessorGroup *pg) {
   // label to skip.
 
   // ARS - Treat sole vars the same as reduction vars??
-  if (newData->m_comp->m_dep_type != Task::Modifies &&
+  if (newData->m_comp->m_dep_type != Task::DepType::Modifies &&
       vartype != TypeDescription::ReductionVariable &&
       vartype != TypeDescription::SoleVariable) {
     if (m_data.lookup(newData)) {
@@ -1788,11 +1788,11 @@ void TaskGraph::addDependencyEdges(Task *task, GraphSortInfoMap &sortinfo,
   for (; req != nullptr; req = req->m_next) {
 
     DOUT(g_topological_deps_dbg, "Rank-" << m_proc_group->myRank()
-                                         << ": Checking edge for req: " << *req
-                                         << ", task: " << *req->m_task
-                                         << ", domain: " << req->m_patches_dom);
+         << ": Checking edge for req: " << *req
+         << ", task: " << *req->m_task
+         << ", domain: " << static_cast<int>(req->m_patches_dom));
 
-    if (req->m_whichdw == Task::NewDW) {
+    if (req->m_whichdw == Task::WhichDW::NewDW) {
 
       // If DW is finalized, we assume that we already have it, or that we will
       // get it sent to us. Otherwise, we set up an edge to connect this req to
@@ -1816,9 +1816,9 @@ void TaskGraph::addDependencyEdges(Task *task, GraphSortInfoMap &sortinfo,
         bool requiresReductionTask = false;
         DOUT(g_topological_deps_dbg,
              "Rank-" << m_proc_group->myRank()
-                     << ": Checking edge from comp: " << *compiter->second
-                     << ", task: " << *compiter->second->m_task
-                     << ", domain: " << compiter->second->m_patches_dom);
+             << ": Checking edge from comp: " << *compiter->second
+             << ", task: " << *compiter->second->m_task
+             << ", domain: " << static_cast<int>(compiter->second->m_patches_dom));
         if (req->mapDataWarehouse() == compiter->second->mapDataWarehouse()) {
           if (req->m_var->typeDescription()->isReductionVariable()) {
             // Match the level first
@@ -1998,8 +1998,8 @@ bool TaskGraph::overlaps(const Task::Dependency *comp,
       return false;
     }
     ps1 = comp->m_task->getPatchSet()->getUnion();
-    if (comp->m_patches_dom == Task::CoarseLevel ||
-        comp->m_patches_dom == Task::FineLevel) {
+    if (comp->m_patches_dom == Task::PatchDomainSpec::CoarseLevel ||
+        comp->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
       SCI_THROW(InternalError("Should not compute onto another level!",
                               __FILE__, __LINE__));
       // This may not be a big deal if it were needed, but I didn't think that
@@ -2014,8 +2014,8 @@ bool TaskGraph::overlaps(const Task::Dependency *comp,
       return false;
     }
     ps2 = req->m_task->getPatchSet()->getUnion();
-    if (req->m_patches_dom == Task::CoarseLevel ||
-        req->m_patches_dom == Task::FineLevel) {
+    if (req->m_patches_dom == Task::PatchDomainSpec::CoarseLevel ||
+        req->m_patches_dom == Task::PatchDomainSpec::FineLevel) {
       saveHandle2 = req->getPatchesUnderDomain(ps2);
       ps2 = saveHandle2.get_rep();
     }
@@ -2023,7 +2023,7 @@ bool TaskGraph::overlaps(const Task::Dependency *comp,
 
   if (!PatchSubset::overlaps(
           ps1, ps2)) { // && !(ps1->size() == 0 && (!req->patches || ps2->size()
-                       // == 0) && comp->task->getType() == Task::OncePerProc))
+                       // == 0) && comp->task->getType() == Task::TaskType::OncePerProc))
     return false;
   }
 
@@ -2060,7 +2060,7 @@ void TaskGraph::processDependencies(Task *task, Task::Dependency *req,
          "Rank-" << m_proc_group->myRank()
                  << " processDependencies for req: " << *req);
 
-    if (req->m_whichdw == Task::NewDW) {
+    if (req->m_whichdw == Task::WhichDW::NewDW) {
       Task::Edge *edge = req->m_comp_head;
 
       for (; edge != nullptr; edge = edge->m_comp_next) {
@@ -2143,8 +2143,8 @@ void TaskGraph::setupTaskConnections(GraphSortInfoMap &sortinfo) {
       if (m_scheduler->isOldDW(comp->mapDataWarehouse())) {
 
         DOUT(g_topological_deps_dbg,
-             "Rank-" << m_proc_group->myRank() << " which = " << comp->m_whichdw
-                     << ", mapped to " << comp->mapDataWarehouse());
+             "Rank-" << m_proc_group->myRank() << " which = " << static_cast<int>(comp->m_whichdw)
+             << ", mapped to " << static_cast<int>(comp->mapDataWarehouse()));
 
         SCI_THROW(InternalError("Variable produced in old datawarehouse: " +
                                     comp->m_var->getName(),
@@ -2190,28 +2190,28 @@ void TaskGraph::setupTaskConnections(GraphSortInfoMap &sortinfo) {
           taskname << "TaskGraph::Reduction: " << comp->m_var->getName()
                    << ", level: " << levelidx << ", dw: " << dw;
 
-          Task *newtask = scinew Task(taskname.str(), Task::Reduction);
+          Task *newtask = scinew Task(taskname.str(), Task::TaskType::Reduction);
 
           sortinfo[newtask] = GraphSortInfo();
 
-          int dwmap[Task::TotalDWs];
-          for (int i = 0; i < Task::TotalDWs; i++) {
+          int dwmap[static_cast<int>(Task::WhichDW::TotalDWs)];
+          for (int i = 0; i < static_cast<int>(Task::WhichDW::TotalDWs); i++) {
             dwmap[i] = Task::InvalidDW;
           }
 
-          dwmap[Task::OldDW] = Task::NoDW;
-          dwmap[Task::NewDW] = dw;
+          dwmap[static_cast<int>(Task::WhichDW::OldDW)] = Task::NoDW;
+          dwmap[static_cast<int>(Task::WhichDW::NewDW)] = dw;
           newtask->setMapping(dwmap);
 
           // compute and require for all patches but some set of materials
           // (maybe global material, but not necessarily)
           if (comp->m_matls != nullptr) {
             newtask->modifies(comp->m_var, level, comp->m_matls,
-                              Task::OutOfDomain);
+                              Task::MaterialDomainSpec::OutOfDomain);
           } else {
             for (int m = 0; m < matlSet->size(); m++) {
               newtask->modifies(comp->m_var, level, matlSet->getSubset(m),
-                                Task::OutOfDomain);
+                                Task::MaterialDomainSpec::OutOfDomain);
             }
           }
           reductionTasks[key] = newtask;

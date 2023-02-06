@@ -385,7 +385,7 @@ void SYCLScheduler::runTask(DetailedTask *dtask, int iteration,
             << thread_id << ", " << event << std::endl;
 
   // Only execute CPU or GPU tasks.  Don't execute postGPU tasks a second time.
-  if (event == Task::CPU || event == Task::GPU) {
+  if (event == Task::CallBackEvent::CPU || event == Task::CallBackEvent::GPU) {
     std::vector<DataWarehouseP> plain_old_dws(m_dws.size());
     for (int i = 0; i < static_cast<int>(m_dws.size()); i++) {
       plain_old_dws[i] = m_dws[i].get_rep();
@@ -395,7 +395,7 @@ void SYCLScheduler::runTask(DetailedTask *dtask, int iteration,
   }
 
   // For CPU and postGPU task runs, post MPI sends and call task->done;
-  if (event == Task::CPU || event == Task::postGPU) {
+  if (event == Task::CallBackEvent::CPU || event == Task::postGPU) {
 
     if (Uintah::Parallel::usingDevice()) {
 
@@ -542,8 +542,8 @@ void SYCLScheduler::execute(int tgnum, int iteration) {
   m_abort = false;
   m_abort_point = 987654;
 
-  if (m_reloc_new_pos_label && m_dws[m_dwmap[Task::OldDW]] != nullptr) {
-    m_dws[m_dwmap[Task::OldDW]]->exchangeParticleQuantities(
+  if (m_reloc_new_pos_label && m_dws[m_dwmap[Task::WhichDW::OldDW]] != nullptr) {
+    m_dws[m_dwmap[Task::WhichDW::OldDW]]->exchangeParticleQuantities(
         m_detailed_tasks, m_loadBalancer, m_reloc_new_pos_label, iteration);
   }
 
@@ -994,7 +994,7 @@ void SYCLScheduler::runTasks(int thread_id) {
       } else if (gpuRunReady) {
 
         // Run the task on the GPU!
-        runTask(readyTask, m_curr_iteration, thread_id, Task::GPU);
+        runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::GPU);
 
         // See if we're dealing with 32768 ghost cells per patch.  If so,
         // it's easier to manage them on the host for now than on the GPU.  We
@@ -1067,7 +1067,7 @@ void SYCLScheduler::runTasks(int thread_id) {
           if (readyTask->getVarsBeingCopiedByTask().getMap().empty()) {
             if (allHostVarsProcessingReady(readyTask)) {
               m_detailed_tasks->addHostReadyToExecute(readyTask);
-              // runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+              // runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
               // GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
             } else {
               m_detailed_tasks->addHostCheckIfExecutable(readyTask);
@@ -1085,7 +1085,7 @@ void SYCLScheduler::runTasks(int thread_id) {
           markHostRequiresDataAsValid(readyTask);
           if (allHostVarsProcessingReady(readyTask)) {
             m_detailed_tasks->addHostReadyToExecute(readyTask);
-            // runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+            // runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
             // GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
           } else {
             m_detailed_tasks->addHostCheckIfExecutable(readyTask);
@@ -1093,7 +1093,7 @@ void SYCLScheduler::runTasks(int thread_id) {
         } else if (cpuCheckIfExecutable) {
           if (allHostVarsProcessingReady(readyTask)) {
             m_detailed_tasks->addHostReadyToExecute(readyTask);
-            // runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+            // runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
             // GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
           } else {
             // Some vars aren't valid and ready,  We must be waiting on another
@@ -1103,7 +1103,7 @@ void SYCLScheduler::runTasks(int thread_id) {
         } else if (cpuRunReady) {
 
           // run CPU task.
-          runTask(readyTask, m_curr_iteration, thread_id, Task::CPU);
+          runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
 
           // See note above near cpuInitReady.  Some CPU tasks may internally
           // interact with GPUs without modifying the structure of the data
@@ -3360,8 +3360,8 @@ void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
     const int currentDevice = deviceNums_it;
 
     int numItemsInDW =
-        dtask->getTaskVars().getTotalVars(currentDevice, Task::OldDW) +
-        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::OldDW);
+        dtask->getTaskVars().getTotalVars(currentDevice, Task::WhichDW::OldDW) +
+        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::WhichDW::OldDW);
     if (numItemsInDW > 0) {
       std::size_t objectSizeInBytes =
           sizeof(GPUDataWarehouse) -
@@ -3375,12 +3375,12 @@ void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
           << " Task: " << dtask->getTask()->getName();
       old_taskGpuDW->init(currentDevice, out.str());
       old_taskGpuDW->init_device(objectSizeInBytes, numItemsInDW);
-      dtask->setTaskGpuDataWarehouse(currentDevice, Task::OldDW, old_taskGpuDW);
+      dtask->setTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW, old_taskGpuDW);
     }
 
     numItemsInDW =
-        dtask->getTaskVars().getTotalVars(currentDevice, Task::NewDW) +
-        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::NewDW);
+        dtask->getTaskVars().getTotalVars(currentDevice, Task::WhichDW::NewDW) +
+        dtask->getGhostVars().getNumGhostCellCopies(currentDevice, Task::WhichDW::NewDW);
     if (numItemsInDW > 0) {
       std::size_t objectSizeInBytes =
           sizeof(GPUDataWarehouse) -
@@ -3394,7 +3394,7 @@ void SYCLScheduler::createTaskGpuDWs(DetailedTask *dtask) {
           << " Thread:" << Impl::t_tid << " Task: " << dtask->getName();
       new_taskGpuDW->init(currentDevice, out.str());
       new_taskGpuDW->init_device(objectSizeInBytes, numItemsInDW);
-      dtask->setTaskGpuDataWarehouse(currentDevice, Task::NewDW, new_taskGpuDW);
+      dtask->setTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW, new_taskGpuDW);
     }
   }
 }
@@ -3478,17 +3478,17 @@ void SYCLScheduler::findIntAndExtGpuDependencies(DetailedTask *dtask, int iterat
         // particle data is on the old dw
 
         if (!m_reloc_new_pos_label && m_parent_scheduler) {
-          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::ParentOldDW)]
+          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::ParentOldDW)]
                       .get_rep();
           posLabel = m_parent_scheduler->m_reloc_new_pos_label;
         } else {
           // on an output task (and only on one) we require particle
           // variables from the NewDW
           if (req->m_to_tasks.front()->getTask()->getType() == Task::Output) {
-            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::NewDW)]
+            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::NewDW)]
                         .get_rep();
           } else {
-            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::OldDW)]
+            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::OldDW)]
                         .get_rep();
           }
           posLabel = m_reloc_new_pos_label;
@@ -3510,11 +3510,11 @@ void SYCLScheduler::syncTaskGpuDWs(DetailedTask *dtask) {
   std::set<int> deviceNums = dtask->getDeviceNums();
   GPUDataWarehouse *taskgpudw{nullptr};
   for (const auto deviceNums_it : deviceNums) {
-    taskgpudw = dtask->getTaskGpuDataWarehouse(deviceNums_it, Task::OldDW);
+    taskgpudw = dtask->getTaskGpuDataWarehouse(deviceNums_it, Task::WhichDW::OldDW);
     if (taskgpudw) {
       taskgpudw->syncto_device(dtask->getGpuStreamForThisTask(deviceNums_it));
     }
-    taskgpudw = dtask->getTaskGpuDataWarehouse(deviceNums_it, Task::NewDW);
+    taskgpudw = dtask->getTaskGpuDataWarehouse(deviceNums_it, Task::WhichDW::NewDW);
     if (taskgpudw) {
       taskgpudw->syncto_device(dtask->getGpuStreamForThisTask(deviceNums_it));
     }
@@ -3530,18 +3530,18 @@ void SYCLScheduler::performInternalGhostCellCopies(DetailedTask *dtask) {
   std::set<int> deviceNums = dtask->getDeviceNums();
   for (auto deviceNums_it : deviceNums) {
     const int currentDevice = deviceNums_it;
-    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW) != nullptr &&
-        dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)
+    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW) != nullptr &&
+        dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW)
             ->ghostCellCopiesNeeded()) {
-      dtask->getTaskGpuDataWarehouse(currentDevice, Task::OldDW)
+      dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::OldDW)
           ->copyGpuGhostCellsToGpuVarsInvoker(
               dtask->getGpuStreamForThisTask(currentDevice));
     }
 
-    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW) != nullptr &&
-        dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)
+    if (dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW) != nullptr &&
+        dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW)
             ->ghostCellCopiesNeeded()) {
-      dtask->getTaskGpuDataWarehouse(currentDevice, Task::NewDW)
+      dtask->getTaskGpuDataWarehouse(currentDevice, Task::WhichDW::NewDW)
           ->copyGpuGhostCellsToGpuVarsInvoker(
               dtask->getGpuStreamForThisTask(currentDevice));
     }

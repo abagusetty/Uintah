@@ -490,20 +490,20 @@ namespace WasatchCore{
          _____________________________________________________________________________
          | INTEGRATOR  |    STATE_N            |  STATE_NONE |  STATE_DYNAMIC          |
          |-------------|-----------------------|-------------|-------------------------|
-         | REGULAR     | Task::OldDW           | Task::NewDW | stage==1? OldDW : NewDW |
+         | REGULAR     | Task::WhichDW::OldDW           | Task::WhichDW::NewDW | stage==1? OldDW : NewDW |
          |-------------|-----------------------|-------------|-------------------------|
-         | DUAL TIME   | Task::ParentOldDW     | Task::NewDW | Task::OldDW             |
+         | DUAL TIME   | Task::WhichDW::ParentOldDW     | Task::WhichDW::NewDW | Task::WhichDW::OldDW             |
          |_____________|_______________________|_____________|_________________________|
          */
-        const Uintah::Task::WhichDW dw = ( fieldInfo.useOldDataWarehouse ) ? ( (fieldTag.context() == Expr::STATE_DYNAMIC) ? Uintah::Task::OldDW : ( hasDualTime ? Uintah::Task::ParentOldDW : Uintah::Task::OldDW) )  : Uintah::Task::NewDW;
-//        const Uintah::Task::WhichDW dw = ( fieldInfo.useOldDataWarehouse ) ? Uintah::Task::ParentOldDW : Uintah::Task::NewDW;
+        const Uintah::Task::WhichDW dw = ( fieldInfo.useOldDataWarehouse ) ? ( (fieldTag.context() == Expr::STATE_DYNAMIC) ? Uintah::Task::WhichDW::OldDW : ( hasDualTime ? Uintah::Task::WhichDW::ParentOldDW : Uintah::Task::WhichDW::OldDW) )  : Uintah::Task::WhichDW::NewDW;
+//        const Uintah::Task::WhichDW dw = ( fieldInfo.useOldDataWarehouse ) ? Uintah::Task::WhichDW::ParentOldDW : Uintah::Task::WhichDW::NewDW;
         switch( fieldInfo.mode ){
 
         case Expr::COMPUTES:
           dbg_fields << std::setw(10) << "COMPUTES";
-          ASSERT( dw == Uintah::Task::NewDW );
+          ASSERT( dw == Uintah::Task::WhichDW::NewDW );
           task.computesWithScratchGhost( fieldInfo.varlabel,
-                                         materials, Uintah::Task::NormalDomain,
+                                         materials, Uintah::Task::MaterialDomainSpec::NormalDomain,
                                          fieldInfo.ghostType, fieldInfo.nghost );
 
           break;
@@ -513,13 +513,13 @@ namespace WasatchCore{
           task.requires( dw,
                          fieldInfo.varlabel,
                          patches, Uintah::Task::ThisLevel,
-                         materials, Uintah::Task::NormalDomain,
+                         materials, Uintah::Task::MaterialDomainSpec::NormalDomain,
                          fieldInfo.ghostType, fieldInfo.nghost );
           break;
 
         case Expr::MODIFIES:
           dbg_fields << std::setw(10) << "MODIFIES";
-          ASSERT( dw == Uintah::Task::NewDW );
+          ASSERT( dw == Uintah::Task::WhichDW::NewDW );
           // tsaad: To be able to modify ghost cells, we will need:
           //  1. requires with ghost cells
           //  2. a modifies
@@ -527,7 +527,7 @@ namespace WasatchCore{
           // which calls both a requires and a modifies.
           task.modifiesWithScratchGhost( fieldInfo.varlabel,
                                          patches, Uintah::Task::ThisLevel,
-                                         materials, Uintah::Task::NormalDomain,
+                                         materials, Uintah::Task::MaterialDomainSpec::NormalDomain,
                                          fieldInfo.ghostType, fieldInfo.nghost);
           break;
 
@@ -659,7 +659,7 @@ namespace WasatchCore{
 
     ExecMutex lock; // thread-safe
 
-    const bool isGPUTask = (event == Uintah::Task::GPU);
+    const bool isGPUTask = (event == Uintah::Task::CallBackEvent::GPU);
 
     // preventing postGPU / preGPU callbacks to execute the tree again
     for( int ip=0; ip<patches->size(); ++ip ){

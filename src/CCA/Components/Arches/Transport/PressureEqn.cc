@@ -393,10 +393,10 @@ PressureEqn::solve( const LevelP& level, SchedulerP& sched, const int time_subst
   }
 
   m_hypreSolver->scheduleSolve(level, sched,  matls,
-                               A,      Task::NewDW,
+                               A,      Task::WhichDW::NewDW,
                                x,      modifies_x,
-                               b,      Task::NewDW,
-                               guess,  Task::NewDW,
+                               b,      Task::WhichDW::NewDW,
+                               guess,  Task::WhichDW::NewDW,
                                isFirstSolve);
 
 }

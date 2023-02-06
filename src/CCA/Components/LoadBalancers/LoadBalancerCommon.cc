@@ -132,13 +132,13 @@ LoadBalancerCommon::assignResources( DetailedTasks & graph )
 
     const PatchSubset* patches = task->getPatches();
     
-    if (patches && patches->size() > 0 && task->getTask()->getType() != Task::OncePerProc && task->getTask()->getType() != Task::Hypre) {
+    if (patches && patches->size() > 0 && task->getTask()->getType() != Task::TaskType::OncePerProc && task->getTask()->getType() != Task::TaskType::Hypre) {
       const Patch* patch = patches->get(0);
 
       int idx = getPatchwiseProcessorAssignment(patch);
       ASSERTRANGE(idx, 0, d_myworld->nRanks());
 
-      if (task->getTask()->getType() == Task::Output) {
+      if (task->getTask()->getType() == Task::TaskType::Output) {
         task->assignResource(getOutputRank(patch));
       }
       else {
@@ -157,7 +157,7 @@ LoadBalancerCommon::assignResources( DetailedTasks & graph )
         ostr << ' ' << p->getID() << ';' << rank;
         ASSERTRANGE(rank, 0, d_myworld->nRanks());
 
-        if (rank != idx && task->getTask()->getType() != Task::Output) {
+        if (rank != idx && task->getTask()->getType() != Task::TaskType::Output) {
           DOUTR( true, " WARNING: inconsistent task (" << task->getTask()->getName()
                               << ") assignment (" << rank << ", " << idx << ") in LoadBalancerCommon");
         }
@@ -171,11 +171,11 @@ LoadBalancerCommon::assignResources( DetailedTasks & graph )
         DOUTR(g_lb_dbg, "    LoadBal: Resource (for no patch task) " << *task->getTask() << " is : " << d_myworld->myRank());
 
       }
-      else if (task->getTask()->getType() == Task::InitialSend) {
+      else if (task->getTask()->getType() == Task::TaskType::InitialSend) {
         // Already assigned, do nothing
         ASSERT(task->getAssignedResourceIndex() != -1);
       }
-      else if (task->getTask()->getType() == Task::OncePerProc || task->getTask()->getType() == Task::Hypre) {
+      else if (task->getTask()->getType() == Task::TaskType::OncePerProc || task->getTask()->getType() == Task::TaskType::Hypre) {
 
         // patch-less task, not execute-once, set to run on all procs
         // once per patch subset (empty or not)

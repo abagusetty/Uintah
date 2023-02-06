@@ -261,9 +261,9 @@ PressureSolver::sched_buildLinearMatrix(SchedulerP& sched,
 
   Task::WhichDW parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = Task::ParentOldDW;
+    parent_old_dw = Task::WhichDW::ParentOldDW;
   }else{
-    parent_old_dw = Task::OldDW;
+    parent_old_dw = Task::WhichDW::OldDW;
   }
 
   Ghost::GhostType  gac = Ghost::AroundCells;
@@ -271,16 +271,16 @@ PressureSolver::sched_buildLinearMatrix(SchedulerP& sched,
   Ghost::GhostType  gaf = Ghost::AroundFaces;
 
   tsk->requires(parent_old_dw, d_lab->d_delTLabel);
-  tsk->requires(Task::NewDW, d_lab->d_cellTypeLabel,       gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellTypeLabel,       gac, 1);
 
-  tsk->requires(Task::NewDW, d_lab->d_densityCPLabel,      gac, 1);
-  tsk->requires(Task::NewDW, d_lab->d_uVelRhoHatLabel,     gaf, 1);
-  tsk->requires(Task::NewDW, d_lab->d_vVelRhoHatLabel,     gaf, 1);
-  tsk->requires(Task::NewDW, d_lab->d_wVelRhoHatLabel,     gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_densityCPLabel,      gac, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_uVelRhoHatLabel,     gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_vVelRhoHatLabel,     gaf, 1);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_wVelRhoHatLabel,     gaf, 1);
   // get drhodt that goes in the rhs of the pressure equation
-  tsk->requires(Task::NewDW, d_lab->d_filterdrhodtLabel,   gn, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_filterdrhodtLabel,   gn, 0);
 #ifdef divergenceconstraint
-  tsk->requires(Task::NewDW, d_lab->d_divConstraintLabel,  gn, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_divConstraintLabel,  gn, 0);
 #endif
 
   if ((timelabels->integrator_step_number == TimeIntegratorStepNumber::First) && !extraProjection ) {
@@ -294,13 +294,13 @@ PressureSolver::sched_buildLinearMatrix(SchedulerP& sched,
   // add access to sources:
   for (auto iter = d_new_sources.begin(); iter != d_new_sources.end(); iter++){
 
-    tsk->requires( Task::NewDW, VarLabel::find( *iter ), gn, 0 );
+    tsk->requires( Task::WhichDW::NewDW, VarLabel::find( *iter ), gn, 0 );
 
   }
 
   //extra sources
   for ( int i = 0; i < nExtraSources; i++ ) {
-    tsk->requires( Task::NewDW, extraSourceLabels[i], gn, 0 );
+    tsk->requires( Task::WhichDW::NewDW, extraSourceLabels[i], gn, 0 );
   }
 
   sched->addTask(tsk, patches, matls);
@@ -324,7 +324,7 @@ PressureSolver::buildLinearMatrix(const ProcessorGroup* pc,
 {
   DataWarehouse* parent_old_dw;
   if (timelabels->recursion){
-    parent_old_dw = new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    parent_old_dw = new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
   }else{
     parent_old_dw = old_dw;
   }
@@ -458,16 +458,16 @@ PressureSolver::sched_setGuessForX(SchedulerP& sched,
                           &PressureSolver::setGuessForX,
                           timelabels, extraProjection);
 
-  tsk->requires( Task::OldDW, d_lab->d_timeStepLabel );
+  tsk->requires( Task::WhichDW::OldDW, d_lab->d_timeStepLabel );
 
   Ghost::GhostType  gn = Ghost::None;
 
   if (!extraProjection){
     if (timelabels->integrator_step_number == TimeIntegratorStepNumber::First){
-      tsk->requires(Task::OldDW, timelabels->pressure_guess, gn, 0);
+      tsk->requires(Task::WhichDW::OldDW, timelabels->pressure_guess, gn, 0);
       tsk->computes( d_lab->d_pressureGuessLabel);
     }else{
-      tsk->requires(Task::NewDW, timelabels->pressure_guess, gn, 0);
+      tsk->requires(Task::WhichDW::NewDW, timelabels->pressure_guess, gn, 0);
       tsk->modifies( d_lab->d_pressureGuessLabel );
     }
   }
@@ -600,20 +600,20 @@ PressureSolver::sched_SolveSystem(SchedulerP& sched,
   if(do_custom_arches_linear_solve){
 
     custom_solver->sched_customSolve(sched,  matls, patches,
-                                     A,      Task::NewDW,
-                                     x,      Task::NewDW,
-                                     b,      Task::NewDW,
-                                     guess,  Task::NewDW, rk_stage ,level);
+                                     A,      Task::WhichDW::NewDW,
+                                     x,      Task::WhichDW::NewDW,
+                                     b,      Task::WhichDW::NewDW,
+                                     guess,  Task::WhichDW::NewDW, rk_stage ,level);
   }else{
     if ( isPeriodic || d_enforceSolvability ) {
       d_hypreSolver->scheduleEnforceSolvability<CCVariable<double> >(level, sched, matls, b, rk_stage);
     }
 
     d_hypreSolver->scheduleSolve(level, sched,  matls,
-                                 A,      Task::NewDW,
+                                 A,      Task::WhichDW::NewDW,
                                  x,      modifies_x,
-                                 b,      Task::NewDW,
-                                 guess,  Task::NewDW,
+                                 b,      Task::WhichDW::NewDW,
+                                 guess,  Task::WhichDW::NewDW,
                                  isFirstSolve);
   }
 
@@ -762,7 +762,7 @@ PressureSolver::sched_normalizePress(SchedulerP& sched,
                           &PressureSolver::normalizePress, pressLabel, refPressLabel);
 
   tsk->modifies(pressLabel);
-  tsk->requires(Task::NewDW, refPressLabel, Ghost::None, 0);
+  tsk->requires(Task::WhichDW::NewDW, refPressLabel, Ghost::None, 0);
 
   sched->addTask(tsk, patches, matls);
 }
@@ -816,9 +816,9 @@ PressureSolver::sched_addHydrostaticTermtoPressure(SchedulerP& sched,
                           timelabels);
 
   Ghost::GhostType  gn = Ghost::None;
-  tsk->requires(Task::OldDW, d_lab->d_pressurePSLabel,    gn, 0);
-  tsk->requires(Task::OldDW, d_lab->d_densityMicroLabel,  gn, 0);
-  tsk->requires(Task::NewDW, d_lab->d_cellTypeLabel,      gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_lab->d_pressurePSLabel,    gn, 0);
+  tsk->requires(Task::WhichDW::OldDW, d_lab->d_densityMicroLabel,  gn, 0);
+  tsk->requires(Task::WhichDW::NewDW, d_lab->d_cellTypeLabel,      gn, 0);
 
   if (timelabels->integrator_step_number == TimeIntegratorStepNumber::First){
     tsk->computes(d_lab->d_pressPlusHydroLabel);

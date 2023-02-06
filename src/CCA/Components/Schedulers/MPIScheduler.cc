@@ -215,7 +215,7 @@ MPIScheduler::verifyChecksum()
     std::vector<std::shared_ptr<Task> > tasks = m_task_graphs[i]->getTasks();
     for (auto iter = tasks.begin(); iter != tasks.end(); ++iter) {
       Task* task = iter->get();
-      if (task->getType() == Task::Spatial) {
+      if (task->getType() == Task::TaskType::Spatial) {
         numSpatialTasks++;
       }
     }
@@ -323,7 +323,7 @@ MPIScheduler::runTask( DetailedTask * dtask
     if (!dtask->getTask()->getHasSubScheduler()) {
       //add my task time to the total time
       m_mpi_info[TotalTask] += total_task_time;
-      if (!m_is_copy_data_timestep && dtask->getTask()->getType() != Task::Output) {
+      if (!m_is_copy_data_timestep && dtask->getTask()->getType() != Task::TaskType::Output) {
         // add contribution for patchlist
         m_loadBalancer->addContribution(dtask, total_task_time);
       }
@@ -419,7 +419,7 @@ MPIScheduler::postMPISends( DetailedTask * dtask
      // if an output or checkpoint time step or not. Not sure that is
      // desired but not sure of the effect of not calling it and doing
      // an out of sync output or checkpoint.
-     if (req->m_to_tasks.front()->getTask()->getType() == Task::Output
+     if (req->m_to_tasks.front()->getTask()->getType() == Task::TaskType::Output
          && !m_output->isOutputTimeStep() 
          && !m_output->isCheckpointTimeStep()) {
        DOUTR(g_dbg, "   Ignoring non-output-timestep send for " << *req);
@@ -443,17 +443,17 @@ MPIScheduler::postMPISends( DetailedTask * dtask
       OnDemandDataWarehouse * posDW;
 
       if( !m_reloc_new_pos_label && m_parent_scheduler ) {
-        posDW    = m_dws[req->m_req->m_task->mapDataWarehouse(Task::ParentOldDW)].get_rep();
+        posDW    = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::ParentOldDW)].get_rep();
         posLabel = m_parent_scheduler->m_reloc_new_pos_label;
       }
       else {
         // on an output task (and only on one) we require particle
         // variables from the NewDW
-        if (req->m_to_tasks.front()->getTask()->getType() == Task::Output) {
-          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::NewDW)].get_rep();
+        if (req->m_to_tasks.front()->getTask()->getType() == Task::TaskType::Output) {
+          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::NewDW)].get_rep();
         }
         else {
-          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::OldDW)].get_rep();
+          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::OldDW)].get_rep();
         }
         posLabel = m_reloc_new_pos_label;
       }
@@ -628,7 +628,7 @@ void MPIScheduler::postMPIRecvs( DetailedTask * dtask
         // if an output or checkpoint time step or not. Not sure that is
         // desired but not sure of the effect of not calling it and doing
         // an out of sync output or checkpoint.
-        if (req->m_to_tasks.front()->getTask()->getType() == Task::Output 
+        if (req->m_to_tasks.front()->getTask()->getType() == Task::TaskType::Output 
             && !m_output->isOutputTimeStep()
             && !m_output->isCheckpointTimeStep()) {
           DOUTR(g_dbg, "   Ignoring non-output-timestep receive for " << *req);
@@ -648,16 +648,16 @@ void MPIScheduler::postMPIRecvs( DetailedTask * dtask
         // the old dw on the prev timestep pass it in if the particle
         // data is on the old dw
         if (!m_reloc_new_pos_label && m_parent_scheduler) {
-          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::ParentOldDW)].get_rep();
+          posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::ParentOldDW)].get_rep();
         }
         else {
           // On an output task (and only on one) we require particle
           // variables from the NewDW
-          if (req->m_to_tasks.front()->getTask()->getType() == Task::Output) {
-            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::NewDW)].get_rep();
+          if (req->m_to_tasks.front()->getTask()->getType() == Task::TaskType::Output) {
+            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::NewDW)].get_rep();
           }
           else {
-            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::OldDW)].get_rep();
+            posDW = m_dws[req->m_req->m_task->mapDataWarehouse(Task::WhichDW::OldDW)].get_rep();
           }
         }
 
@@ -862,8 +862,8 @@ MPIScheduler::execute( int tgnum     /* = 0 */
   DOUTR(g_dbg, ", MPI Scheduler executing taskgraph: " << tgnum << ", timestep: " << m_application->getTimeStep()
               << " with " << dts->numTasks() << " tasks (" << ntasks << " local)");
 
-  if( m_reloc_new_pos_label && m_dws[m_dwmap[Task::OldDW]] != nullptr ) {
-    m_dws[m_dwmap[Task::OldDW]]->exchangeParticleQuantities(dts, m_loadBalancer, m_reloc_new_pos_label, iteration);
+  if( m_reloc_new_pos_label && m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]] != nullptr ) {
+    m_dws[m_dwmap[static_cast<int>(Task::WhichDW::OldDW)]]->exchangeParticleQuantities(dts, m_loadBalancer, m_reloc_new_pos_label, iteration);
   }
 
   bool abort       = false;
@@ -899,7 +899,7 @@ MPIScheduler::execute( int tgnum     /* = 0 */
     //
     DOUTR(g_task_dbg, " Initiating task:  " << *dtask);
 
-    if ( dtask->getTask()->getType() == Task::Reduction ) {
+    if ( dtask->getTask()->getType() == Task::TaskType::Reduction ) {
       if (!abort) {
         initiateReduction( dtask );
 

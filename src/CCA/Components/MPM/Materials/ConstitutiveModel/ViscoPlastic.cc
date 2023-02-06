@@ -468,19 +468,19 @@ ViscoPlastic::addComputesAndRequires(Task* task,
 
 
   // Other constitutive model and input dependent computes and requires
-  task->requires(Task::OldDW, lb->pTempPreviousLabel, matlset, gnone); 
+  task->requires(Task::WhichDW::OldDW, lb->pTempPreviousLabel, matlset, gnone); 
 
-  task->requires(Task::OldDW, pLeftStretchLabel,     matlset, gnone);
-  task->requires(Task::OldDW, pRotationLabel,        matlset, gnone);
-  task->requires(Task::OldDW, pStrainRateLabel,      matlset, gnone);
-  task->requires(Task::OldDW, pPlasticStrainLabel,   matlset, gnone);
-//   task->requires(Task::OldDW, pDamageLabel,          matlset, gnone);
-//   task->requires(Task::OldDW, pPorosityLabel,        matlset, gnone);
-  task->requires(Task::OldDW, pLocalizedLabel,       matlset, gnone);
-  task->requires(Task::OldDW, pPlasticTempLabel,     matlset, gnone);
-  task->requires(Task::OldDW, pPlasticTempIncLabel,  matlset, gnone);
-  task->requires(Task::OldDW, pFailureVariableLabel,  matlset, gnone);
-  task->requires(Task::OldDW, lb->pParticleIDLabel,  matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pLeftStretchLabel,     matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pRotationLabel,        matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pStrainRateLabel,      matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel,   matlset, gnone);
+//   task->requires(Task::WhichDW::OldDW, pDamageLabel,          matlset, gnone);
+//   task->requires(Task::WhichDW::OldDW, pPorosityLabel,        matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pLocalizedLabel,       matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pPlasticTempLabel,     matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pPlasticTempIncLabel,  matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, pFailureVariableLabel,  matlset, gnone);
+  task->requires(Task::WhichDW::OldDW, lb->pParticleIDLabel,  matlset, gnone);
 
   task->computes(pLeftStretchLabel_preReloc,    matlset);
   task->computes(pRotationLabel_preReloc,       matlset);
@@ -1363,15 +1363,15 @@ ViscoPlastic::addComputesAndRequires(Task* task,
   // Local stuff
   Ghost::GhostType  gnone = Ghost::None;
   if(SchedParent){
-    task->requires(Task::ParentOldDW, lb->pTempPreviousLabel, matlset, gnone); 
-    task->requires(Task::ParentOldDW, lb->pTemperatureLabel,  matlset, gnone);
-    task->requires(Task::ParentOldDW, pPlasticStrainLabel,    matlset, gnone);
+    task->requires(Task::WhichDW::ParentOldDW, lb->pTempPreviousLabel, matlset, gnone); 
+    task->requires(Task::WhichDW::ParentOldDW, lb->pTemperatureLabel,  matlset, gnone);
+    task->requires(Task::WhichDW::ParentOldDW, pPlasticStrainLabel,    matlset, gnone);
   }else{
-    task->requires(Task::OldDW, lb->pTempPreviousLabel, matlset, gnone); 
-    task->requires(Task::OldDW, lb->pTemperatureLabel,  matlset, gnone);
-    task->requires(Task::OldDW, pPlasticStrainLabel,    matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, lb->pTempPreviousLabel, matlset, gnone); 
+    task->requires(Task::WhichDW::OldDW, lb->pTemperatureLabel,  matlset, gnone);
+    task->requires(Task::WhichDW::OldDW, pPlasticStrainLabel,    matlset, gnone);
   }
-//   task->requires(Task::ParentOldDW, pPorosityLabel,         matlset, gnone);
+//   task->requires(Task::WhichDW::ParentOldDW, pPorosityLabel,         matlset, gnone);
 //JONAHDEBUG
   d_plastic->addComputesAndRequires(task, matl, patches, recurse);
 }
@@ -1405,7 +1405,7 @@ ViscoPlastic::computeStressTensorImplicit(const PatchSubset* patches,
   // Data location
   int dwi = matl->getDWIndex();
   DataWarehouse* parent_old_dw = 
-    new_dw->getOtherDataWarehouse(Task::ParentOldDW);
+    new_dw->getOtherDataWarehouse(Task::WhichDW::ParentOldDW);
 
   // Particle and Grid data
   delt_vartype delT;
@@ -2548,7 +2548,7 @@ ViscoPlastic::addRequiresDamageParameter(Task* task,
                                                const PatchSet* ) const
 {
 //const MaterialSubset* matlset = matl->thisMaterial();
-//task-*/>requires(Task::NewDW, pLocalizedLabel_preReloc,matlset,Ghost::None);
+//task-*/>requires(Task::WhichDW::NewDW, pLocalizedLabel_preReloc,matlset,Ghost::None);
 }
 
 void
