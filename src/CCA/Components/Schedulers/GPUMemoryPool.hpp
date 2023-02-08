@@ -59,6 +59,18 @@ public:
     reuse_pool.push_back(ptr);
   }
 
+  void gpuMemset(void** ptr, size_t sizeInBytes) {
+    gpuStream_t& stream = tamm::GPUStreamPool::getInstance().getStream();
+
+#if defined(USE_DPCPP)
+    stream.memset(*ptr, 0, sizeInBytes);
+#elif defined(USE_HIP)
+    hipMemsetAsync(*ptr, 0, sizeInBytes);
+#elif defined(USE_CUDA)
+    cudaMemsetAsync(*ptr, 0, sizeInBytes, stream);
+#endif
+  }
+  
   void ReleaseAll() {
     for(auto&& i: memory_pool_) {
       for(auto&& j: i.second) {
@@ -67,7 +79,8 @@ public:
 #elif defined(HAVE_HIP)
         GPU_RT_SAFE_CALL(hipFree(j));
 #elif defined(HAVE_DPCPP)
-        gpuStream_t& stream = Uintah::GPUStreamPool::getInstance().getStream();
+        gpuStream_t&stream = Uintah::GPUStreamPool::getInstance().getStream();
+        stream->wait();
         sycl::free(j, stream);
 #endif
         used_memory_ -= i.first;
