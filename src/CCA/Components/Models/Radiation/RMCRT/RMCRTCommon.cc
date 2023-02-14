@@ -866,7 +866,7 @@ void RMCRTCommon::carryForward_FineLevelLabels(
     DetailedTask *dtask, Task::CallBackEvent event, const ProcessorGroup *,
     const PatchSubset *patches, const MaterialSubset *matls,
     DataWarehouse *old_dw, DataWarehouse *new_dw, void *old_TaskGpuDW,
-    void *new_TaskGpuDW, gpuStream_t *stream, unsigned short deviceID) {
+    void *new_TaskGpuDW) {
   printTask(patches, patches->get(0), g_ray_dbg,
             "Doing RMCRTCommon::carryForward_FineLevelLabels");
 
@@ -909,8 +909,7 @@ void RMCRTCommon::carryForward_VarLabels(
     DetailedTask *dtask, Task::CallBackEvent event, const ProcessorGroup *,
     const PatchSubset *patches, const MaterialSubset *matls,
     DataWarehouse *old_dw, DataWarehouse *new_dw, void *old_TaskGpuDW,
-    void *new_TaskGpuDW, gpuStream_t *stream, unsigned short deviceID,
-    const std::vector<const VarLabel *> varLabels) {
+    void *new_TaskGpuDW, const std::vector<const VarLabel *> varLabels) {
   printTask(patches, patches->get(0), g_ray_dbg,
             "Doing RMCRTCommon::carryForward_VarLabels");
 
@@ -950,8 +949,6 @@ void RMCRTCommon::carryForward_Var(DetailedTask *dtask,
                                    DataWarehouse *old_dw, DataWarehouse *new_dw,
                                    void *old_TaskGpuDW,     // not used
                                    void *new_TaskGpuDW,     // not used
-                                   gpuStream_t *stream,     // not used
-                                   unsigned short deviceID, // not used
                                    const VarLabel *variable) {
   new_dw->transferFrom(old_dw, variable, patches, matls, dtask, true, nullptr);
 }

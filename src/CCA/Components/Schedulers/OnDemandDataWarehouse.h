@@ -148,12 +148,45 @@ public:
                   , const Level                 * level     = nullptr
                   ,       int                     matlIndex = -1
                   );
+                              // get a map filled with reductionVars
+                              // C++ doesn't allow templated Virtual method
+  template< class T>
+  std::map<int,T> get_sum_vartypeT( const VarLabel       * label
+                                  , const MaterialSubset * matls
+                                  );
+  virtual                     // double
+  std::map<int,double> get_sum_vartypeD( const VarLabel       * label
+                                       , const MaterialSubset * matls
+                                       );
+                              // Vector
+  virtual
+  std::map<int,Vector> get_sum_vartypeV( const VarLabel       * label
+                                       , const MaterialSubset * matls
+                                       );
 
   virtual void put( const ReductionVariableBase & var
                   , const VarLabel              * label
                   , const Level                 * level     = nullptr
                   ,       int                     matlIndex = -1
                   );
+
+                              // put a map filled with reductionVars
+                              // C++ doesn't allow templated Virtual methods
+  template< class T>
+  void put_sum_vartypeT( std::map<int, T>  reductionVars
+                       , const VarLabel       * label
+                       , const MaterialSubset * matls
+                       );
+                              // Vector
+  virtual void put_sum_vartype( std::map<int, Vector>  reductionVars
+                              , const VarLabel       * label
+                              , const MaterialSubset * matls
+                              );
+                              // double
+  virtual void put_sum_vartype( std::map<int, double>  reductionVars
+                              , const VarLabel       * label
+                              , const MaterialSubset * matls
+                              );
 
   virtual void override( const ReductionVariableBase & var
                        , const VarLabel              * label
@@ -473,17 +506,16 @@ public:
   virtual void finalize();
 
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
   static int getNumDevices();
-  static void uintahSetGpuDevice(int deviceNum);
   static std::size_t getTypeDescriptionSize(const TypeDescription::Type& type);
   // TODO: 08/25/22: do we still need the following 3 functions for SYCL backend ? Since we are just using the standard void* instead ?
   static GPUGridVariableBase* createGPUGridVariable(const TypeDescription::Type& type);
   static GPUPerPatchBase* createGPUPerPatch(const TypeDescription::Type& type);
   static GPUReductionVariableBase* createGPUReductionVariable(const TypeDescription::Type& type);
 
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif // UINTAH_ENABLE_DEVICE
 
   virtual void unfinalize();
 

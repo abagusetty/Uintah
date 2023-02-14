@@ -33,15 +33,15 @@
 
 namespace Uintah {
 
-#ifdef HAVE_SYCL
+/* #ifdef HAVE_SYCL */
 
-  // ABB: The last index should never be used, since we only need
-  //      7-point stencil in SYCL
-  typedef sycl::vec<double, 8> GPUStencil7;
-  // Mapping: [w, e, s, n, b, t, p] --> [0, 1, 2, 3, 4, 5, 6, X]
+/*   // ABB: The last index should never be used, since we only need */
+/*   //      7-point stencil in SYCL */
+/*   typedef sycl::vec<double, 8> GPUStencil7; */
+/*   // Mapping: [w, e, s, n, b, t, p] --> [0, 1, 2, 3, 4, 5, 6, X] */
 
-#elif defined(HAVE_CUDA) || defined(HAVE_HIP)
-
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+  
   struct GPUStencil7 {
 
     // The order of this is designed to match the order of faces in Patch
@@ -71,9 +71,9 @@ namespace Uintah {
     }
   };
 
-#else
+/* #else */
 
-  typedef std::array<double, 7> GPUStencil7;
+/*   typedef std::array<double, 7> GPUStencil7; */
 
 #endif // HAVE_SYCL
 

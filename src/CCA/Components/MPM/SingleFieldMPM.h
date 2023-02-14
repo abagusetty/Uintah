@@ -35,6 +35,7 @@
 // put here to avoid template problems
 #include <Core/Math/Matrix3.h>
 #include <Core/Math/Short27.h>
+#include <CCA/Components/Application/ApplicationCommon.h>
 #include <CCA/Components/MPM/Core/MPMLabel.h>
 #include <CCA/Components/MPM/Materials/Contact/Contact.h>
 #include <CCA/Components/MPM/MPMCommon.h>
@@ -78,7 +79,7 @@ WARNING
   
 ****************************************/
 
-  class SingleFieldMPM : public MPMCommon {
+  class SingleFieldMPM : public ApplicationCommon, public MPMCommon {
 public:
     SingleFieldMPM(const ProcessorGroup* myworld,
               const MaterialManagerP materialManager);
@@ -105,8 +106,6 @@ public:
 
   virtual void scheduleRestartInitialize(const LevelP& level,
                                          SchedulerP& sched);
-
-  virtual void restartInitialize();
 
   void schedulePrintParticleCount(const LevelP& level, SchedulerP& sched);
   
@@ -324,6 +323,12 @@ protected:
                           DataWarehouse* old_dw,
                           DataWarehouse* new_dw);
 
+  void computeCurrentParticleSize(const ProcessorGroup*,
+                                  const PatchSubset* patches,
+                                  const MaterialSubset* ,
+                                  DataWarehouse* old_dw,
+                                  DataWarehouse* new_dw);
+
   void addNewParticles(const ProcessorGroup*,
                        const PatchSubset* patches,
                        const MaterialSubset* matls,
@@ -482,6 +487,9 @@ protected:
                                                  
   void scheduleApplyExternalLoads(SchedulerP&, const PatchSet*,
                                   const MaterialSet*);
+
+  void scheduleComputeCurrentParticleSize(SchedulerP&, const PatchSet*,
+                                          const MaterialSet*);
 
   virtual void scheduleInterpolateToParticlesAndUpdate(SchedulerP&, 
                                                        const PatchSet*,

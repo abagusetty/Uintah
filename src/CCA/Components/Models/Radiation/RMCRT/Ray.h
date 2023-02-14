@@ -37,21 +37,19 @@
 #include <Core/Grid/Variables/VarTypes.h>
 
 #include <sci_defs/uintah_defs.h>
+#include <sci_defs/gpu_defs.h>
 
 #ifdef HAVE_CUDA
 #include <curand.h>
 #include <curand_kernel.h>
-#include <sci_defs/gpu_defs.h>
 #endif
 
 #ifdef HAVE_HIP
 //#include <hiprand/hiprand.h>
-#include <sci_defs/gpu_defs.h>
 #endif
 
 #ifdef HAVE_SYCL
 #include <oneapi/mkl/rng/device.hpp>
-#include <sci_defs/gpu_defs.h>
 #endif
 
 #include <cmath>
@@ -229,18 +227,6 @@ private:
                 Task::WhichDW which_abskg_dw, Task::WhichDW which_sigmaT4_dw,
                 Task::WhichDW which_celltype_dw);
 
-  //__________________________________
-  template <class T>
-  void rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
-                   const ProcessorGroup *pg, const PatchSubset *patches,
-                   const MaterialSubset *matls, DataWarehouse *old_dw,
-                   DataWarehouse *new_dw, void *oldTaskGpuDW,
-                   void *newTaskGpuDW, gpuStream_t *stream,
-                   unsigned short deviceID, bool modifies_divQ, int timeStep,
-                   Task::WhichDW which_abskg_dw, Task::WhichDW which_sigmaT4_dw,
-                   Task::WhichDW which_celltype_dw);
-
-  //__________________________________
   template <class T>
   void rayTrace_dataOnion(const ProcessorGroup *pg, const PatchSubset *patches,
                           const MaterialSubset *matls, DataWarehouse *old_dw,
@@ -250,14 +236,26 @@ private:
                           Task::WhichDW which_celltype_dw);
 
   //__________________________________
+#ifdef UINTAH_ENABLE_DEVICE
+  template <class T>
+  void rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
+                   const ProcessorGroup *pg, const PatchSubset *patches,
+                   const MaterialSubset *matls, DataWarehouse *old_dw,
+                   DataWarehouse *new_dw, void *oldTaskGpuDW,
+                   void *newTaskGpuDW, 
+                   bool modifies_divQ, int timeStep,
+                   Task::WhichDW which_abskg_dw, Task::WhichDW which_sigmaT4_dw,
+                   Task::WhichDW which_celltype_dw);
+  
   template <class T>
   void rayTraceDataOnionGPU(
       DetailedTask *dtask, Task::CallBackEvent event, const ProcessorGroup *pg,
       const PatchSubset *patches, const MaterialSubset *matls,
       DataWarehouse *old_dw, DataWarehouse *new_dw, void *oldTaskGpuDW,
-      void *newTaskGpuDW, gpuStream_t *stream, unsigned short deviceID,
+      void *newTaskGpuDW, 
       bool modifies_divQ, int timeStep, Task::WhichDW which_abskg_dw,
       Task::WhichDW which_sigmaT4_dw, Task::WhichDW which_celltype_dw);
+#endif
   //__________________________________
   template <class T>
   void updateSumI_ML(Vector &ray_direction, Vector &ray_origin,

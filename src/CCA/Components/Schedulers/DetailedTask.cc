@@ -28,7 +28,7 @@
 #include <CCA/Components/Schedulers/OnDemandDataWarehouse.h>
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 #include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 #endif
 
@@ -140,7 +140,7 @@ void DetailedTask::doit(const ProcessorGroup *pg,
 
   // Determine if task will be executed on CPU or GPU
   if (m_task->usesDevice()) {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
     // Run the GPU task  Technically the engine has structure to run one task on
     // multiple devices if that task had patches on multiple devices  So run the
     // task once per device. As often as possible, we want to design tasks so
@@ -148,7 +148,7 @@ void DetailedTask::doit(const ProcessorGroup *pg,
     // relationship.
 
     for (auto currentDeviceID : deviceNums_) {
-      OnDemandDataWarehouse::uintahSetGpuDevice(currentDeviceID);
+      gpuSetDevice(currentDeviceID);
       GPUDataWarehouse *host_oldtaskdw = getTaskGpuDataWarehouse(currentDeviceID, Task::WhichDW::OldDW);
       GPUDataWarehouse *device_oldtaskdw = nullptr;
       if (host_oldtaskdw) {
@@ -160,13 +160,11 @@ void DetailedTask::doit(const ProcessorGroup *pg,
         device_newtaskdw = host_newtaskdw->getdevice_ptr();
       }
       m_task->doit(this, event, pg, m_patches, m_matls, dws, device_oldtaskdw,
-                   device_newtaskdw, getGpuStreamForThisTask(currentDeviceID),
-                   currentDeviceID);
+                   device_newtaskdw);
     }
 #endif
   } else {
-    m_task->doit(this, event, pg, m_patches, m_matls, dws, nullptr, nullptr,
-                 nullptr, -1);
+    m_task->doit(this, event, pg, m_patches, m_matls, dws, nullptr, nullptr);
   }
 
   for (std::size_t i = 0u; i < dws.size(); ++i) {
@@ -729,14 +727,14 @@ std::ostream &operator<<(std::ostream &out, const DetailedTask &dtask) {
 
 } // end namespace Uintah
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
-// For tasks where there are multiple devices for the task (i.e. data archiver
+// For tasks where there are multiple devices & its corresponding stream for the task (i.e. data archiver
 // output tasks)
 std::set<int> DetailedTask::getDeviceNums() const { return deviceNums_; }
 
 gpuStream_t* DetailedTask::getGpuStreamForThisTask(int device_id) const {
-  auto it = std::as_const(d_gpuStreams).find(device_id);
+  auto it = d_gpuStreams.find(device_id);
   if (it != d_gpuStreams.end()) {
     return it->second;
   } else {
@@ -748,24 +746,16 @@ gpuStream_t* DetailedTask::getGpuStreamForThisTask(int device_id) const {
 }
 
 void DetailedTask::setGpuStreamForThisTask(int device_id) {
-  //if (!deviceNums_.contains(device_id)) {
+  // ABB: This function gets called from UnifiedScheduler multiple times
+  // if the device_id already exists and a valid stream is assigned skip this and return
   if (deviceNums_.find(device_id) == deviceNums_.end()) {
     deviceNums_.insert(device_id);
     d_gpuStreams.try_emplace(device_id, GPUStreamPool<>::getInstance().getGpuStreamFromPool(device_id));
   }
   return;
-  // else {
-  //   SCI_THROW(InternalError(
-  //       "A GPU stream was already assigned to the task: " + getName(),
-  //       __FILE__, __LINE__));
-  //   exit(-1);
-  // }
 };
 
 void DetailedTask::clearGpuStreamsForThisTask() {
-  #ifdef HAVE_SYCL
-  d_gpuEvents.clear();
-  #endif
   d_gpuStreams.clear();
 }
 
@@ -773,28 +763,19 @@ void DetailedTask::clearGpuStreamsForThisTask() {
 //
 
 bool DetailedTask::checkAllGpuStreamsDoneForThisTask() const {
-  // A task can have multiple streams (such as an output task pulling from
+  // A task can have multiple devices/streams (such as an output task pulling from
   // multiple GPUs). Check all streams to see if they are done. If any one
   // stream isn't done, return false.  If nothing returned true, then they all
   // must be good to go.
-#ifdef HAVE_SYCL
-  for (auto & event : d_gpuEvents) {
-    if (event.get_info<sycl::info::event::command_execution_status>() !=
-        sycl::info::event_command_status::complete) {
-      return false;
-    }
-  }
-  return true;
-#else
+
   for (auto it = d_gpuStreams.cbegin(); it != d_gpuStreams.cend(); ++it) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(it->first);
+    gpuSetDevice(it->first);
     gpuError_t retVal = gpuStreamQuery(*(it->second));
     if (retVal != gpuSuccess) {
       return false;
     }
   }
   return true;
-#endif
 }
 
 //_____________________________________________________________________________
@@ -858,8 +839,7 @@ void DetailedTask::addTempHostMemoryToBeFreedOnCompletion(void *host_ptr) {
 void *
 DetailedTask::addTempGpuMemoryToBeFreedOnCompletion(unsigned int device_id,
                                                     std::size_t sizeinbytes) {
-  void *dev_ptr{nullptr};
-  dev_ptr = GPUMemoryPool::getInstance().allocate(device_id, sizeinbytes);
+  void *dev_ptr = GPUMemoryPool::getInstance().allocate(device_id, sizeinbytes);
   gpuMemoryPoolDevicePtrItem gpuItem(device_id, dev_ptr, sizeinbytes);
   taskGpuMemoryPoolItems.push_back(gpuItem);
 
@@ -885,4 +865,4 @@ void DetailedTask::deleteTemporaryTaskVars() {
   taskGpuMemoryPoolItems.clear();
 }
 
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif //UINTAH_ENABLE_DEVICE

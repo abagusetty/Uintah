@@ -60,10 +60,10 @@ struct ThreadIDMapper
 struct CyclicMapper
 {
   CyclicMapper() = default;
-  CyclicMapper( const CyclicMapper & ) = default;
-  CyclicMapper& operator=( const CyclicMapper & ) = default;
-  CyclicMapper( CyclicMapper && ) = default;
-  CyclicMapper& operator=( CyclicMapper && ) = default;
+  CyclicMapper( const CyclicMapper & ) = delete;
+  CyclicMapper& operator=( const CyclicMapper & ) = delete;
+  CyclicMapper( CyclicMapper && ) = delete;
+  CyclicMapper& operator=( CyclicMapper && ) = delete;
 
   static constexpr size_t one = 1u;
 

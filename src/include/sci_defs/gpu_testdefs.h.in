@@ -53,9 +53,9 @@
 
 #include <stdio.h>
 
-  using gpuStream_t = cudaStream_t;
-  using gpuEvent_t = cudaEvent_t;
-  using gpuError_t = cudaError_t;
+  #define gpuStream_t cudaStream_t
+  #define gpuEvent_t cudaEvent_t
+  #define gpuError_t cudaError_t
   #define gpuMemcpyAsync cudaMemcpyAsync
   #define gpuMemcpyPeerAsync cudaMemcpyPeerAsync
   #define gpuMemcpyDeviceToHost cudaMemcpyDeviceToHost
@@ -177,9 +177,9 @@
 
 #include <stdio.h>
 
-  using gpuStream_t = hipStream_t;
-  using gpuEvent_t = hipEvent_t;
-  using gpuError_t = hipError_t;
+  #define gpuStream_t hipStream_t
+  #define gpuEvent_t hipEvent_t
+  #define gpuError_t hipError_t
   #define gpuMemcpyAsync hipMemcpyAsync
   #define gpuMemcpyPeerAsync hipMemcpyPeerAsync
   #define gpuMemcpyDeviceToHost hipMemcpyDeviceToHost
@@ -302,21 +302,110 @@ namespace sycl = cl::sycl;
 #define __host__
 #define __device__
 
-using gpuStream_t = sycl::queue;
-using gpuEvent_t = sycl::event;
+#define gpuError_t bool
+#define gpuSuccess true
+// Note: Never make gpuStream_t a pointer. Lots of troubles
+#define gpuStream_t sycl::queue
+#define gpuEvent_t sycl::event
 #define gpuGetDevice syclGetDevice
 #define GPU_RT_SAFE_CALL
 #define gpuSetDevice syclSetDevice
-#define gpuDeviceReset 
+#define gpuDeviceReset
 #define gpuGetDeviceCount syclGetDeviceCount
 #define gpuMemGetInfo syclMemGetInfo
+#define gpuMemcpyAsync(dst, src, size, kind, stream) (stream.memcpy(dst, src, size))
 
-using int3 = sycl::int3;
-using uint3 = sycl::uint3;
-using make_double3 = sycl::double3;
-using make_int3 = sycl::int3;
-using float3 = sycl::float3;
-using double3 = sycl::double3;
+// using int3 = sycl::int3;
+// using uint3 = sycl::uint3;
+// using make_double3 = sycl::double3;
+// using make_int3 = sycl::int3;
+// using float3 = sycl::float3;
+// using double3 = sycl::double3;
+
+struct int3
+{
+  int3() : x(0), y(0), z(0) {}
+  int3(int _w) : x(_w), y(_w), z(_w) {}  
+  int3(int _x, int _y, int _z) : x(_x), y(_y), z(_z) {}
+  int3(const int3 &copy) : x(copy.x), y(copy.y), z(copy.z) {}
+
+  int& operator[](const int& i) { return xyz[i]; }
+
+  union {
+    struct {
+      int xyz[3];
+    };
+    struct {
+      int x, y, z;
+    };
+  };
+};
+
+inline int3 make_int3(int x, int y, int z) { return int3(x, y, z); }
+
+struct uint3
+{
+  uint3() : x(0), y(0), z(0) {}
+  uint3(unsigned int _w) : x(_w), y(_w), z(_w) {}  
+  uint3(unsigned int _x, unsigned int _y, unsigned int _z) : x(_x), y(_y), z(_z) {}
+  uint3(const uint3 &copy) : x(copy.x), y(copy.y), z(copy.z) {}
+
+  unsigned int& operator[](const int& i) { return xyz[i]; }
+
+  union {
+    struct {
+      unsigned int xyz[3];
+    };
+    struct {
+      unsigned int x, y, z;
+    };
+  };
+};
+
+inline uint3 make_uint3(unsigned int x, unsigned int y, unsigned int z) { return uint3(x, y, z); }
+
+struct float3
+{
+  float3() : x(0), y(0), z(0) {}
+  float3(float _w) : x(_w), y(_w), z(_w) {}  
+  float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+  float3(const float3 &copy) : x(copy.x), y(copy.y), z(copy.z) {}
+
+  float& operator[](const int& i) { return xyz[i]; }
+
+  union {
+    struct {
+      float xyz[3];
+    };
+    struct {
+      float x, y, z;
+    };
+  };
+};
+
+inline float3 make_float3(float x, float y, float z) { return float3(x, y, z); }
+
+
+struct double3
+{
+  double3() : x(0), y(0), z(0) {}
+  double3(double _w) : x(_w), y(_w), z(_w) {}  
+  double3(double _x, double _y, double _z) : x(_x), y(_y), z(_z) {}
+  double3(const double3 &copy) : x(copy.x), y(copy.y), z(copy.z) {}
+
+  double& operator[](const int& i) { return xyz[i]; }
+
+  union {
+    struct {
+      double xyz[3];
+    };
+    struct {
+      double x, y, z;
+    };
+  };
+};
+
+inline double3 make_double3(double x, double y, double z) { return double3(x, y, z); }
 
 // Allow easy indexing into deice-side 3D array
 #define INDEX3D(dx, dy, i, j, k) ((i) + ((j)*dx) + ((k)*dx * dy))
@@ -445,11 +534,14 @@ static inline void syclGetDeviceCount(int *id) {
 
 /// Util function to get free, totoal memory in bytes for the active GPU
 static inline void syclMemGetInfo(size_t *free, size_t *total) {
-  int current_devID = this->current_device();
-  sycl::device *myDev = get_sycl_device(current_devID);
+  sycl::device *myDev = dev_mgr::instance().get_sycl_device(dev_mgr::instance().current_device());
 
   *total = myDev->get_info<sycl::info::device::global_mem_size>();
   *free  = myDev->get_info<sycl::ext::intel::info::device::free_memory>();
+}
+
+static inline bool gpuStreamQuery(sycl::queue& que) {
+  return que.ext_oneapi_empty();
 }
 
 #endif // HAVE_SYCL

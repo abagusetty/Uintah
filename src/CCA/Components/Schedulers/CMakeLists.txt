@@ -11,7 +11,6 @@ if( ENABLE_SYCL )
             GPUDataWarehouse.cc
             GPUGridVariableGhosts.cc
             GPUGridVariableInfo.cc
-            SYCLScheduler.cc
         )
 endif( ENABLE_SYCL )
 

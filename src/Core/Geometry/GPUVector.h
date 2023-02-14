@@ -27,6 +27,12 @@
 
 #include <sci_defs/gpu_defs.h>
 
+#ifdef HAVE_SYCL
+// for int3 to sycl::int3
+// for double3 to sycl::double3
+//using namespace sycl;
+#endif
+
 namespace Uintah {
 
 class gpuIntVector : public int3 {

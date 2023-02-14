@@ -44,6 +44,7 @@
 #include <Core/GeometryPiece/GeometryPieceFactory.h>
 #include <Core/GeometryPiece/UnionGeometryPiece.h>
 #include <Core/GeometryPiece/NullGeometryPiece.h>
+#include <Core/GeometryPiece/TriGeometryPiece.h>
 #include <Core/Exceptions/ParameterNotFound.h>
 #include <Core/ProblemSpec/ProblemSpecP.h>
 #include <iostream>
@@ -66,7 +67,8 @@ MPMMaterial::MPMMaterial(ProblemSpecP& ps, MaterialManagerP& ss,MPMFlags* flags,
   d_cm->setMaterialManager(ss.get_rep());
 
   // Check to see which ParticleCreator object we need
-  d_particle_creator = ParticleCreatorFactory::create(ps,this,flags);
+  d_particle_creator = ParticleCreatorFactory::create(ps, this,
+                                                      flags, d_allTriGeometry);
 }
 //______________________________________________________________________
 //
@@ -150,10 +152,14 @@ MPMMaterial::standardInitialization(ProblemSpecP& ps,
   ps->get("room_temp", d_troom);
   ps->get("melt_temp", d_tmelt);
 
-  // This is currently only used in the implicit code, but should
-  // be put to use in the explicit code as well.
+  // Material is rigid (velocity prescribed)
   d_is_rigid=false;
   ps->get("is_rigid", d_is_rigid);
+
+  // Material is force transmitting (moves according to sum of forces)
+  d_is_force_transmitting_material=false;
+  ps->get("is_force_transmitting_material", d_is_force_transmitting_material);
+  flags->d_reductionVars->sumTransmittedForce = true;
 
   // Enable ability to activate materials when needed to save computation time
   d_is_active=true;
@@ -193,12 +199,21 @@ MPMMaterial::standardInitialization(ProblemSpecP& ps,
   }
 
   if(!isRestart){
+    d_allTriGeometry=true;
     for (ProblemSpecP geom_obj_ps = ps->findBlock("geom_object");
          geom_obj_ps != nullptr; 
          geom_obj_ps = geom_obj_ps->findNextBlock("geom_object") ) {
 
      vector<GeometryPieceP> pieces;
      GeometryPieceFactory::create(geom_obj_ps, pieces);
+
+     for(unsigned int i = 0; i< pieces.size(); i++){
+       TriGeometryPiece* tri_piece = 
+                           dynamic_cast<TriGeometryPiece*>(pieces[i].get_rep());
+       if (!tri_piece){
+         d_allTriGeometry=false;
+       }
+     }
 
      GeometryPieceP mainpiece;
      if(pieces.size() == 0){
@@ -264,6 +279,8 @@ ProblemSpecP MPMMaterial::outputProblemSpec(ProblemSpecP& ps)
   mpm_ps->appendElement("room_temp",d_troom);
   mpm_ps->appendElement("melt_temp",d_tmelt);
   mpm_ps->appendElement("is_rigid",d_is_rigid);
+  mpm_ps->appendElement("is_force_transmitting_material",
+                       d_is_force_transmitting_material);
   mpm_ps->appendElement("is_active",d_is_active);
   mpm_ps->appendElement("activation_time",d_activation_time);
 
@@ -296,11 +313,13 @@ MPMMaterial::copyWithoutGeom(ProblemSpecP& ps,const MPMMaterial* mat,
   d_troom = mat->d_troom;
   d_tmelt = mat->d_tmelt;
   d_is_rigid = mat->d_is_rigid;
+  d_is_force_transmitting_material = mat->d_is_force_transmitting_material;
   d_is_active = mat->d_is_active;
   d_activation_time = mat->d_activation_time;
 
   // Check to see which ParticleCreator object we need
-  d_particle_creator = ParticleCreatorFactory::create(ps,this,flags);
+  d_particle_creator = ParticleCreatorFactory::create(ps,this,flags,
+                                                      d_allTriGeometry);
 }
 
 ConstitutiveModel* MPMMaterial::getConstitutiveModel() const
@@ -398,6 +417,16 @@ void MPMMaterial::setIsRigid(const bool is_rigid)
 bool MPMMaterial::getIsRigid() const
 {
   return d_is_rigid;
+}
+
+void MPMMaterial::setIsFTM(const bool is_FTM)
+{
+  d_is_force_transmitting_material=is_FTM;
+}
+
+bool MPMMaterial::getIsFTM() const
+{
+  return d_is_force_transmitting_material;
 }
 
 void MPMMaterial::setIsActive(const bool is_active)

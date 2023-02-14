@@ -95,7 +95,7 @@ static DebugStream cout_doing("IMPM", false);
 
 ImpMPM::ImpMPM(const ProcessorGroup* myworld,
                const MaterialManagerP materialManager) :
-  MPMCommon(myworld, materialManager)
+  ApplicationCommon( myworld, materialManager), MPMCommon(m_materialManager)
 {
   flags = scinew ImpMPMFlags(myworld);
   Il = scinew ImpMPMLabel();
@@ -2593,7 +2593,10 @@ void ImpMPM::createMatrix(const ProcessorGroup*,
     const Patch* patch = patches->get(pp);
     printTask(patches, patch,cout_doing,"Doing ImpMPM::createMatrix");
 
-    IntVector lowIndex,highIndex;
+    int inf = std::numeric_limits<int>::infinity();
+    IntVector lowIndex(inf,inf,inf);
+    IntVector highIndex(inf,inf,inf);
+
     if(flags->d_8or27==8){
       lowIndex = patch->getNodeLowIndex();
       highIndex = patch->getNodeHighIndex()+IntVector(1,1,1);

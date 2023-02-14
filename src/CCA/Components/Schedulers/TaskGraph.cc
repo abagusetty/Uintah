@@ -105,31 +105,37 @@ void TaskGraph::initialize() {
 //______________________________________________________________________
 //
 
-void TaskGraph::nullSort(std::vector<Task *> &tasks) {
-  // No longer going to sort them... let the scheduler take care of calling the
-  // tasks when all dependencies are satisfied. Sorting the tasks causes problem
-  // because now tasks (actually task groups) run in different orders on
-  // different MPI processes.
+void
+TaskGraph::nullSort( std::vector<Task*> & tasks )
+{
+  // No longer going to sort them... let the scheduler take care of calling the tasks when all
+  // dependencies are satisfied. Sorting the tasks causes problem because now tasks (actually task groups) run in
+  // different orders on different MPI processes.
+  DOUTR(g_detailed_task_dbg, " TaskGraph::nullSort " );
   int n = 0;
-  for (auto task_iter = m_tasks.begin(); task_iter != m_tasks.end();
-       ++task_iter) {
-    // For all reduction tasks filtering out the one that is not in
-    // ReductionTasksMap
-    Task *task = task_iter->get();
+  for (auto task_iter = m_tasks.begin(); task_iter != m_tasks.end(); ++task_iter) {
+    Task* task = task_iter->get();
+
+    std::ostringstream mesg;
+    mesg<< "      " << std::left<< std::setw(50) << task->getName();
+
+    // For all reduction tasks filtering out the one that is not in ReductionTasksMap
     if (task->getType() == Task::TaskType::Reduction) {
-      for (auto reduction_task_iter = m_scheduler->m_reduction_tasks.begin();
-           reduction_task_iter != m_scheduler->m_reduction_tasks.end();
-           ++reduction_task_iter) {
+      for (auto reduction_task_iter = m_scheduler->m_reduction_tasks.begin(); reduction_task_iter != m_scheduler->m_reduction_tasks.end(); ++reduction_task_iter) {
         if (task == reduction_task_iter->second) {
           (*task_iter)->setSortedOrder(n++);
           tasks.push_back(task);
+          mesg<< "     Added to sorted tasks (reduction task)";
           break;
         }
       }
-    } else {
+    }
+    else {
+      mesg << "     Added to sorted tasks (normal task)";
       task->setSortedOrder(n++);
       tasks.push_back(task);
     }
+    DOUTR(g_detailed_task_dbg, mesg.str() );
   }
 }
 
@@ -732,9 +738,9 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
 
 //______________________________________________________________________
 //
-void TaskGraph::createDetailedDependencies() {
-  int my_rank = m_proc_group->myRank();
-
+void
+TaskGraph::createDetailedDependencies()
+{
   // Collect all of the computes
   CompTable ct;
   const int num_tasks = m_detailed_tasks->numTasks();
@@ -1494,34 +1500,38 @@ void TaskGraph::createDetailedDependencies(DetailedTask *dtask,
       // should be legal.
     } else {
       std::ostringstream desc;
-      desc << "TaskGraph::createDetailedDependencies, task dependency not "
-              "supported without patches and materials"
-           << " \n Trying to require or modify " << *req << " in Task "
-           << dtask->getTask()->getName() << "\n\n";
+      desc << "\nTaskGraph::createDetailedDependencies, task dependency not supported without patches and materials"
+           << " \n Trying to require or modify \n  " << *req << "\n  Task: " << dtask->getTask()->getName() << "\n\n"
+           << " Task and VarLabel:requires specification: \n";
       if (dtask->m_matls) {
-        desc << "task materials:" << *dtask->m_matls << "\n";
-      } else {
-        desc << "no task materials\n";
+        desc << "  Task materials: " << *dtask->m_matls << "\n";
+      }
+      else {
+        desc << "  Task materials:  None\n";
       }
       if (req->m_matls) {
-        desc << "req materials: " << *req->m_matls << "\n";
-      } else {
-        desc << "no req materials\n"
-             << "domain materials: " << *matls.get_rep() << "\n";
+        desc << "  VarLabel:requires materials: " << *req->m_matls << "\n";
+      }
+      else {
+        desc << "  VarLabel:requires materials:  None\n" << " domain materials: " << *matls.get_rep() << "\n";
       }
       if (dtask->m_patches) {
-        desc << "task patches:" << *dtask->m_patches << "\n";
-      } else {
-        desc << "no task patches\n";
+        desc << "  Task patches: " << *dtask->m_patches << "\n";
+      }
+      else {
+        desc << "  Task patches: None\n";
       }
       if (req->m_patches) {
-        desc << "req patches: " << *req->m_patches << "\n";
-      } else {
-        desc << "no req patches\n";
+        desc << "  VarLabel:requires patches: " << *req->m_patches << "\n";
       }
-      if (patches) {
-        desc << "domain patches: " << *patches.get_rep() << "\n";
+      else {
+        desc << "  VarLabel:requires patches: None\n";
       }
+      if ( patches ){
+        desc << "  Domain patches: " << *patches.get_rep() << "\n";
+      }
+      desc << "  matls.size(): " << matls->size() << "\n"
+           << "  matls.empty() " << matls->empty() << "\n";
       SCI_THROW(InternalError(desc.str(), __FILE__, __LINE__));
     }
   }
@@ -1825,10 +1835,9 @@ void TaskGraph::addDependencyEdges(Task *task, GraphSortInfoMap &sortinfo,
             if (compiter->second->m_reduction_level == req->m_reduction_level) {
               add = true;
             }
-            // with reduction variables, you can modify them up to the Reduction
-            // Task, which also modifies those who don't modify will get the
-            // reduced value.
-            if (!modifies && !req->m_var->allowsMultipleComputes()) {
+            // with reduction variables, you can modify them up to the Reduction Task, which also modifies
+            // those who don't modify will get the reduced value.
+            if (!modifies && req->m_var->doSchedReductionTask()) {
               requiresReductionTask = true;
             }
           } else if (overlaps(compiter->second, req)) {
@@ -2160,12 +2169,8 @@ void TaskGraph::setupTaskConnections(GraphSortInfoMap &sortinfo) {
         // for reduction var allows multi computes such as delT
         // do not generate reduction task each time it computes,
         // instead computes it in a system wide reduction task
-        if (comp->m_var->allowsMultipleComputes()) {
-          DOUT(g_topological_deps_dbg,
-               "Rank-" << m_proc_group->myRank()
-                       << " Skipping Reduction task for variable: "
-                       << comp->m_var->getName() << " on level " << levelidx
-                       << ", DW " << dw);
+        if ( !comp->m_var->doSchedReductionTask()) {
+          DOUT(g_topological_deps_dbg, "Rank-" << m_proc_group->myRank() << " Skipping Reduction task for variable: " << comp->m_var->getName() << " on level " << levelidx << ", DW " << dw);
           continue;
         }
         ASSERT(comp->m_patches == nullptr);

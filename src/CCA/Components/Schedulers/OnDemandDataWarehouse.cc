@@ -58,17 +58,13 @@
 #include <Core/Parallel/ProcessorGroup.h>
 #include <Core/Util/DOUT.hpp>
 #include <Core/Util/FancyAssert.h>
+#include <Core/Util/StringUtil.h>
 #include <Core/Util/ProgressiveWarning.h>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
   #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
   #include <Core/Grid/Variables/GPUStencil7.h>
   #include <Core/Util/DebugStream.h>
-#endif
-
-#ifdef HAVE_SYCL
-  #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
-  #include <Core/Grid/Variables/GPUStencil7.h>
 #endif
 
 #include <climits>
@@ -326,12 +322,68 @@ OnDemandDataWarehouse::get(       ReductionVariableBase & var
 {
   checkGetAccess( label, matlIndex, nullptr );
 
+  // throw an exception
   if( !m_level_DB.exists( label, matlIndex, level ) ) {
-    proc0cout << "get() failed in dw: " << this << ", level: " << level << "\n";
+    std::string levelIndx = level ? to_string( level->getIndex() ) : "nullptr";
+
+    DOUTR(true, "get(ReductionVariableBase) failed in dw: " << this << ", level: " << levelIndx << ", matlIndex: " << matlIndex);
+
+    m_level_DB.print(d_myworld->myRank() );
+    m_level_key_DB.print(d_myworld->myRank() );
+
     SCI_THROW( UnknownVariable(label->getName(), getID(), level, matlIndex, "on reduction", __FILE__, __LINE__) );
   }
 
   m_level_DB.get( label, matlIndex, level, var );
+}
+
+//______________________________________________________________________
+//    get a std::map<int,T> of reduction variables from the DW
+//    C++ doesn't allow for virtual templated functions, thus the duplication
+//    Use a map instead of a vector since the material indices may not be consecutive
+//    starting at 0
+//    How can we generalize this for different reduction variable types?   -Todd
+template< class T>
+std::map<int,T> OnDemandDataWarehouse::get_sum_vartypeT( const VarLabel       * label
+                                                       , const MaterialSubset * matls
+                                                       )
+{
+  std::map<int,T>  reductionVars;
+  for( auto m = 0; m < matls->size(); ++m ) {
+    int dwi = matls->get( m );
+
+    typedef ReductionVariable<T, Reductions::Sum<T> > sumVartype;
+    sumVartype reductionVar;
+
+    get( reductionVar, label, nullptr, dwi);
+    reductionVars[dwi] = reductionVar;
+  }
+
+  return reductionVars;
+}
+//
+// Explicit template instantiations:
+template std::map<int,double> OnDemandDataWarehouse::get_sum_vartypeT( const VarLabel *, const MaterialSubset * );
+template std::map<int,Vector> OnDemandDataWarehouse::get_sum_vartypeT( const VarLabel *, const MaterialSubset * );
+
+//__________________________________
+//        double
+std::map<int,double>
+OnDemandDataWarehouse::get_sum_vartypeD( const VarLabel       * label
+                                       , const MaterialSubset * matls
+                                       )
+{
+  return get_sum_vartypeT<double>( label,  matls );
+}
+
+//__________________________________
+//        Uintah::Vector
+std::map<int,Vector>
+OnDemandDataWarehouse::get_sum_vartypeV( const VarLabel       * label
+                                       , const MaterialSubset * matls
+                                       )
+{
+  return get_sum_vartypeT<Vector>( label,  matls );
 }
 
 //______________________________________________________________________
@@ -345,7 +397,15 @@ OnDemandDataWarehouse::get(       SoleVariableBase& var
 {
   checkGetAccess( label, matlIndex, nullptr );
 
+  // throw an exception
   if( !m_level_DB.exists( label, matlIndex, level ) ) {
+    std::string levelIndx = level ? to_string( level->getIndex() ) : "nullptr";
+
+    DOUTR(true, "get(SoleVariableBase) failed in dw: " << this << ", level: " << levelIndx << ", matlIndex: " << matlIndex);
+
+    m_level_DB.print(d_myworld->myRank());
+    m_level_key_DB.print(d_myworld->myRank() );
+
     SCI_THROW(UnknownVariable(label->getName(), getID(), level, matlIndex, "on sole", __FILE__, __LINE__) );
   }
 
@@ -422,12 +482,7 @@ OnDemandDataWarehouse::getReductionVariable( const VarLabel * label
   }
 }
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
-
-void
-OnDemandDataWarehouse::uintahSetGpuDevice(int deviceID) {
-  GPU_RT_SAFE_CALL(gpuSetDevice(deviceID));
-}
+#if defined(UINTAH_ENABLE_DEVICE)
 
 int
 OnDemandDataWarehouse::getNumDevices() {
@@ -555,7 +610,7 @@ OnDemandDataWarehouse::createGPUReductionVariable(const TypeDescription::Type& t
   return device_var;
 }
 
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif // UINTAH_ENABLE_DEVICE
 
 
 //______________________________________________________________________
@@ -1092,6 +1147,55 @@ OnDemandDataWarehouse::put( const ReductionVariableBase & var
   m_level_DB.putReduce( label, matlIndex, level, var.clone(), init );
 
 }
+
+//______________________________________________________________________
+//
+//    Put a std::map of Sum<T> reduction variables
+//    C++ doesn't allow for virtual templated functions, thus the duplication
+//    Use a map instead of a vector since the material indices may not be consecutive
+//    starting at 0
+//    How can we generalize this for different reduction variable types?   -Todd
+template< class T>
+void
+OnDemandDataWarehouse::put_sum_vartypeT( std::map<int, T>  reductionVars
+                                      , const VarLabel       * label
+                                      , const MaterialSubset * matls
+                                      )
+{
+  for( auto m = 0; m < matls->size(); ++m ) {
+    int dwi = matls->get( m );
+
+    typedef ReductionVariable<T, Reductions::Sum<T> > sumVartype;
+
+    put( sumVartype(reductionVars[dwi]),  label, nullptr, dwi);
+  }
+}
+
+//
+// Explicit template instantiations:
+
+template void OnDemandDataWarehouse::put_sum_vartypeT( std::map<int, double> rv ,const VarLabel * l,const MaterialSubset * matls);
+template void OnDemandDataWarehouse::put_sum_vartypeT( std::map<int, Vector> rv ,const VarLabel * l,const MaterialSubset * matls);
+
+//__________________________________
+//  Vector
+void
+OnDemandDataWarehouse::put_sum_vartype( std::map<int, Vector>  reductionVars
+                                      , const VarLabel       * label
+                                      , const MaterialSubset * matls )
+{
+  put_sum_vartypeT<Vector>( reductionVars, label, matls );
+}
+//__________________________________
+//    double
+void
+OnDemandDataWarehouse::put_sum_vartype( std::map<int, double>  reductionVars
+                                      , const VarLabel       * label
+                                      , const MaterialSubset * matls )
+{
+  put_sum_vartypeT<double>( reductionVars, label, matls );
+}
+
 
 //______________________________________________________________________
 //

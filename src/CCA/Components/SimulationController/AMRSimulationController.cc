@@ -352,7 +352,7 @@ AMRSimulationController::run()
     // from postProcessUda and needs to be done before
     // advanceDataWarehouse is called.
     if (m_post_process_uda) {
-      m_current_gridP = static_cast<PostProcessUda*>(m_application)->getGrid();
+      m_current_gridP = static_cast<PostProcessUda*>(m_application)->getGrid( m_current_gridP );
     }
 
     // After one step (either time step or initialization) and the
@@ -495,8 +495,6 @@ AMRSimulationController::doInitialTimeStep()
     m_application->scheduleInitializeSystemVars( m_current_gridP,
                                                  m_loadBalancer->getPerProcessorPatchSet(m_current_gridP),
                                                  m_scheduler );
-
-    m_application->restartInitialize();
 
     for (int i = m_current_gridP->numLevels() - 1; i >= 0; i--) {
       m_application->scheduleRestartInitialize( m_current_gridP->getLevel(i), m_scheduler );

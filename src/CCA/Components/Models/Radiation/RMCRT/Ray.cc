@@ -449,6 +449,7 @@ void Ray::sched_rayTrace(const LevelP &level, SchedulerP &sched,
   int L = level->getIndex();
   Task::WhichDW abskg_dw = get_abskg_whichDW(L, d_abskgLabel);
 
+#ifdef UINTAH_ENABLE_DEVICE
   if (Parallel::usingDevice()) { // G P U
 
     // Pass the time step in which is used to generate what should be
@@ -481,6 +482,7 @@ void Ray::sched_rayTrace(const LevelP &level, SchedulerP &sched,
     }
     tsk->usesDevice(true);
   } else { // C P U
+#endif // UNITAH_ENABLE_DEVICE    
     if (RMCRTCommon::d_FLT_DBL == TypeDescription::double_type) {
       tsk = scinew Task(taskname, this, &Ray::rayTrace<double>, modifies_divQ,
                         abskg_dw, sigma_dw, celltype_dw);
@@ -488,7 +490,9 @@ void Ray::sched_rayTrace(const LevelP &level, SchedulerP &sched,
       tsk = scinew Task(taskname, this, &Ray::rayTrace<float>, modifies_divQ,
                         abskg_dw, sigma_dw, celltype_dw);
     }
+#ifdef UINTAH_ENABLE_DEVICE
   }
+#endif // UINTAH_ENABLE_DEVICE
 
   printSchedule(level, g_ray_dbg, "Ray::sched_rayTrace");
 
@@ -956,13 +960,11 @@ void Ray::sched_rayTrace_dataOnion(const LevelP &level, SchedulerP &sched,
           scinew Task(taskname, this, &Ray::rayTraceDataOnionGPU<float>,
                       modifies_divQ, timeStep, NotUsed, sigma_dw, celltype_dw);
     }
-    // CUDA, HIP: Allow it to use up to 4 GPU streams per patch.
+    
+    // ABB: Allows only 1 stream per device
+    // CUDA, HIP: (earlier) Allow it to use up to 4 GPU streams per patch. But forn
     // SYCL: Since we use OOO-queues, we let the hardware decide the concurrency.
-    #ifdef HAVE_SYCL
-    tsk->usesDevice(true, 1);
-    #else
-    tsk->usesDevice(true, 1); // 4
-    #endif
+    tsk->usesDevice(true);
   } else { // C P U
     taskname = "Ray::rayTrace_dataOnion";
     if (RMCRTCommon::d_FLT_DBL == TypeDescription::double_type) {

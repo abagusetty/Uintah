@@ -30,7 +30,7 @@
 #include <CCA/Components/Schedulers/OnDemandDataWarehouseP.h>
 #include <CCA/Components/Schedulers/RuntimeStats.hpp>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 #include <sci_defs/gpu_defs.h>
 #endif
@@ -52,7 +52,7 @@ class DetailedTasks;
 
 //_____________________________________________________________________________
 //
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
 struct TaskGpuDataWarehouses {
   GPUDataWarehouse *TaskGpuDW[2];
@@ -177,11 +177,7 @@ public:
   double task_exec_time() const { return m_exec_timer().seconds(); }
 
 //-----------------------------------------------------------------------------
-#ifdef HAVE_SYCL
-  void pushbackGpuEvents(const sycl::event& dEvent) { d_gpuEvents.push_back(dEvent); }
-#endif
-
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
   // Most tasks will only run on one device.
   // But some, such as the data archiver task or send_old_data could run on
@@ -191,7 +187,7 @@ public:
 
   std::map<int, TaskGpuDataWarehouses> TaskGpuDWs;
 
-  void setGpuStreamForThisTask(int deviceNum); //, gpuStream_t* s);
+  void setGpuStreamForThisTask(int deviceNum);
   void clearGpuStreamsForThisTask();
   bool checkAllGpuStreamsDoneForThisTask() const;
 
@@ -227,7 +223,7 @@ public:
                                               std::size_t sizeinbytes);
   void deleteTemporaryTaskVars();
 
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif //UINTAH_ENABLE_DEVICE
 
   //-----------------------------------------------------------------------------
 
@@ -286,11 +282,7 @@ private:
   bool operator<(const DetailedTask &other);
 
 //-----------------------------------------------------------------------------
-#ifdef HAVE_SYCL
-  std::vector<sycl::event> d_gpuEvents;
-#endif
-
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
   // list of GPU-IDs this task is assigned to. For tasks where there are
   // multiple devices for the task (i.e. data archiver output tasks)

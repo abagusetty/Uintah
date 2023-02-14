@@ -200,7 +200,7 @@ void rayTraceKernel(sycl::nd_item<2> &item, const int matl, levelParams level,
   // using tile_t = sycl::int3[6];
   // tile_t& dirIndexOrder = *sycl::ext::oneapi::group_local_memory_for_overwrite<tile_t>(thread_block);
   // tile_t& dirSignSwap = *sycl::ext::oneapi::group_local_memory_for_overwrite<tile_t>(thread_block);
-  
+
 //     //_____________________________________________
 //     //   Ordering for Surface Method
 //     // This block of code is used to properly place ray origins, and orient ray
@@ -371,7 +371,7 @@ void rayTraceKernel(sycl::nd_item<2> &item, const int matl, levelParams level,
 //             direction_vector = findRayDirectionDevice();
 //           }
 
-//    Compute the physical location of a ray's origin	
+//    Compute the physical location of a ray's origin
 // 	sycl::double3 rayOrigin = (RT_flags_CCRays == false) ?
 // 	  (CC_pos - 0.5 * patch.dx + randDblDevice(distr, engine) * patch.dx) : CC_pos;
 
@@ -764,7 +764,7 @@ void rayTraceDataOnionKernel(
           ray_direction = findRayDirectionDevice(&distr, &engine);
         }
 
-       // Compute the physical location of a ray's origin	
+       // Compute the physical location of a ray's origin
 	sycl::double3 rayOrigin = (RT_flags_CCRays == false) ?
 	  (CC_pos - 0.5 * d_levels_ptr[fineL].Dx + randDblDevice(&distr, &engine) * d_levels_ptr[fineL].Dx) : CC_pos;
 
@@ -1544,7 +1544,7 @@ double randDblDevice(oneapi::mkl::rng::device::uniform<double> *distr,
   return 0.3;
 #else
   double val = oneapi::mkl::rng::device::generate(*distr, *engine);
-  return (double)val * (1.0/4294967295.0);  
+  return (double)val * (1.0/4294967295.0);
 #endif
 }
 
@@ -1560,7 +1560,7 @@ double randDblExcDevice(oneapi::mkl::rng::device::uniform<double> *distr,
 #else
   // call generate function to obtain scalar random number
   double val = oneapi::mkl::rng::device::generate(*distr, *engine);
-  return ((double)val + 0.5) * (1.0/4294967295.0);  
+  return ((double)val + 0.5) * (1.0/4294967295.0);
 #endif
 }
 
@@ -1619,7 +1619,7 @@ template <class T>
 void launchRayTraceKernel(DetailedTask *dtask, sycl::range<2> &dimGrid,
                           sycl::range<2> &dimBlock, const int matlIndx,
                           levelParams level, patchParams patch,
-                          gpuStream_t *stream, RMCRT_flags RT_flags,
+                          RMCRT_flags RT_flags,
                           int curTimeStep, GPUDataWarehouse *abskg_gdw,
                           GPUDataWarehouse *sigmaT4_gdw,
                           GPUDataWarehouse *cellType_gdw,
@@ -1641,10 +1641,12 @@ void launchRayTraceDataOnionKernel(
   DetailedTask *dtask, sycl::range<1> &dimGrid, sycl::range<1> &dimBlock,
   int matlIndex, patchParams patch, gridParams gridP, levelParams *levelP,
   sycl::int3 fineLevel_ROI_Lo, sycl::int3 fineLevel_ROI_Hi,
-  gpuStream_t *stream, unsigned short deviceID, RMCRT_flags RT_flags, int curTimeStep,
+  RMCRT_flags RT_flags, int curTimeStep,
   GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
   GPUDataWarehouse *cellType_gdw, GPUDataWarehouse *new_gdw) {
 
+  gpuStream_t* stream = dtask->getGpuStreamForThisTask(0);
+    
   // copy regionLo & regionHi to device memory
   size_t size = d_MAXLEVELS * sizeof(sycl::int3);
   sycl::int3* dev_regionLo = static_cast<sycl::int3*>( dtask->addTempGpuMemoryToBeFreedOnCompletion(deviceID, size) );
@@ -1693,7 +1695,7 @@ void launchRayTraceDataOnionKernel(
       acc_d_levels(dev_d_levels, cgh);
 
     cgh.parallel_for(sycl::nd_range<1>(dimGrid * dimBlock, dimBlock),
-		     [=](sycl::nd_item<1> item) [[sycl::reqd_sub_group_size(8)]] {
+		     [=](sycl::nd_item<1> item) [[sycl::reqd_sub_group_size(16)]] {
 		       rayTraceDataOnionKernel<T>(
 			 item, sycl::constant_ptr<levelParams>(acc_d_levels),
 			 matlIndex, patch, gridP,
@@ -1723,14 +1725,14 @@ void launchRayTraceDataOnionKernel(
 template void launchRayTraceKernel<double>(
     DetailedTask *dtask, sycl::range<2> &dimGrid, sycl::range<2> &dimBlock,
     const int matlIndx, levelParams level, patchParams patch,
-    gpuStream_t *stream, RMCRT_flags RT_flags, int curTimeStep,
+    RMCRT_flags RT_flags, int curTimeStep,
     GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
     GPUDataWarehouse *cellType_gdw, GPUDataWarehouse *new_gdw);
 
 template void launchRayTraceKernel<float>(
     DetailedTask *dtask, sycl::range<2> &dimGrid, sycl::range<2> &dimBlock,
     const int matlIndx, levelParams level, patchParams patch,
-    gpuStream_t *stream, RMCRT_flags RT_flags, int curTimeStep,
+    RMCRT_flags RT_flags, int curTimeStep,
     GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
     GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *new_gdw);
 

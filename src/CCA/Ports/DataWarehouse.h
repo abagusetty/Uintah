@@ -65,7 +65,8 @@ class Task;
 CLASS
    DataWarehouse
 
-   Short description...
+   Short description:
+   Abstract class that currently only inherits from OnDemandDW
 
 GENERAL INFORMATION
 
@@ -93,12 +94,12 @@ class DataWarehouse : public RefCounted {
 public:
   virtual ~DataWarehouse();
 
-  virtual bool exists(const VarLabel *, int matlIndex, const Patch *) const = 0;
-  virtual bool exists(const VarLabel *, int matlIndex, const Level *) const = 0;
+  virtual bool exists(const VarLabel*, int matlIndex, const Patch*) const = 0;
+  virtual bool exists(const VarLabel*, int matlIndex, const Level*) const = 0;
 
-  virtual ReductionVariableBase *getReductionVariable(const VarLabel *,
-                                                      int matlIndex,
-                                                      const Level *) const = 0;
+  virtual ReductionVariableBase* getReductionVariable( const VarLabel*,
+                                                       int matlIndex,
+                                                       const Level* ) const = 0;
 
   // Returns a (const) pointer to the grid.  This pointer can then be
   // used to (for example) get the number of levels in the grid.
@@ -110,15 +111,30 @@ public:
                    const Patch *) = 0;
 
   // Reduction Variables
-  virtual void get(ReductionVariableBase &, const VarLabel *,
-                   const Level *level = 0, int matlIndex = -1) = 0;
-  virtual void put(const ReductionVariableBase &, const VarLabel *,
-                   const Level *level = 0, int matlIndex = -1) = 0;
+  virtual void get(ReductionVariableBase&, const VarLabel*,
+                   const Level* level = 0, int matlIndex = -1) = 0;
 
-  virtual void override(const ReductionVariableBase &, const VarLabel *,
-                        const Level *level = 0, int matlIndex = -1) = 0;
-  virtual void print(std::ostream &intout, const VarLabel *label,
-                     const Level *level, int matlIndex = -1) = 0;
+  virtual std::map<int,double> get_sum_vartypeD( const VarLabel * label,
+                                                 const MaterialSubset * ) = 0;
+
+  virtual std::map<int,Vector> get_sum_vartypeV( const VarLabel * label,
+                                                 const MaterialSubset * ) = 0;
+
+  virtual void put(const ReductionVariableBase&, const VarLabel*,
+                   const Level* level = 0, int matlIndex = -1) = 0;
+
+  virtual void put_sum_vartype( std::map<int,Vector>,
+                                const VarLabel *,
+                                const MaterialSubset *) = 0;
+
+  virtual void put_sum_vartype( std::map<int,double>,
+                                const VarLabel *,
+                                const MaterialSubset *) = 0;
+
+  virtual void override(const ReductionVariableBase&, const VarLabel*,
+                        const Level* level = 0, int matlIndex = -1) = 0;
+  virtual void print(std::ostream& intout, const VarLabel* label,
+                     const Level* level, int matlIndex = -1) = 0;
 
   // Sole Variables
   virtual bool exists(const VarLabel *) const = 0;
@@ -141,17 +157,16 @@ public:
                        IntVector low = IntVector(0, 0, 0),
                        IntVector high = IntVector(0, 0, 0)) = 0;
 
-  virtual void deleteParticleSubset(ParticleSubset *psubset) = 0;
+  virtual void deleteParticleSubset( ParticleSubset* psubset ) = 0;
 
-  virtual void saveParticleSubset(ParticleSubset *psubset, int matlIndex,
-                                  const Patch *,
-                                  IntVector low = IntVector(0, 0, 0),
-                                  IntVector high = IntVector(0, 0, 0)) = 0;
-  virtual bool haveParticleSubset(int matlIndex, const Patch *,
-                                  IntVector low = IntVector(0, 0, 0),
-                                  IntVector high = IntVector(0, 0, 0),
-                                  bool exact = false) = 0;
-  virtual ParticleSubset *getParticleSubset(int matlIndex, const Patch *,
+  virtual void saveParticleSubset(ParticleSubset* psubset,
+                                  int matlIndex, const Patch*,
+                                  IntVector low = IntVector(0,0,0),
+                                  IntVector high = IntVector(0,0,0)) = 0;
+  virtual bool haveParticleSubset(int matlIndex, const Patch*,
+                                  IntVector low = IntVector(0,0,0),
+                                  IntVector high = IntVector(0,0,0), bool exact = false) = 0;
+  virtual ParticleSubset* getParticleSubset(int matlIndex, const Patch*,
                                             IntVector low, IntVector high) = 0;
   virtual ParticleSubset *getParticleSubset(int matlIndex, const Patch *) = 0;
   virtual ParticleSubset *getDeleteSubset(int matlIndex, const Patch *) = 0;
@@ -214,8 +229,10 @@ public:
                    const Patch *patch, bool replace = false) = 0;
 
   // returns the constGridVariable for all patches on the level
-  virtual void getLevel(constGridVariableBase &, const VarLabel *,
-                        int matlIndex, const Level *level) = 0;
+  virtual void getLevel( constGridVariableBase&,
+                         const VarLabel*,
+                         int matlIndex,
+                         const Level* level) = 0;
 
   virtual void getRegion(constGridVariableBase &, const VarLabel *,
                          int matlIndex, const Level *level,
@@ -230,16 +247,16 @@ public:
 
   // Makes var a copy of the specified warehouse data, allocating it
   // to the appropriate size first.
-  virtual void getCopy(GridVariableBase &var, const VarLabel *label,
-                       int matlIndex, const Patch *patch,
-                       Ghost::GhostType gtype = Ghost::None,
-                       int numGhostCells = 0) = 0;
+  virtual void getCopy(GridVariableBase& var, const VarLabel* label, int matlIndex,
+               const Patch* patch, Ghost::GhostType gtype = Ghost::None,
+               int numGhostCells = 0) = 0;
+
 
   // PerPatch Variables
-  virtual void get(PerPatchBase &, const VarLabel *, int matlIndex,
-                   const Patch *) = 0;
-  virtual void put(PerPatchBase &, const VarLabel *, int matlIndex,
-                   const Patch *, bool replace = false) = 0;
+  virtual void get(PerPatchBase&, const VarLabel*,
+                   int matlIndex, const Patch*) = 0;
+  virtual void put(PerPatchBase&, const VarLabel*,
+                   int matlIndex, const Patch*, bool replace = false) = 0;
 
   // this is so we can get reduction information for regridding
   virtual void
@@ -276,9 +293,12 @@ public:
                       const Patch *patch) = 0;
 
 #if HAVE_PIDX
-  virtual void emitPIDX(PIDXOutputContext &, const VarLabel *label,
-                        int matlIndex, const Patch *patch,
-                        unsigned char *buffer, size_t bufferSize) = 0;
+  virtual void emitPIDX(PIDXOutputContext&,
+                        const VarLabel* label,
+                        int matlIndex,
+                        const Patch* patch,
+                        unsigned char* buffer,
+                        size_t bufferSize) = 0;
 #endif
 
   // Scrubbing
@@ -310,14 +330,14 @@ public:
   virtual void reduceMPI(const VarLabel *label, const Level *level,
                          const MaterialSubset *matls, int nComm) = 0;
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
-  GPUDataWarehouse *getGPUDW(int devID) const { return d_gpuDWs[devID]; }
-  GPUDataWarehouse *getGPUDW() const {
+#if defined(UINTAH_ENABLE_DEVICE)
+  GPUDataWarehouse* getGPUDW(int i) const { return d_gpuDWs[i]; }
+  GPUDataWarehouse* getGPUDW() const {
     int devID;
     GPU_RT_SAFE_CALL(gpuGetDevice(&devID));
     return d_gpuDWs[devID];
   }
-#endif // #if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#endif //UINTAH_ENABLE_DEVICE
 
 protected:
   DataWarehouse(const ProcessorGroup *myworld, Scheduler *scheduler,
@@ -332,8 +352,8 @@ protected:
   // many previous time steps had taken place before the restart.
   int d_generation;
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
-  std::vector<GPUDataWarehouse *> d_gpuDWs;
+#if defined(UINTAH_ENABLE_DEVICE)
+  std::vector<GPUDataWarehouse*> d_gpuDWs;
 #endif
 private:
   DataWarehouse(const DataWarehouse &);

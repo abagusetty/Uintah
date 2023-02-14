@@ -26,7 +26,7 @@
 
 #include <CCA/Components/Schedulers/MPIScheduler.h>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
 #include <CCA/Components/Schedulers/GPUGridVariableGhosts.h>
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
@@ -107,19 +107,10 @@ public:
   // TODO: Ideally, this number should be determined from the CUDA arch during
   // the CMAKE/configure step so that future programmers don't have to manually
   // remember to update this value if it ever changes.
-#ifdef HAVE_CUDA
   static const int bufferPadding =
       128; // 32 threads can write floats out in one coalesced access.  (32 * 4
            // bytes = 128 bytes).
-#elif defined(HAVE_HIP)
-  static const int bufferPadding =
-      128; // 32 threads can write floats out in one coalesced access.  (32 * 4
-           // bytes = 128 bytes).
-#elif defined(HAVE_SYCL)
-  static const int bufferPadding =
-      128; // 32 threads can write floats out in one coalesced access.  (32 * 4
-           // bytes = 128 bytes).
-#endif
+
 
   // timing statistics for Uintah infrastructure overhead
   enum ThreadStatsEnum { WaitTime, LocalTID, Affinity, NumTasks, NumPatches };
@@ -158,18 +149,7 @@ private:
   bool m_abort{false};
   int m_abort_point{0};
 
-#ifdef HAVE_SYCL
-  // TODO: ABB 05/20/22, this variable is not being used, the original purpose
-  // could be to use a combination of stream-events to track async-work with
-  // cudaEventQuery(). But the current infrastructure uses, cudaStreamQuery()
-  // which makes explicit cudaEventQuery obsolete. [SYCL] For SYCL, since there
-  // is no sycl::queue query status available, we've to use
-  //        std::vector<sycl::events> to track the progress for each
-  //        sycl::queue.
-  std::vector<std::queue<gpuEvent_t *>> m_idle_events;
-#endif
-
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
   using DeviceVarDest = GpuUtilities::DeviceVarDestination;
 
@@ -291,7 +271,7 @@ private:
     Task::DepType m_depType;
   };
 
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif //UINTAH_ENABLE_DEVICE
 };
 
 class UnifiedSchedulerWorker {

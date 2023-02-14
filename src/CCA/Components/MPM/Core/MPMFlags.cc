@@ -63,6 +63,7 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_artificialViscCoeff1          =  0.2;
   d_artificialViscCoeff2          =  2.0;
   d_useLoadCurves                 =  false;
+  d_keepPressBCNormalToSurface    =  false;
   d_useCBDI                       =  false;
   d_useCPTI                       =  false;
   d_useCohesiveZones              =  false;
@@ -100,19 +101,19 @@ MPMFlags::MPMFlags(const ProcessorGroup* myworld)
   d_min_part_mass                      =  3.e-15;
   d_min_subcycles_for_F                =  1;
   d_min_mass_for_acceleration          =  0;            // Min mass to allow division by in computing acceleration
-  d_max_vel                            =  3.e105;
   d_with_ice                           =  false;
   d_myworld                            =  myworld;
   
   d_reductionVars = scinew reductionVars();
-  d_reductionVars->mass             = false;
-  d_reductionVars->momentum         = false;
-  d_reductionVars->thermalEnergy    = false;
-  d_reductionVars->strainEnergy     = false;
-  d_reductionVars->accStrainEnergy  = false;
-  d_reductionVars->KE               = false;
-  d_reductionVars->volDeformed      = false;
-  d_reductionVars->centerOfMass     = false;
+  d_reductionVars->mass                = false;
+  d_reductionVars->momentum            = false;
+  d_reductionVars->thermalEnergy       = false;
+  d_reductionVars->strainEnergy        = false;
+  d_reductionVars->accStrainEnergy     = false;
+  d_reductionVars->KE                  = false;
+  d_reductionVars->volDeformed         = false;
+  d_reductionVars->centerOfMass        = false;
+  d_reductionVars->sumTransmittedForce = false;
 
   //******* Hydro-mechanical coupling MPM
   d_coupledflow = false;
@@ -214,6 +215,7 @@ MPMFlags::readMPMFlags(ProblemSpecP& ps, Output* dataArchive)
   mpm_flag_ps->get("artificial_viscosity_coeff1", d_artificialViscCoeff1);
   mpm_flag_ps->get("artificial_viscosity_coeff2", d_artificialViscCoeff2);
   mpm_flag_ps->get("use_load_curves",             d_useLoadCurves);
+  mpm_flag_ps->get("keepPressBCNormalToSurface",  d_keepPressBCNormalToSurface);
   mpm_flag_ps->get("use_CBDI_boundary_condition", d_useCBDI);
   mpm_flag_ps->get("exactDeformation",            d_exactDeformation);
   mpm_flag_ps->get("use_cohesive_zones",          d_useCohesiveZones);
@@ -250,7 +252,6 @@ MPMFlags::readMPMFlags(ProblemSpecP& ps, Output* dataArchive)
   mpm_flag_ps->get("minimum_particle_mass",             d_min_part_mass);
   mpm_flag_ps->get("minimum_subcycles_for_F",           d_min_subcycles_for_F);
   mpm_flag_ps->get("minimum_mass_for_acc",              d_min_mass_for_acceleration);
-  mpm_flag_ps->get("maximum_particle_velocity",         d_max_vel);
   mpm_flag_ps->get("UsePrescribedDeformation",          d_prescribeDeformation);
 
   if(d_prescribeDeformation){
@@ -397,6 +398,7 @@ else{
     dbg << " RefineParticles             = " << d_refineParticles << endl;
     dbg << " XPIC2                       = " << d_XPIC2 << endl;
     dbg << " Use Load Curves             = " << d_useLoadCurves << endl;
+    dbg << " Keep PressBC Normal         = " << d_keepPressBCNormalToSurface << endl;
     dbg << " Use CBDI boundary condition = " << d_useCBDI << endl;
     dbg << " Use Cohesive Zones          = " << d_useCohesiveZones << endl;
     dbg << " Contact Friction Heating    = " << d_addFrictionWork << endl;
@@ -427,6 +429,7 @@ MPMFlags::outputProblemSpec(ProblemSpecP& ps)
   ps->appendElement("XPIC2",                              d_XPIC2);
   ps->appendElement("use_cohesive_zones",                 d_useCohesiveZones);
   ps->appendElement("use_load_curves",                    d_useLoadCurves);
+  ps->appendElement("keepPressBCNormalToSurface", d_keepPressBCNormalToSurface);
   ps->appendElement("use_CBDI_boundary_condition",        d_useCBDI);
   ps->appendElement("exactDeformation",                   d_exactDeformation);
   ps->appendElement("DoImplicitHeatConduction",           d_doImplicitHeatConduction);
@@ -443,7 +446,6 @@ MPMFlags::outputProblemSpec(ProblemSpecP& ps)
   ps->appendElement("minimum_particle_mass",              d_min_part_mass);
   ps->appendElement("minimum_subcycles_for_F",            d_min_subcycles_for_F);
   ps->appendElement("minimum_mass_for_acc",               d_min_mass_for_acceleration);
-  ps->appendElement("maximum_particle_velocity",          d_max_vel);
   ps->appendElement("UsePrescribedDeformation",           d_prescribeDeformation);
 
   // Hydro mechanical coupling

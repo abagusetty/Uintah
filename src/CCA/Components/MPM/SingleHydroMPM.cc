@@ -116,7 +116,7 @@ static Vector face_norm(Patch::FaceType f)
 
 SingleHydroMPM::SingleHydroMPM( const ProcessorGroup* myworld,
                       const MaterialManagerP materialManager) :
-  MPMCommon( myworld, materialManager )
+  ApplicationCommon( myworld, materialManager), MPMCommon( m_materialManager )
 {
   flags = scinew MPMFlags(myworld);
   Hlb = scinew HydroMPMLabel();
@@ -570,27 +570,6 @@ void SingleHydroMPM::scheduleRestartInitialize(const LevelP& level,
             iter != d_analysisModules.end(); iter++) {
             AnalysisModule* am = *iter;
             am->scheduleRestartInitialize(sched, level);
-        }
-    }
-}
-
-/* _____________________________________________________________________
- Purpose:   Set variables that are normally set during the initialization
-            phase, but get wiped clean when you restart
-_____________________________________________________________________*/
-void SingleHydroMPM::restartInitialize()
-{
-    if (cout_doing.active())
-        cout_doing << "Doing restartInitialize \t\t\t SingleHydroMPM" << endl;
-
-    d_mpm->restartInitialize();
-
-    if (d_analysisModules.size() != 0) {
-        vector<AnalysisModule*>::iterator iter;
-        for (iter = d_analysisModules.begin();
-            iter != d_analysisModules.end(); iter++) {
-            AnalysisModule* am = *iter;
-            am->restartInitialize();
         }
     }
 }
@@ -3888,27 +3867,6 @@ void SingleHydroMPM::interpolateToParticlesAndUpdate(const ProcessorGroup*,
           totalmass  += pmass[idx];
         }
       } // use XPIC(2) or not
-
-      // scale back huge particle velocities.
-      // Default for d_max_vel is 3.e105, hence the conditional
-      if(flags->d_max_vel < 1.e105){
-       for(ParticleSubset::iterator iter  = pset->begin();
-                                    iter != pset->end(); iter++){
-        particleIndex idx = *iter;
-        if(pvelnew[idx].length() > flags->d_max_vel){
-          if(pvelnew[idx].length() >= pvelocity[idx].length()){
-            pvelnew[idx]=(pvelnew[idx]/pvelnew[idx].length())
-                             *(flags->d_max_vel*.9);
-            cout << endl <<"Warning: particle " <<pids[idx]
-                 <<" hit speed ceiling #1. Modifying particle vel. accordingly."
-                 << "  " << pvelnew[idx].length()
-                 << "  " << flags->d_max_vel
-                 << "  " << pvelocity[idx].length()
-                 << endl;
-          } // if
-        } // if
-       }// for particles
-      } // max velocity flag
     }  // loop over materials
 
     // DON'T MOVE THESE!!!

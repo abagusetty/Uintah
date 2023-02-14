@@ -47,9 +47,9 @@ Dout dout_OTF_stats("statistics",     "OnTheFlyAnalysis", "Task scheduling and e
 Dout dbg_OTF_stats("statistics_dbg",  "OnTheFlyAnalysis", "Displays detailed debugging info.", false);
 
 //______________________________________________________________________
-statistics::statistics( const ProcessorGroup* myworld,
+statistics::statistics( const ProcessorGroup*  myworld,
                         const MaterialManagerP materialManager,
-                        const ProblemSpecP& module_spec )
+                        const ProblemSpecP&    module_spec )
   : AnalysisModule(myworld, materialManager, module_spec)
 {
   d_stopTime    = DBL_MAX;
@@ -84,8 +84,11 @@ statistics::~statistics()
     if( d_doHigherOrderStats ){
       VarLabel::destroy( Q.Qsum3_Label );
       VarLabel::destroy( Q.Qmean3_Label );
+      VarLabel::destroy( Q.Qskewness_Label );
+      
       VarLabel::destroy( Q.Qsum4_Label );
       VarLabel::destroy( Q.Qmean4_Label );
+      VarLabel::destroy( Q.Qkurtosis_Label );
     }
   }
 
@@ -524,13 +527,6 @@ void statistics::restartInitialize(const ProcessorGroup*,
 }
 
 //______________________________________________________________________
-//
-void
-statistics::restartInitialize()
-{
-}
-
-//______________________________________________________________________
 //  output the starting timestep for each variable
 //  The user can turn add variables on restarts
 void
@@ -849,6 +845,10 @@ void statistics::computeReynoldsStressWrapper( DataWarehouse* old_dw,
                                                const Patch*    patch,
                                                Qstats& Q)
 {
+  if( !Q.computeRstess ){
+    return;
+  }
+  
   simTime_vartype simTimeVar;
   old_dw->get(simTimeVar, m_simulationTimeLabel);
   double now = simTimeVar;

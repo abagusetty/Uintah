@@ -1144,7 +1144,7 @@ DataArchiver::sched_allOutputTasks( const GridP      & grid,
       SaveItem& saveItem = m_saveGlobalLabels[i];
 
       const MaterialSubset* mss = saveItem.getMaterialSubset(0);
-      task->requires( Task::WhichDW::NewDW, saveItem.label, mss, true);
+      task->requires( Task::WhichDW::NewDW, saveItem.label, mss, Task::SearchTG::OldTG);
     }
 
     task->setType( Task::TaskType::OutputGlobalVars ); 
@@ -1170,7 +1170,7 @@ DataArchiver::sched_allOutputTasks( const GridP      & grid,
       SaveItem& saveItem = m_checkpointGlobalLabels[i];
 
       const MaterialSubset* mss = saveItem.getMaterialSubset(0);
-      task->requires(Task::WhichDW::NewDW, saveItem.label, mss, true);
+      task->requires(Task::WhichDW::NewDW, saveItem.label, mss, Task::SearchTG::OldTG);
     }
 
     sched->addTask(task, nullptr, nullptr);
@@ -1750,9 +1750,11 @@ DataArchiver::writeto_xml_files( const GridP& grid )
       for (unsigned j = 0; j < savelist.size(); ++j) {
         string variableSection = savelist[j] == &m_checkpointGlobalLabels ? "globals" : "variables";
         ProblemSpecP vs = indexDoc->findBlock( variableSection );
+
         if( vs == nullptr ) {
           vs = indexDoc->appendChild(variableSection.c_str());
         }
+
         for (unsigned k = 0; k < savelist[j]->size(); ++k) {
           const VarLabel * var   = (*savelist[j])[k].label;
           bool             found = false;
@@ -2526,7 +2528,7 @@ DataArchiver::sched_outputVariables(       vector<SaveItem> & saveLabels,
       const MaterialSubset* matlSubset = saveIter->getMaterialSubset( level.get_rep() );
 
       if ( matlSubset != nullptr ) {
-        task->requires( Task::WhichDW::NewDW, (*saveIter).label, matlSubset, Task::MaterialDomainSpec::OutOfDomain, Ghost::None, 0, true );
+        task->requires( Task::WhichDW::NewDW, (*saveIter).label, matlSubset, Task::MaterialDomainSpec::OutOfDomain, Ghost::None, 0, Task::SearchTG::OldTG );
 
         // Do not scrub any variables that are saved so they can be
         // accessed at any time after all of the tasks are finished.
@@ -2615,7 +2617,15 @@ DataArchiver::loadDocument(const string & xmlName )
 const string
 DataArchiver::getOutputLocation() const
 {
-    return m_outputDir.getName();
+  return m_outputDir.getName();
+}
+
+//______________________________________________________________________
+//
+bool
+DataArchiver::doesOutputDirExist() const
+{
+  return m_outputDir.exists();
 }
 
 //______________________________________________________________________
@@ -2630,7 +2640,7 @@ DataArchiver::indexAddGlobals()
   // from timestep to timestep
   static bool wereGlobalsAdded = false;
 
-  if (m_writeMeta && !wereGlobalsAdded) {
+  if (m_writeMeta && !wereGlobalsAdded && !m_saveGlobalLabels.empty() ) {
     wereGlobalsAdded = true;
 
     // add saved global (reduction/sole) variables to index.xml

@@ -99,8 +99,7 @@ protected: // class Task
                       const ProcessorGroup *pg, const PatchSubset *patches,
                       const MaterialSubset *matls, DataWarehouse *fromDW,
                       DataWarehouse *toDW, void *oldTaskGpuDW,
-                      void *newTaskGpuDW, gpuStream_t *stream,
-                      unsigned short deviceID) = 0;
+                      void *newTaskGpuDW) = 0;
   };
 
 private: // class Task
@@ -129,8 +128,7 @@ private: // class Task
                       const ProcessorGroup *pg, const PatchSubset *patches,
                       const MaterialSubset *matls, DataWarehouse *fromDW,
                       DataWarehouse *toDW, void *oldTaskGpuDW,
-                      void *newTaskGpuDW, gpuStream_t *stream,
-                      unsigned short deviceID) {
+                      void *newTaskGpuDW) {
       doit_impl(pg, patches, matls, fromDW, toDW,
                 typename Tuple::gens<sizeof...(Args)>::type());
     }
@@ -154,7 +152,7 @@ private: // class Task
                    const ProcessorGroup *pg, const PatchSubset *patches,
                    const MaterialSubset *m_matls, DataWarehouse *fromDW,
                    DataWarehouse *toDW, void *oldTaskGpuDW, void *newTaskGpuDW,
-                   gpuStream_t *stream, unsigned short deviceID, Args... args);
+                   Args... args);
     std::tuple<Args...> m_args;
 
   public: // class ActionDevice
@@ -165,7 +163,6 @@ private: // class Task
                                 const MaterialSubset *m_matls,
                                 DataWarehouse *fromDW, DataWarehouse *toDW,
                                 void *oldTaskGpuDW, void *newTaskGpuDW,
-                                gpuStream_t *stream, unsigned short deviceID,
                                 Args... args),
                  Args... args)
         : ptr(ptr), pmf(pmf), m_args(std::forward<Args>(args)...) {}
@@ -176,11 +173,9 @@ private: // class Task
                       const ProcessorGroup *pg, const PatchSubset *patches,
                       const MaterialSubset *matls, DataWarehouse *fromDW,
                       DataWarehouse *toDW, void *oldTaskGpuDW,
-                      void *newTaskGpuDW, gpuStream_t *stream,
-                      unsigned short deviceID) {
+                      void *newTaskGpuDW) {
       doit_impl(dtask, event, pg, patches, matls, fromDW, toDW, oldTaskGpuDW,
-                newTaskGpuDW, stream, deviceID,
-                typename Tuple::gens<sizeof...(Args)>::type());
+                newTaskGpuDW, typename Tuple::gens<sizeof...(Args)>::type());
     }
 
   private: // class ActionDevice
@@ -189,10 +184,9 @@ private: // class Task
                    const ProcessorGroup *pg, const PatchSubset *patches,
                    const MaterialSubset *matls, DataWarehouse *fromDW,
                    DataWarehouse *toDW, void *oldTaskGpuDW, void *newTaskGpuDW,
-                   gpuStream_t *stream, unsigned short deviceID,
                    Tuple::seq<S...>) {
       (ptr->*pmf)(dtask, event, pg, patches, matls, fromDW, toDW, oldTaskGpuDW,
-                  newTaskGpuDW, stream, deviceID, std::get<S>(m_args)...);
+                  newTaskGpuDW, std::get<S>(m_args)...);
     }
 
   }; // end GPU (device) Action constructor
@@ -255,8 +249,8 @@ public: // class Task
                       const ProcessorGroup *pg, const PatchSubset *patches,
                       const MaterialSubset *m_matls, DataWarehouse *fromDW,
                       DataWarehouse *toDW, void *old_TaskGpuDW,
-                      void *new_TaskGpuDW, gpuStream_t *stream,
-                      unsigned short deviceID, Args... args),
+                      void *new_TaskGpuDW,
+                      Args... args),
        Args... args)
       : m_task_name(taskName), m_action(scinew ActionDevice<T, Args...>(
                                    ptr, pmf, std::forward<Args>(args)...)) {
@@ -278,9 +272,11 @@ public: // class Task
   void usesThreads(bool state);
   inline bool usesThreads() const { return m_uses_threads; }
 
-  void usesDevice(bool state, int maxStreamsPerTask = 1);
+  void usesDevice(bool state);
   inline bool usesDevice() const { return m_uses_device; }
-  inline int  maxStreamsPerTask() const { return  m_max_streams_per_task; }
+  
+  inline void setDebugFlag( bool in ){m_debugFlag = in;}
+  inline bool getDebugFlag()const {return m_debugFlag;}
 
   enum class MaterialDomainSpec {
     NormalDomain // <- Normal/default setting
@@ -300,64 +296,106 @@ public: // class Task
     OtherGridDomain // for when we copy data to new grid after a regrid.
   };
 
+  enum class SearchTG{  
+      OldTG           // <- Search the OldTG for the computes if they aren't found in NewTG
+    , NewTG
+  };
+
   //////////
   // Most general case
-  void requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
-           PatchDomainSpec patches_dom, int level_offset,
-           const MaterialSubset *matls, MaterialDomainSpec matls_dom,
-           Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
+  void requires( WhichDW
+               , const VarLabel       *
+               , const PatchSubset    * patches
+               , PatchDomainSpec        patches_dom
+               , int                    level_offset
+               , const MaterialSubset * matls
+               , MaterialDomainSpec     matls_dom
+               , Ghost::GhostType       gtype
+               , int                    numGhostCells = 0
+               , SearchTG               whichTG = SearchTG::NewTG
+               );
 
   //////////
   // Like general case, level_offset is not specified
-  void
-    requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
-             PatchDomainSpec patches_dom, const MaterialSubset *matls,
-             MaterialDomainSpec matls_dom, Ghost::GhostType gtype,
-             int numGhostCells = 0, bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel           *
+               , const PatchSubset        * patches
+               ,       PatchDomainSpec      patches_dom
+               , const MaterialSubset     * matls
+               ,       MaterialDomainSpec   matls_dom
+               ,       Ghost::GhostType     gtype
+               ,       int                  numGhostCells = 0
+               ,       SearchTG             whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void
-    requires(WhichDW dw, const VarLabel *, Ghost::GhostType gtype,
-             int numGhostCells = 0, bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel         *
+               ,       Ghost::GhostType   gtype
+               ,       int                numGhostCells = 0
+               ,       SearchTG           whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void
-    requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
-             const MaterialSubset *matls, Ghost::GhostType gtype,
-             int numGhostCells = 0, bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel         *
+               , const PatchSubset      * patches
+               , const MaterialSubset   * matls
+               ,       Ghost::GhostType   gtype
+               ,       int                numGhostCells = 0
+               ,       SearchTG           whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void requires(WhichDW dw, const VarLabel *, const PatchSubset *patches,
-             Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
+  void requires( WhichDW
+               , const VarLabel         *
+               , const PatchSubset      * patches
+               ,       Ghost::GhostType   gtype
+               ,       int                numGhostCells = 0
+               ,       SearchTG           whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void
-    requires(WhichDW dw, const VarLabel *, const MaterialSubset *matls,
-             Ghost::GhostType gtype, int numGhostCells = 0, bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel        *
+               , const MaterialSubset  * matls
+               ,      Ghost::GhostType   gtype
+               ,      int                numGhostCells = 0
+               ,      SearchTG           whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void
-    requires(WhichDW dw, const VarLabel *, const MaterialSubset *matls,
-             MaterialDomainSpec matls_dom, Ghost::GhostType gtype,
-             int numGhostCells = 0, bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel           *
+               , const MaterialSubset     * matls
+               ,       MaterialDomainSpec   matls_dom
+               ,       Ghost::GhostType     gtype
+               ,       int                  numGhostCells = 0
+               ,       SearchTG             whichTG = SearchTG::NewTG
+               );
 
   //////////
   // Requires only for Reduction variables
-  void
-    requires(WhichDW dw, const VarLabel *, const Level *level = nullptr,
-             const MaterialSubset *matls = nullptr,
-             MaterialDomainSpec matls_dom = MaterialDomainSpec::NormalDomain, bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel           *
+               , const Level              * level     = nullptr
+               , const MaterialSubset     * matls     = nullptr
+               ,       MaterialDomainSpec   matls_dom = MaterialDomainSpec::NormalDomain
+               ,       SearchTG             whichTG   = SearchTG::NewTG
+               );
 
   //////////
   // Requires for reduction variables or PerPatch variables
-  void
-    requires(WhichDW, const VarLabel *, const MaterialSubset *matls,
-             bool oldTG = false);
+  void requires(       WhichDW
+               , const VarLabel       *
+               , const MaterialSubset * matls
+               ,       SearchTG        whichTG = SearchTG::NewTG
+               );
 
   //////////
   // Requires only for PerPatch variables
@@ -417,49 +455,71 @@ public: // class Task
    simply provide that extra room early when it's declared as a compute.  Then
    when it becomes a requires, no costly enlarging step is necessary.
    */
-  void modifiesWithScratchGhost(const VarLabel *, const PatchSubset *patches,
-                                PatchDomainSpec patches_domain,
-                                const MaterialSubset *matls,
-                                MaterialDomainSpec matls_domain,
-                                Ghost::GhostType gtype, int numGhostCells,
-                                bool oldTG = false);
+  void modifiesWithScratchGhost( const VarLabel           *
+                               , const PatchSubset        * patches
+                               ,       PatchDomainSpec      patches_domain
+                               , const MaterialSubset     * matls
+                               ,       MaterialDomainSpec   matls_domain
+                               ,       Ghost::GhostType     gtype
+                               ,       int                  numGhostCells
+                               ,       SearchTG             whichTG = SearchTG::NewTG
+                               );
 
-  void computesWithScratchGhost(const VarLabel *, const MaterialSubset *matls,
-                                MaterialDomainSpec matls_domain,
-                                Ghost::GhostType gtype, int numGhostCells,
-                                bool oldTG = false);
+  void computesWithScratchGhost( const VarLabel           *
+                               , const MaterialSubset     * matls
+                               ,       MaterialDomainSpec   matls_domain
+                               ,       Ghost::GhostType     gtype
+                               ,       int                  numGhostCells
+                               ,       SearchTG             whichTG = SearchTG::NewTG
+                               );
 
   //////////
   // Most general case
-  void modifies(const VarLabel *, const PatchSubset *patches,
-                PatchDomainSpec patches_domain, const MaterialSubset *matls,
-                MaterialDomainSpec matls_domain, bool oldTG = false);
+  void modifies( const VarLabel           *
+               , const PatchSubset        * patches
+               ,       PatchDomainSpec      patches_domain
+               , const MaterialSubset     * matls
+               ,       MaterialDomainSpec   matls_domain
+               ,       SearchTG             whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void modifies(const VarLabel *, const PatchSubset *patches,
-                const MaterialSubset *matls, bool oldTG = false);
+  void modifies( const VarLabel       *
+               , const PatchSubset    * patches
+               , const MaterialSubset * matls
+               ,       SearchTG         whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void modifies(const VarLabel *, const MaterialSubset *matls,
-                bool oldTG = false);
+  void modifies( const VarLabel       *
+               , const MaterialSubset * matls
+               ,       SearchTG         whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void modifies(const VarLabel *, const MaterialSubset *matls,
-                MaterialDomainSpec matls_domain, bool oldTG = false);
+  void modifies( const VarLabel           *
+               , const MaterialSubset     * matls
+               ,       MaterialDomainSpec   matls_domain
+               ,       SearchTG             whichTG = SearchTG::NewTG
+               );
 
   //////////
   //
-  void modifies(const VarLabel *, bool oldTG = false);
+  void modifies( const VarLabel *
+               ,       SearchTG         whichTG = SearchTG::NewTG
+               );
 
   //////////
   // Modify reduction vars
-  void modifies(const VarLabel *, const Level *level,
-                const MaterialSubset *matls = nullptr,
-                MaterialDomainSpec matls_domain = MaterialDomainSpec::NormalDomain,
-                bool oldTG = false);
+  void modifies( const VarLabel         *
+               , const Level            * level
+               , const MaterialSubset   * matls = nullptr
+               ,       MaterialDomainSpec matls_domain = MaterialDomainSpec::NormalDomain
+               ,       SearchTG           whichTG = SearchTG::NewTG
+               );
 
   //////////
   // Tells the task to actually execute the function assigned to it.
@@ -470,8 +530,7 @@ public: // class Task
   virtual void doit(DetailedTask *task, CallBackEvent event,
                     const ProcessorGroup *pg, const PatchSubset *,
                     const MaterialSubset *, std::vector<DataWarehouseP> &dws,
-                    void *oldTaskGpuDW, void *newTaskGpuDW, gpuStream_t *stream,
-                    unsigned short deviceID);
+                    void *oldTaskGpuDW, void *newTaskGpuDW);
   // #endif // HAVE_CUDA, HAVE_SYCL
 
   inline const std::string &getName() const { return m_task_name; }
@@ -519,18 +578,29 @@ public: // class Task
 
     int mapDataWarehouse() const { return m_task->mapDataWarehouse(m_whichdw); }
 
-    Dependency(DepType deptype, Task *task, WhichDW dw, const VarLabel *var,
-               bool oldtg, const PatchSubset *patches,
-               const MaterialSubset *matls,
-               PatchDomainSpec patches_dom = PatchDomainSpec::ThisLevel,
-               MaterialDomainSpec matls_dom = MaterialDomainSpec::NormalDomain,
-               Ghost::GhostType gtype = Ghost::None, int numGhostCells = 0,
-               int level_offset = 0);
+      Dependency(       DepType              deptype
+                ,       Task               * task
+                ,       WhichDW              dw
+                , const VarLabel           * var
+                ,       SearchTG             whichTG
+                , const PatchSubset        * patches
+                , const MaterialSubset     * matls
+                ,       PatchDomainSpec      patches_dom   = PatchDomainSpec::ThisLevel
+                ,       MaterialDomainSpec   matls_dom     = MaterialDomainSpec::NormalDomain
+                ,       Ghost::GhostType     gtype         = Ghost::None
+                ,       int                  numGhostCells = 0
+                ,       int                  level_offset  = 0
+                );
 
-    Dependency(DepType deptype, Task *task, WhichDW dw, const VarLabel *var,
-               bool oldtg, const Level *reductionLevel,
-               const MaterialSubset *matls,
-               MaterialDomainSpec matls_dom = MaterialDomainSpec::NormalDomain);
+      Dependency(       DepType              deptype
+                ,       Task               * task
+                ,       WhichDW              dw
+                , const VarLabel           * var
+                ,       SearchTG             whichTG
+                , const Level              * reductionLevel
+                , const MaterialSubset     * matls
+                ,       MaterialDomainSpec   matls_dom = MaterialDomainSpec::NormalDomain
+                );
 
     ~Dependency();
 
@@ -671,9 +741,9 @@ protected: // class Task
   bool m_uses_mpi{false};
   bool m_uses_threads{false};
   bool m_uses_device{false};
-  int  m_max_streams_per_task{1};
   bool m_subpatch_capable{false};
   bool m_has_subscheduler{false};
+  bool m_debugFlag{false};
 
   TaskType d_tasktype;
 

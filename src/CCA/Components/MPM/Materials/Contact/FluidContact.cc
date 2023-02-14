@@ -93,7 +93,7 @@ void FluidContact::exMomInterpolated(const ProcessorGroup*,
                                         const MaterialSubset* matls,
                                         DataWarehouse* old_dw,
                                         DataWarehouse* new_dw)
-{ 
+{
 //   // Setting the fluid velocity equal to the rigid velocity,
 //   // to satisfy the no-slip boundary condition of impermeable wall-fluid contact
 //   // in computational fluid dynamics
@@ -289,7 +289,9 @@ void FluidContact::exMomIntegrated(const ProcessorGroup*,
     old_dw->get(NC_CCweight,         lb->NC_CCweightLabel,  0, patch, gnone, 0);
     // Retrieve necessary data from DataWarehouse
     for(int m=0;m<matls->size();m++){
-      int dwi = matls->get(m);
+      MPMMaterial* mpm_matl = 
+                        (MPMMaterial*) d_sharedState->getMaterial("MPM", m);
+      int dwi = mpm_matl->getDWIndex();
       new_dw->get(gmass[m],       lb->gMassLabel,        dwi, patch, gnone, 0);
       new_dw->get(gsurfnorm[m],   lb->gSurfNormLabel,    dwi, patch, gnone, 0);
       // new_dw->get(gposition[m],   lb->gPositionLabel,    dwi, patch, gnone, 0);
@@ -345,6 +347,7 @@ void FluidContact::addComputesAndRequiresInterpolated(SchedulerP & sched,
                                                           const PatchSet* patches,
                                                           const MaterialSet* ms)
 {
+#if 0
   Task * t = scinew Task("FluidContact::exMomInterpolated", 
               this, &FluidContact::exMomInterpolated);
 
@@ -374,6 +377,7 @@ void FluidContact::addComputesAndRequiresInterpolated(SchedulerP & sched,
 
   if (z_matl->removeReference())
     delete z_matl; // shouln't happen, but...
+#endif
 }
 
 void FluidContact::addComputesAndRequiresIntegrated(SchedulerP & sched,

@@ -27,11 +27,7 @@
 #include <Core/Exceptions/InternalError.h>
 #include <Core/Grid/DbgOutput.h>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
 #include <CCA/Components/Models/Radiation/RMCRT/RayGPU.h>
-#elif defined(HAVE_SYCL)
-#include <CCA/Components/Models/Radiation/RMCRT/RayGPU.hpp>
-#endif
 
 #include <iostream>
 
@@ -51,13 +47,12 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
                       const ProcessorGroup *pg, const PatchSubset *patches,
                       const MaterialSubset *matls, DataWarehouse *old_dw,
                       DataWarehouse *new_dw, void *oldTaskGpuDW,
-                      void *newTaskGpuDW, gpuStream_t *stream,
-                      unsigned short deviceID, bool modifies_divQ, int timeStep,
+                      void *newTaskGpuDW,
+                      bool modifies_divQ, int timeStep,
                       Task::WhichDW which_abskg_dw,
                       Task::WhichDW which_sigmaT4_dw,
                       Task::WhichDW which_celltype_dw) {
   if (event == Task::CallBackEvent::GPU) {
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     const Level *level = getLevel(patches);
 
     //__________________________________
@@ -123,21 +118,12 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
     levelP.hasFinerLevel = level->hasFinerLevel();
 
     Uintah::Vector dx = level->dCell();
-#ifndef HAVE_SYCL
     levelP.Dx     = GPUVector(make_double3(dx.x(), dx.y(), dx.z()));
     levelP.index  = level->getIndex();
     Point anchor  = level->getAnchor();
     levelP.anchor = GPUPoint( make_double3(anchor.x(), anchor.y(), anchor.z()));
     IntVector RR  = level->getRefinementRatio();
     levelP.refinementRatio = GPUIntVector( make_int3(RR.x(), RR.y(), RR.z() ) );
-#else
-    levelP.Dx = sycl::double3(dx.x(), dx.y(), dx.z());
-    levelP.index = level->getIndex();
-    Point anchor = level->getAnchor();
-    levelP.anchor = sycl::double3(anchor.x(), anchor.y(), anchor.z());
-    IntVector RR = level->getRefinementRatio();
-    levelP.refinementRatio = sycl::int3(RR.x(), RR.y(), RR.z());
-#endif
 
     //______________________________________________________________________
     // patch loop
@@ -193,7 +179,7 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
       //__________________________________
       // set up and launch kernel
       launchRayTraceKernel<T>(dtask, dimGrid, dimBlock, d_matl, levelP, patchP,
-                              stream, RT_flags, timeStep, abskg_gdw,
+                              RT_flags, timeStep, abskg_gdw,
                               sigmaT4_gdw, celltype_gdw,
       			      static_cast<GPUDataWarehouse *>(newTaskGpuDW));
 
@@ -213,7 +199,6 @@ void Ray::rayTraceGPU(DetailedTask *dtask, Task::CallBackEvent event,
         std::cout << std::endl;
       }
     }  // end patch loop
-#endif // end #ifdef HAVE_CUDA, HAVE_HIP, HAVE_SYCL
   }    // end GPU task code
 } // end GPU ray trace method
 
@@ -225,12 +210,11 @@ void Ray::rayTraceDataOnionGPU(
     DetailedTask *dtask, Task::CallBackEvent event, const ProcessorGroup *pg,
     const PatchSubset *finePatches, const MaterialSubset *matls,
     DataWarehouse *old_dw, DataWarehouse *new_dw, void *oldTaskGpuDW,
-    void *newTaskGpuDW, gpuStream_t *stream, unsigned short deviceID,
+    void *newTaskGpuDW,
     bool modifies_divQ, int timeStep, Task::WhichDW which_abskg_dw,
     Task::WhichDW which_sigmaT4_dw, Task::WhichDW which_celltype_dw) {
   if (event == Task::CallBackEvent::GPU) {
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
     //__________________________________
     //  bulletproofing   FIX ME
     const Level *fineLevel = getLevel(finePatches);
@@ -277,21 +261,12 @@ void Ray::rayTraceDataOnionGPU(
       levelP[l].hasFinerLevel = level->hasFinerLevel();
 
       Uintah::Vector dx = level->dCell();
-#ifndef HAVE_SYCL
       levelP[l].Dx    = GPUVector(make_double3(dx.x(), dx.y(), dx.z()));
       levelP[l].index = level->getIndex();
       Point anchor    = level->getAnchor();
       levelP[l].anchor = GPUPoint( make_double3(anchor.x(), anchor.y(), anchor.z()));
       IntVector RR = level->getRefinementRatio();
       levelP[l].refinementRatio = GPUIntVector( make_int3(RR.x(), RR.y(), RR.z() ) );
-#else
-      levelP[l].Dx = make_double3(dx.x(), dx.y(), dx.z());
-      levelP[l].index = level->getIndex();
-      Point anchor = level->getAnchor();
-      levelP[l].anchor = make_double3(anchor.x(), anchor.y(), anchor.z());
-      IntVector RR = level->getRefinementRatio();
-      levelP[l].refinementRatio = make_int3(RR.x(), RR.y(), RR.z());
-#endif
     }
 
     //__________________________________
@@ -358,7 +333,6 @@ void Ray::rayTraceDataOnionGPU(
                      ROI_Hi, regionLo, regionHi);
 
       // move everything into GPU vars
-#ifndef HAVE_SYCL
       GPUIntVector fineLevel_ROI_Lo = GPUIntVector( make_int3(ROI_Lo.x(), ROI_Lo.y(), ROI_Lo.z()) );
       GPUIntVector fineLevel_ROI_Hi = GPUIntVector( make_int3(ROI_Hi.x(), ROI_Hi.y(), ROI_Hi.z()) );
 
@@ -368,17 +342,6 @@ void Ray::rayTraceDataOnionGPU(
         levelP[l].regionLo = GPUIntVector(make_int3(rlo.x(), rlo.y(), rlo.z()));
         levelP[l].regionHi = GPUIntVector(make_int3(rhi.x(), rhi.y(), rhi.z()));
       }
-#else
-      sycl::int3 fineLevel_ROI_Lo = sycl::int3(ROI_Lo.x(), ROI_Lo.y(), ROI_Lo.z());
-      sycl::int3 fineLevel_ROI_Hi = sycl::int3(ROI_Hi.x(), ROI_Hi.y(), ROI_Hi.z());
-
-      for (int l = 0; l < maxLevels; ++l) {
-        IntVector rlo = regionLo[l];
-        IntVector rhi = regionHi[l];
-        levelP[l].regionLo = sycl::int3(rlo.x(), rlo.y(), rlo.z());
-        levelP[l].regionHi = sycl::int3(rhi.x(), rhi.y(), rhi.z());
-      }
-#endif
 
       //
       // Calculate the memory block size
@@ -441,79 +404,33 @@ void Ray::rayTraceDataOnionGPU(
 
       RT_flags.nRaySteps = 0;
 
-#ifdef HAVE_SYCL
-      RT_flags.startCell = 0;
-      RT_flags.endCell = numCells;
-
-      // Gen9   : stream.get_device().get_info<sycl::info::device::max_work_group_size>() = 256
-      // ATS(1T): stream.get_device().get_info<sycl::info::device::max_work_group_size>() = ???
-      // PVC(1T): stream.get_device().get_info<sycl::info::device::max_work_group_size>() = ???
       const unsigned int numThreadsPerBlock = 256;
-      const unsigned int numBlocksPerGrid = (numCells % numThreadsPerBlock == 0) ?
-	(numCells / numThreadsPerBlock) : ((numCells / numThreadsPerBlock) + 1);
+      const unsigned int numBlocksPerGrid = 1;
 
+      #ifdef HAVE_SYCL
       sycl::range<1> dimBlock( numThreadsPerBlock );
       sycl::range<1> dimGrid( numBlocksPerGrid );
-
-      launchRayTraceDataOnionKernel<T>(dtask,
-				       dimGrid,
-				       dimBlock,
-				       d_matl,
-				       patchP,
-				       gridP,
-				       levelP,
-				       fineLevel_ROI_Lo,
-				       fineLevel_ROI_Hi,
-				       stream,
-				       deviceID,
-				       RT_flags,
-				       timeStep,
-				       abskg_gdw,
-				       sigmaT4_gdw,
-				       celltype_gdw,
-				       static_cast<GPUDataWarehouse*>(newTaskGpuDW));
-
-#else // FOR CUDA, HIP
-
-#if NDEBUG
-      // Careful profiling seems to show that this does best fitting around 96
-      // registers per block and
-      //  320 threads per kernel or block.
-      // To maximize the amount of threads we can push into a GPU SM, this is
-      // going to declare threads in a 1D layout, then the kernel can then map
-      // those threads to individual cells.  We will not be trying to map
-      // threads to z-slices or some geometric approach, but rather simply
-      // threads->cells.
-      const unsigned int numThreadsPerGPUBlock = 320;
-#else
-      // Some debug build unable to have resources for 320 threads, but 256
-      // threads works.
-      const unsigned int numThreadsPerGPUBlock = 256;
-#endif
-
-      dim3 dimBlock(numThreadsPerGPUBlock, 1, 1);
-      dim3 dimGrid(1, 1, 1);
+      #else
+      dim3 dimBlock(numThreadsPerBlock, 1, 1);
+      dim3 dimGrid(numBlocksPerGrid, 1, 1);
+      #endif
 
       //The number of streams defines how many kernels per patch we run
-      int numKernels = dtask->getTask()->maxStreamsPerTask();
-      std::cout << "number of kernels: " << numKernels << std::endl;
+      int numKernels = 1; //dtask->getTask()->maxStreamsPerTask();
       for (int i = 0; i < numKernels; i++) {
         RT_flags.startCell = (i / static_cast<double>(numKernels)) * numCells;
         RT_flags.endCell = ((i + 1) / static_cast<double>(numKernels)) * numCells;
+
         launchRayTraceDataOnionKernel<T>(
             dtask, dimGrid, dimBlock, d_matl, patchP, gridP, levelP,
             fineLevel_ROI_Lo, fineLevel_ROI_Hi,
-            dtask->getGpuStreamForThisTask(i), RT_flags, timeStep, abskg_gdw,
+            RT_flags, timeStep, abskg_gdw,
             sigmaT4_gdw, celltype_gdw,
             static_cast<GPUDataWarehouse *>(oldTaskGpuDW),
             static_cast<GPUDataWarehouse *>(newTaskGpuDW));
       }
-#endif
 
     } // end patch loop
-
-#endif // end #ifdef HAVE_CUDA, HAVE_HIP, HAVE_SYCL
-
   } // end GPU task code
 }
 
@@ -523,27 +440,27 @@ template void
 Ray::rayTraceGPU<float>(DetailedTask *dtask, Task::CallBackEvent,
                         const ProcessorGroup *, const PatchSubset *,
                         const MaterialSubset *, DataWarehouse *,
-                        DataWarehouse *, void *, void *, gpuStream_t *stream,
-                        unsigned short deviceID, bool, int timeStep,
+                        DataWarehouse *, void *, void *,
+                        bool, int timeStep,
                         Task::WhichDW, Task::WhichDW, Task::WhichDW);
 
 template void Ray::rayTraceGPU<double>(
     DetailedTask *dtask, Task::CallBackEvent, const ProcessorGroup *,
     const PatchSubset *, const MaterialSubset *, DataWarehouse *,
     DataWarehouse *, void *oldTaskGpuDW, void *newTaskGpuDW,
-    gpuStream_t *stream, unsigned short deviceID, bool, int timeStep,
+    bool, int timeStep,
     Task::WhichDW, Task::WhichDW, Task::WhichDW);
 
 template void Ray::rayTraceDataOnionGPU<float>(
     DetailedTask *dtask, Task::CallBackEvent, const ProcessorGroup *,
     const PatchSubset *, const MaterialSubset *, DataWarehouse *,
     DataWarehouse *, void *oldTaskGpuDW, void *newTaskGpuDW,
-    gpuStream_t *stream, unsigned short deviceID, bool, int timeStep,
+    bool, int timeStep,
     Task::WhichDW, Task::WhichDW, Task::WhichDW);
 
 template void Ray::rayTraceDataOnionGPU<double>(
     DetailedTask *dtask, Task::CallBackEvent, const ProcessorGroup *,
     const PatchSubset *, const MaterialSubset *, DataWarehouse *,
     DataWarehouse *, void *oldTaskGpuDW, void *newTaskGpuDW,
-    gpuStream_t *stream, unsigned short deviceID, bool, int timeStep,
+    bool, int timeStep,
     Task::WhichDW, Task::WhichDW, Task::WhichDW);

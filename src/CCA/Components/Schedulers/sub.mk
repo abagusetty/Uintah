@@ -23,6 +23,7 @@
 #
 #
 # Makefile fragment for this subdirectory
+#
 
 include $(SCIRUN_SCRIPTS)/smallso_prologue.mk
 
@@ -58,21 +59,15 @@ endif
 ifeq ($(HAVE_CUDA),yes)
   SRCS += $(SRCDIR)/GPUDataWarehouse.cu       \
           $(SRCDIR)/GPUGridVariableInfo.cc    \
-          $(SRCDIR)/GPUGridVariableGhosts.cc
-
-  DLINK_FILES += CCA/Components/Schedulers/GPUDataWarehouse.o
-endif
-
-ifeq ($(HAVE_HIP),yes)
-  SRCS += $(SRCDIR)/GPUDataWarehouse.cu       \
-          $(SRCDIR)/GPUGridVariableInfo.cc    \
-          $(SRCDIR)/GPUGridVariableGhosts.cc
+          $(SRCDIR)/GPUGridVariableGhosts.cc  \
+          $(SRCDIR)/GPUMemoryPool.cc
 
   DLINK_FILES += CCA/Components/Schedulers/GPUDataWarehouse.o
 endif
 
 PSELIBS := \
         CCA/Components/ProblemSpecification \
+        CCA/Components/DataArchiver \
         CCA/Ports        \
         Core/Containers  \
         Core/Disclosure  \

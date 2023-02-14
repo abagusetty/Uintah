@@ -39,8 +39,8 @@ public:
 #elif defined(HAVE_HIP)
       GPU_RT_SAFE_CALL( hipMalloc(&ret, size) );
 #elif defined(HAVE_DPCPP)
-      gpuStream_t& stream = Uintah::GPUStreamPool::getInstance().getStream();
-      ret                 = sycl::malloc_device(size, stream);
+      gpuStream_t* stream = Uintah::GPUStreamPool::getInstance().getDefaultGpuStreamFromPool();
+      ret                 = sycl::malloc_device(size, *stream);
 #endif
 
       used_memory_ += size;
@@ -53,7 +53,7 @@ public:
       return ret;
     }
   }
-  
+
   void deallocate(int device_id, void* ptr, size_t size) {
     auto&& reuse_pool = memory_pool_[size];
     reuse_pool.push_back(ptr);
@@ -67,8 +67,9 @@ public:
 #elif defined(HAVE_HIP)
         GPU_RT_SAFE_CALL(hipFree(j));
 #elif defined(HAVE_DPCPP)
-        gpuStream_t& stream = Uintah::GPUStreamPool::getInstance().getStream();
-        sycl::free(j, stream);
+        gpuStream_t* stream = Uintah::GPUStreamPool::getInstance().getDefaultGpuStreamFromPool();
+        stream->wait();
+        sycl::free(j, *stream);
 #endif
         used_memory_ -= i.first;
       }

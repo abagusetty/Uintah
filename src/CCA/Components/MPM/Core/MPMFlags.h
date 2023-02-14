@@ -75,6 +75,7 @@ class Output;
     bool        d_artificial_viscosity;                        // Turn artificial viscosity on/off
     bool        d_artificial_viscosity_heating;                // Include heating due to AV
     bool        d_useLoadCurves;                               // Flag for using load curves
+    bool        d_keepPressBCNormalToSurface;                  // Flag for using load curves
     bool        d_useCBDI;                                     // Flag for using CBDI boundary condition treatment
     bool        d_useCPTI;                                     // Flag for using CPTI interpolator 
     bool        d_useCohesiveZones;                            // Flag for using cohesive zones
@@ -112,7 +113,6 @@ class Output;
     double      d_min_part_mass;                               // Minimum particle mass before deletion  
     int         d_min_subcycles_for_F;                         // Minimum number of subcycles to use in computing the deformation gradient
     double      d_min_mass_for_acceleration;                   // Minimum mass to allow division by in computing acceleration
-    double      d_max_vel;                                     // Maxmimum particle velocity before  deletion
     bool        d_prescribeDeformation;                        // Prescribe deformation via a table of U and R
     std::string d_prescribedDeformationFile;                   // File containing prescribed deformations
     bool        d_exactDeformation;                            // Set steps exactly to match times in prescribed deformation file
@@ -149,6 +149,7 @@ class Output;
      bool KE;
      bool volDeformed;
      bool centerOfMass;
+     bool sumTransmittedForce;
     };
     reductionVars* d_reductionVars;
     

@@ -28,16 +28,20 @@
 #include <Core/Geometry/GPUVector.h>
 #include <Core/Grid/Task.h>
 
+#include <sci_defs/gpu_defs.h>
+
 #ifdef HAVE_CUDA
 #include <curand.h>
 #include <curand_kernel.h>
-#include <sci_defs/gpu_defs.h>
 #include <math_functions.h> // needed for max()
 #endif
 
 #ifdef HAVE_HIP
 #include <hiprand/hiprand.hpp>
-#include <sci_defs/gpu_defs.h>
+#endif
+
+#ifdef HAVE_SYCL
+#include <oneapi/mkl/rng/device.hpp>
 #endif
 
 namespace Uintah {
@@ -508,7 +512,7 @@ template <typename T>
 void
 launchRayTraceKernel(DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock,
                      const int matlIndex, levelParams level, patchParams patch,
-                     gpuStream_t *stream, RMCRT_flags RT_flags, int curTimestep,
+                     RMCRT_flags RT_flags, int curTimestep,
                      GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
                      GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *new_gdw);
 
@@ -517,7 +521,7 @@ void launchRayTraceDataOnionKernel(
     DetailedTask *dtask, dim3 dimGrid, dim3 dimBlock, int matlIndex,
     patchParams patchP, gridParams gridP, levelParams *levelP,
     GPUIntVector fineLevel_ROI_Lo, GPUIntVector fineLevel_ROI_Hi,
-    gpuStream_t *stream, RMCRT_flags RT_flags, int curTimestep,
+    RMCRT_flags RT_flags, int curTimestep,
     GPUDataWarehouse *abskg_gdw, GPUDataWarehouse *sigmaT4_gdw,
     GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *old_gdw,
     GPUDataWarehouse *new_gdw);

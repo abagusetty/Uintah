@@ -216,7 +216,7 @@ DESCRIPTION
     struct GPUGridVariableInfo {
       GPUGridVariableInfo( DetailedTask * dtask
 			   , double       * ptr
-			   , sycl::int3      size
+			   , int3      size
 			   , int            device
 	)
         : m_dtask{dtask}
@@ -227,7 +227,7 @@ DESCRIPTION
 
       DetailedTask * m_dtask;
       double       * m_ptr;
-      sycl::int3      m_size;
+      int3      m_size;
       int            m_device;
     };
 

@@ -143,7 +143,7 @@ public:
       DetailedTask *dtask, Task::CallBackEvent event, const ProcessorGroup *,
       const PatchSubset *patches, const MaterialSubset *matls,
       DataWarehouse *old_dw, DataWarehouse *new_dw, void *old_TaskGpuDW,
-      void *new_TaskGpuDW, gpuStream_t *stream, unsigned short deviceID);
+      void *new_TaskGpuDW);
 
   void
   sched_carryForward_VarLabels(const LevelP &level, SchedulerP &sched,
@@ -155,7 +155,6 @@ public:
                               const MaterialSubset *matls,
                               DataWarehouse *old_dw, DataWarehouse *new_dw,
                               void *old_TaskGpuDW, void *new_TaskGpuDW,
-                              gpuStream_t *stream, unsigned short deviceID,
                               const std::vector<const VarLabel *> varLabels);
 
   void sched_CarryForward_Var(const LevelP &level, SchedulerP &scheduler,
@@ -165,8 +164,7 @@ public:
                         const ProcessorGroup *, const PatchSubset *,
                         const MaterialSubset *, DataWarehouse *,
                         DataWarehouse *, void *old_TaskGpuDW,
-                        void *new_TaskGpuDW, gpuStream_t *stream,
-                        unsigned short deviceID, const VarLabel *variable);
+                        void *new_TaskGpuDW, const VarLabel *variable);
 
   //__________________________________
   // If needed convert abskg double -> float

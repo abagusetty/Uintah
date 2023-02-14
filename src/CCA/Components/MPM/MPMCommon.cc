@@ -28,17 +28,24 @@
 #include <CCA/Components/MPM/Materials/MPMMaterial.h>
 #include <CCA/Components/MPM/Materials/ConstitutiveModel/PlasticityModels/DamageModel.h>
 #include <CCA/Components/MPM/Materials/ConstitutiveModel/PlasticityModels/ErosionModel.h>
+#include <CCA/Ports/Scheduler.h>
 #include <Core/ProblemSpec/ProblemSpec.h>
+
 using namespace std;
 using namespace Uintah;
 
 static DebugStream cout_doing("MPM", false);
 
-MPMCommon::MPMCommon(const ProcessorGroup* myworld,
-                     MaterialManagerP materialManager) :
-  ApplicationCommon(myworld, materialManager)
+
+MaterialManagerP MPMCommon::d_matlManager;  // needed since it is static;
+
+//______________________________________________________________________
+//
+MPMCommon::MPMCommon( const MaterialManagerP materialManager)
 {
   lb = scinew MPMLabel();
+  d_matlManager = materialManager;
+
 }
 
 MPMCommon::~MPMCommon()
@@ -80,7 +87,7 @@ void MPMCommon::materialProblemSetup(const ProblemSpecP& prob_spec,
     // cout << "Material attribute = " << index_val << ", " << index << ", " << id << "\n";
 
     //Create and register as an MPM material
-    MPMMaterial *mat = scinew MPMMaterial(ps, m_materialManager, flags,isRestart);
+    MPMMaterial *mat = scinew MPMMaterial(ps, d_matlManager, flags,isRestart);
 
     mat->registerParticleState( d_particleState,
                                 d_particleState_preReloc );
@@ -91,10 +98,10 @@ void MPMCommon::materialProblemSetup(const ProblemSpecP& prob_spec,
     // Index_val = -1 means that we don't register the material by its 
     // index number.
     if (index_val > -1){
-      m_materialManager->registerMaterial( "MPM", mat,index_val);
+      d_matlManager->registerMaterial( "MPM", mat,index_val);
     }
     else{
-      m_materialManager->registerMaterial( "MPM", mat);
+      d_matlManager->registerMaterial( "MPM", mat);
     }
   }
 }
@@ -111,9 +118,9 @@ void MPMCommon::scheduleUpdateStress_DamageErosionModels(SchedulerP   & sched,
 
   t->requires(Task::WhichDW::OldDW, lb->simulationTimeLabel);
   
-  int numMatls = m_materialManager->getNumMatls( "MPM" );
+  int numMatls = d_matlManager->getNumMatls( "MPM" );
   for(int m = 0; m < numMatls; m++){
-    MPMMaterial* mpm_matl = (MPMMaterial*) m_materialManager->getMaterial( "MPM", m);
+    MPMMaterial* mpm_matl = (MPMMaterial*) d_matlManager->getMaterial( "MPM", m);
     
     DamageModel* dm = mpm_matl->getDamageModel();
     dm->addComputesAndRequires(t, mpm_matl);
@@ -138,10 +145,10 @@ void MPMCommon::updateStress_DamageErosionModels(const ProcessorGroup *,
     printTask(patches, patch,cout_doing,
               "Doing updateStress_DamageModel");
 
-    int numMPMMatls = m_materialManager->getNumMatls( "MPM" );
+    int numMPMMatls = d_matlManager->getNumMatls( "MPM" );
     for(int m = 0; m < numMPMMatls; m++){
     
-      MPMMaterial* mpm_matl = (MPMMaterial*) m_materialManager->getMaterial( "MPM",  m );
+      MPMMaterial* mpm_matl = (MPMMaterial*) d_matlManager->getMaterial( "MPM",  m );
       int dwi = mpm_matl->getDWIndex();
       ParticleSubset* pset = old_dw->getParticleSubset(dwi, patch);
       
@@ -153,3 +160,27 @@ void MPMCommon::updateStress_DamageErosionModels(const ProcessorGroup *,
     }
   }
 }
+
+
+//______________________________________________________________________
+//  Utilities
+//    initialize the map used in reduction variables
+
+template<class T>
+std::map<int,T> MPMCommon::initializeMap(T val)
+{
+  std::map<int,T>  myMap;
+  int numMPMMatls = d_matlManager->getNumMatls( "MPM" );
+  
+  for(int m = 0; m < numMPMMatls; m++){
+    MPMMaterial* mpm_matl = (MPMMaterial*) d_matlManager->getMaterial( "MPM", m);
+    int dwi = mpm_matl->getDWIndex();
+    myMap[dwi] = val;
+  }
+  return myMap;
+
+}
+
+template std::map<int,double> MPMCommon::initializeMap(double);
+template std::map<int,Vector> MPMCommon::initializeMap(Vector);
+

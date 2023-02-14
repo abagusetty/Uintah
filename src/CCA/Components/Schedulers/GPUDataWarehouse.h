@@ -145,7 +145,7 @@ public:
     int3 var_offset;             // offset
     int3 var_size;               // dimensions of GPUGridVariable
     void *var_ptr;               // raw pointer to the memory
-    unsigned int sizeOfDataType; // the memory size of a single data element.
+    size_t sizeOfDataType; // the memory size of a single data element.
     VarItem varItem; // If the item is holding variable data, remaining info is
                      // found in here
     GhostItem ghostItem; // If the item contains only ghost cell copying meta
@@ -253,79 +253,43 @@ public:
   // should never copy out if the status isn't valid.
 
   struct stagingVar {
-
-    int3 device_offset;
-    int3 device_size;
-    // This so it can be used in an STL map
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
-    bool operator<(const stagingVar &rhs) const {
+    int3            device_offset;
+    int3            device_size;
+    //This so it can be used in an STL map
+    bool operator<(const stagingVar& rhs) const {
       if (this->device_offset.x < rhs.device_offset.x) {
         return true;
-      } else if (this->device_offset.x == rhs.device_offset.x &&
-                 (this->device_offset.y < rhs.device_offset.y)) {
+      } else if (this->device_offset.x == rhs.device_offset.x
+             && (this->device_offset.y < rhs.device_offset.y)) {
         return true;
-      } else if (this->device_offset.x == rhs.device_offset.x &&
-                 (this->device_offset.y == rhs.device_offset.y) &&
-                 (this->device_offset.z < rhs.device_offset.z)) {
+      } else if (this->device_offset.x == rhs.device_offset.x
+             && (this->device_offset.y == rhs.device_offset.y)
+             && (this->device_offset.z < rhs.device_offset.z)) {
         return true;
-      } else if (this->device_offset.x == rhs.device_offset.x &&
-                 (this->device_offset.y == rhs.device_offset.y) &&
-                 (this->device_offset.z == rhs.device_offset.z) &&
-                 (this->device_size.x < rhs.device_size.x)) {
+      } else if (this->device_offset.x == rhs.device_offset.x
+             && (this->device_offset.y == rhs.device_offset.y)
+             && (this->device_offset.z == rhs.device_offset.z)
+             && (this->device_size.x < rhs.device_size.x)) {
         return true;
-      } else if (this->device_offset.x == rhs.device_offset.x &&
-                 (this->device_offset.y == rhs.device_offset.y) &&
-                 (this->device_offset.z == rhs.device_offset.z) &&
-                 (this->device_size.x == rhs.device_size.x) &&
-                 (this->device_size.y < rhs.device_size.y)) {
+      } else if (this->device_offset.x == rhs.device_offset.x
+             && (this->device_offset.y == rhs.device_offset.y)
+             && (this->device_offset.z == rhs.device_offset.z)
+             && (this->device_size.x == rhs.device_size.x)
+             && (this->device_size.y < rhs.device_size.y)) {
         return true;
-      } else if (this->device_offset.x == rhs.device_offset.x &&
-                 (this->device_offset.y == rhs.device_offset.y) &&
-                 (this->device_offset.z == rhs.device_offset.z) &&
-                 (this->device_size.x == rhs.device_size.x) &&
-                 (this->device_size.y == rhs.device_size.y) &&
-                 (this->device_size.z < rhs.device_size.z)) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-#elif defined(HAVE_SYCL)
-    bool operator<(const stagingVar &rhs) const {
-      if (this->device_offset.x() < rhs.device_offset.x()) {
-        return true;
-      } else if (this->device_offset.x() == rhs.device_offset.x() &&
-                 (this->device_offset.y() < rhs.device_offset.y())) {
-        return true;
-      } else if (this->device_offset.x() == rhs.device_offset.x() &&
-                 (this->device_offset.y() == rhs.device_offset.y()) &&
-                 (this->device_offset.z() < rhs.device_offset.z())) {
-        return true;
-      } else if (this->device_offset.x() == rhs.device_offset.x() &&
-                 (this->device_offset.y() == rhs.device_offset.y()) &&
-                 (this->device_offset.z() == rhs.device_offset.z()) &&
-                 (this->device_size.x() < rhs.device_size.x())) {
-        return true;
-      } else if (this->device_offset.x() == rhs.device_offset.x() &&
-                 (this->device_offset.y() == rhs.device_offset.y()) &&
-                 (this->device_offset.z() == rhs.device_offset.z()) &&
-                 (this->device_size.x() == rhs.device_size.x()) &&
-                 (this->device_size.y() < rhs.device_size.y())) {
-        return true;
-      } else if (this->device_offset.x() == rhs.device_offset.x() &&
-                 (this->device_offset.y() == rhs.device_offset.y()) &&
-                 (this->device_offset.z() == rhs.device_offset.z()) &&
-                 (this->device_size.x() == rhs.device_size.x()) &&
-                 (this->device_size.y() == rhs.device_size.y()) &&
-                 (this->device_size.z() < rhs.device_size.z())) {
+      } else if (this->device_offset.x == rhs.device_offset.x
+             && (this->device_offset.y == rhs.device_offset.y)
+             && (this->device_offset.z == rhs.device_offset.z)
+             && (this->device_size.x == rhs.device_size.x)
+             && (this->device_size.y == rhs.device_size.y)
+             && (this->device_size.z < rhs.device_size.z)) {
         return true;
       } else {
         return false;
       }
     }
-#endif // HAVE_CUDA, HAVE_SYCL
   };
-
+  
   struct stagingVarInfo {
     void *device_ptr{nullptr}; // Where it is on the device
     size_t sizeInBytesDevicePtr; // This is needed for GPU memPool
@@ -354,7 +318,7 @@ public:
                   // (multiple patches may share a dataInfo, but they should
                   // have distinct offsets
     int3 device_size{0, 0, 0};
-    unsigned int sizeOfDataType{0};
+    size_t sizeOfDataType{0};
     GhostType gtype;
     unsigned int numGhostCells{0};
     atomicDataStatus
@@ -416,12 +380,12 @@ public:
 
   //______________________________________________________________________
   // GPU GridVariable methods
-  HOST_DEVICE void getStagingVar(const GPUGridVariableBase &var,
-                                 char const *label, int patchID, int matlIndx,
-                                 int levelIndx, int3 offset, int3 size);
-  HOST_DEVICE bool stagingVarExists(char const *label, int patchID,
-                                    int matlIndx, int levelIndx,
-                                    const int3 &offset, const int3 &size);
+  void getStagingVar(const GPUGridVariableBase &var,
+                     char const *label, int patchID, int matlIndx,
+                     int levelIndx, const int3& offset, const int3& size);
+  bool stagingVarExists(char const *label, int patchID,
+                        int matlIndx, int levelIndx,
+                        const int3& offset, const int3& size);
 
 #ifdef HAVE_SYCL // APIs only makes sense for SYCL-side
   // device-side calls
@@ -430,8 +394,8 @@ public:
   template <typename T, int DIM>
   SYCL_EXTERNAL void
   get(sycl::nd_item<DIM> &item, sycl::device_ptr<T> GPUGridVariableBase_ptr,
-      sycl::int3 &GPUGridVariableBase_size,
-      sycl::int3 &GPUGridVariableBase_offset, const char *label,
+      int3 &GPUGridVariableBase_size,
+      int3 &GPUGridVariableBase_offset, const char *label,
       const int patchID, const int8_t matlIndx, const int8_t levelIndx = 0) {
     // device code
     GPUDataWarehouse::dataItem *ditem = getItem(item, label, patchID, matlIndx, levelIndx);
@@ -458,8 +422,8 @@ public:
   SYCL_EXTERNAL void
   getModifiable(sycl::nd_item<DIM> &item,
                 sycl::device_ptr<T> GPUGridVariableBase_ptr,
-                sycl::int3 &GPUGridVariableBase_size,
-                sycl::int3 &GPUGridVariableBase_offset,
+                int3 &GPUGridVariableBase_size,
+                int3 &GPUGridVariableBase_offset,
                 char const *label, const int patchID,
                 const int8_t matlIndx,
                 const int8_t levelIndx = 0) {
@@ -487,8 +451,8 @@ public:
   template <typename T, int DIM>
   SYCL_EXTERNAL void getLevel(sycl::nd_item<DIM> &item,
                               sycl::device_ptr<T> GPUGridVariableBase_ptr,
-                              sycl::int3 &GPUGridVariableBase_size,
-                              sycl::int3 &GPUGridVariableBase_offset,
+                              int3 &GPUGridVariableBase_size,
+                              int3 &GPUGridVariableBase_offset,
                               const char *label, const int8_t matlIndx,
                               const int8_t levelIndx) {
     // device code
@@ -538,8 +502,8 @@ public:
   }
 
   void put(void *GPUGridVariableBase_ptr,
-           const sycl::int3 &GPUGridVariableBase_size,
-           const sycl::int3 &GPUGridVariableBase_offset,
+           const int3 &GPUGridVariableBase_size,
+           const int3 &GPUGridVariableBase_offset,
            const std::size_t allocMemSize,
            std::size_t sizeOfDataType,
            char const *label, int patchID, int matlIndx, int levelIndx = 0,
@@ -557,10 +521,10 @@ public:
 
   void allocateAndPut(const Uintah::TypeDescription::Type &type,
                       void *&GPUGridVariableBase_ptr,
-                      sycl::int3 &GPUGridVariableBase_size,
-                      sycl::int3 &GPUGridVariableBase_offset, char const *label,
+                      int3 &GPUGridVariableBase_size,
+                      int3 &GPUGridVariableBase_offset, char const *label,
                       int patchID, int matlIndx, int levelIndx, bool staging,
-                      const sycl::int3 &low, const sycl::int3 &high,
+                      const int3 &low, const int3 &high,
                       std::size_t sizeOfDataType, GhostType gtype = None,
                       int numGhostCells = 0);
   // for both GPUGridVariableBase, GPUPerPatchBase
@@ -570,7 +534,7 @@ public:
                       int levelIndx, std::size_t sizeOfDataType);
   void allocateAndPut(GPUGridVariableBase &var, char const *label, int patchID,
                       int matlIndx, int levelIndx, bool staging,
-                      const sycl::int3 &low, const sycl::int3 &high,
+                      const int3 &low, const int3 &high,
                       std::size_t sizeOfDataType, GhostType gtype = None,
                       int numGhostCells = 0);
   void allocateAndPut(GPUReductionVariableBase &var, char const *label,
@@ -673,13 +637,13 @@ public:
   bool transferFrom(gpuStream_t *stream, GPUGridVariableBase &var_source,
                     GPUDataWarehouse *from, char const *label, int patchID,
                     int matlIndx, int levelIndx);
-#endif
-
 
   HOST_DEVICE void getLevel(const GPUGridVariableBase &var, char const *label,
                             const int8_t matlIndx, const int8_t levelIndx) {
     get(var, label, -99999999, matlIndx, levelIndx);
   }
+  
+#endif // HAVE_SYCL
 
   void copySuperPatchInfo(char const *label, int superPatchBaseID,
                           int superPatchDestinationID, int matlIndx,
@@ -742,8 +706,6 @@ public:
 
   bool isAllocatedOnGPU(char const *label, int patchID, int matlIndx,
                         int levelIndx);
-  bool isAllocatedOnGPU(char const *label, int patchID, int matlIndx,
-                        int levelIndx, int3 offset, int3 size);
   bool isValidOnGPU(char const *label, int patchID, int matlIndx,
                     int levelIndx);
   bool compareAndSwapSetValidOnGPU(char const *const label, const int patchID,

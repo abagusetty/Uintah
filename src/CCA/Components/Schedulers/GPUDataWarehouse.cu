@@ -43,49 +43,35 @@
 
 //______________________________________________________________________
 //
-HOST_DEVICE bool GPUDataWarehouse::stagingVarExists(char const *label,
-                                                    int patchID, int matlIndx,
-                                                    int levelIndx,
-                                                    const int3 &offset,
-                                                    const int3 &size) {
-#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-  // device code
-  // printError("This method not defined for the device.", "stagingVarExists",
-  // label, patchID, matlIndx, levelIndx);
-  return false;
-#else
+bool GPUDataWarehouse::stagingVarExists(char const *label,
+                                        int patchID, int matlIndx,
+                                        int levelIndx,
+                                        const int3 &offset,
+                                        const int3 &size) {
   // host code
   varLock->lock();
   bool retval = false;
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
-      varPointers->find(lpml);
+    varPointers->find(lpml);
 
   if (it != varPointers->end()) {
     stagingVar sv;
     sv.device_offset = offset;
     sv.device_size = size;
     std::map<stagingVar, stagingVarInfo>::iterator staging_it =
-        it->second.var->stagingVars.find(sv);
+      it->second.var->stagingVars.find(sv);
     retval = (staging_it != it->second.var->stagingVars.end());
   }
   varLock->unlock();
+
   return retval;
-#endif
 }
 
-//______________________________________________________________________
-//
-
-HOST_DEVICE void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
-                                                 char const *label, int patchID,
-                                                 int matlIndx, int levelIndx,
-                                                 int3 offset, int3 size) {
-#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-  // device code
-  // printError("This method not defined for the device.", "getStagingVar",
-  // label, patchID, matlIndx, levelIndx);
-#else
+void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
+                                     char const *label, int patchID,
+                                     int matlIndx, int levelIndx,
+                                     int3 offset, int3 size) {
   // host code
   varLock->lock();
 
@@ -112,7 +98,6 @@ HOST_DEVICE void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
   }
 
   varLock->unlock();
-#endif
 }
 
 //______________________________________________________________________
@@ -441,7 +426,7 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
 
   // Now allocate it
   if (allocationNeeded) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
 
     unsigned int memSize = var.getMemSize();
 
@@ -658,7 +643,7 @@ void GPUDataWarehouse::allocate(const char *indexID, size_t size) {
     //chunk of memory, only one malloc and one copy to device should be needed.
     double *d_ptr = nullptr;
     double *h_ptr = nullptr;
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
 
     printf("Allocated GPU buffer of size %lu \n", (unsigned long)size);
 
@@ -732,16 +717,12 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, size_t sizeOfDataType,
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
-  int3 zeroValue;
-  zeroValue.x = 0;
-  zeroValue.y = 0;
-  zeroValue.z = 0;
+  int3 zeroValue{0, 0, 0};
   iter->second.var->device_offset = zeroValue;
   iter->second.var->device_size = zeroValue;
 
   // previously set, do not set here
   // iter->second.var->atomicStatusInGpuMemory =
-
 
   varLock->unlock();
 }
@@ -843,7 +824,7 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
     var.setData(addr);
   } else {
     // We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     size_t memSize = var.getMemSize();
 
     addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
@@ -914,7 +895,7 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
     var.setData(addr);
   } else {
     // We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     size_t memSize = var.getMemSize();
 
     addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
@@ -1099,7 +1080,7 @@ void GPUDataWarehouse::init_device(size_t objectSizeInBytes,
                                    unsigned int d_maxdVarDBItems) {
   this->objectSizeInBytes = objectSizeInBytes;
   this->d_maxdVarDBItems = d_maxdVarDBItems;
-  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+  gpuSetDevice(d_device_id);
   void *temp = nullptr;
   // CUDA_RT_SAFE_CALL(cudaMalloc(&temp, objectSizeInBytes));
   temp = GPUMemoryPool::getInstance().allocate(
@@ -1121,7 +1102,7 @@ void GPUDataWarehouse::syncto_device(gpuStream_t *gpuStream) {
   varLock->lock();
 
   if (d_dirty) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     // Even though this is in a writeLock state on the CPU, the nature of
     // multiple threads each with their own stream copying to a GPU means that
     // one stream might seemingly go out of order.  This is ok for two reasons.
@@ -1151,7 +1132,7 @@ void GPUDataWarehouse::syncto_device(gpuStream_t *gpuStream) {
 //______________________________________________________________________
 //
 void GPUDataWarehouse::clear() {
-  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+  gpuSetDevice(d_device_id);
 
   varLock->lock();
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator varIter;
@@ -1224,7 +1205,7 @@ void GPUDataWarehouse::clear() {
 //
 void GPUDataWarehouse::deleteSelfOnDevice() {
   if (d_device_copy) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     GPUMemoryPool::getInstance().deallocate(d_device_id, d_device_copy,
                                                     objectSizeInBytes);
   }
@@ -1413,7 +1394,7 @@ void GPUDataWarehouse::copyGpuGhostCellsToGpuVarsInvoker(gpuStream_t *stream) {
   // see if this GPU datawarehouse has ghost cells in it.
   if (numGhostCellCopiesNeeded > 0) {
     // call a kernel which gets the copy process started.
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
 
     dim3 dimBlock(32, 16, 1);
     dim3 dimGrid(1, 1, 1);
@@ -1617,7 +1598,7 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t *stream,
                                     GPUDataWarehouse *from, char const *label,
                                     int patchID, int matlIndx, int levelIndx) {
   from->varLock->lock();
-  this->varLock
+   this->varLock
       ->lock(); // lock both data warehouses, no way to lock free this section,
                 // you could get the dining philosophers problem.
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
@@ -1753,9 +1734,9 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t *stream,
   GPU_RT_SAFE_CALL(gpuMemcpyAsync(dest_it->second.var->device_ptr,
                                   source_it->second.var->device_ptr,
                                   source_it->second.var->device_size.x *
-                                      source_it->second.var->device_size.y *
-                                      source_it->second.var->device_size.z *
-                                      source_it->second.var->sizeOfDataType,
+                                  source_it->second.var->device_size.y *
+                                  source_it->second.var->device_size.z *
+                                  source_it->second.var->sizeOfDataType,
                                   gpuMemcpyDeviceToDevice, *stream));
 
   from->varLock->unlock();
@@ -2118,39 +2099,6 @@ bool GPUDataWarehouse::isAllocatedOnGPU(char const *label, int patchID,
         ((__sync_fetch_and_or(
               &(varPointers->at(lpml).var->atomicStatusInGpuMemory), 0) &
           ALLOCATED) == ALLOCATED);
-    varLock->unlock();
-    return retVal;
-
-  } else {
-    varLock->unlock();
-    return false;
-  }
-}
-
-//______________________________________________________________________
-//
-bool GPUDataWarehouse::isAllocatedOnGPU(char const *label, int patchID,
-                                        int matlIndx, int levelIndx,
-                                        int3 offset, int3 size) {
-  varLock->lock();
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    // cout << "In isAllocatedOnGPU - For patchID " << patchID << " for the
-    // status is " <<
-    // getDisplayableStatusCodes(varPointers->at(lpml).atomicStatusInGpuMemory)
-    // << endl;
-    bool retVal =
-        ((__sync_fetch_and_or(
-              &(varPointers->at(lpml).var->atomicStatusInGpuMemory), 0) &
-          ALLOCATED) == ALLOCATED);
-    if (retVal) {
-      // now check the sizes
-      int3 device_offset = varPointers->at(lpml).var->device_offset;
-      int3 device_size = varPointers->at(lpml).var->device_size;
-      retVal = (device_offset.x == offset.x && device_offset.y == offset.y &&
-                device_offset.z == offset.z && device_size.x == size.x &&
-                device_size.y == size.y && device_size.z == size.z);
-    }
     varLock->unlock();
     return retVal;
 

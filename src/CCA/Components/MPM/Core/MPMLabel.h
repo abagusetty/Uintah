@@ -179,20 +179,20 @@ namespace Uintah {
       const VarLabel* frictionalWorkLabel;
       const VarLabel* gNumNearParticlesLabel;
 
-      const VarLabel* AccArchesNCLabel; //for interaction with Arches, Fluid Mechanics
-      const VarLabel* heaTranSolid_NCLabel; //for interaction with Arches, Heat Transfer
-
       const VarLabel* StrainEnergyLabel;
       const VarLabel* AccStrainEnergyLabel;
       const VarLabel* KineticEnergyLabel;
       const VarLabel* ThermalEnergyLabel;
       const VarLabel* TotalMassLabel;
+      const VarLabel* TotalMomentOfInertiaLabel;
       const VarLabel* NeedAddMPMMaterialLabel;
       const VarLabel* BndyForceLabel[6];
       const VarLabel* BndyTractionLabel[6];
       const VarLabel* BndyContactAreaLabel[6];
       const VarLabel* BndyContactCellAreaLabel[6];
       const VarLabel* CenterOfMassPositionLabel;
+            VarLabel* SumTransmittedForceLabel; // not a const since we need to modify it.
+            VarLabel* SumTransmittedTorqueLabel;// not a const since we need to modify it.
       const VarLabel* TotalMomentumLabel;
       const VarLabel* RigidReactionForceLabel;
       const VarLabel* RigidReactionTorqueLabel;

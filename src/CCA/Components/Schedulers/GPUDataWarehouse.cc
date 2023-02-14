@@ -37,7 +37,7 @@
 //
 bool GPUDataWarehouse::stagingVarExists(char const *label, int patchID,
                                         int matlIndx, int levelIndx,
-                                        const sycl::int3& offset, const sycl::int3& size) {
+                                        const int3& offset, const int3& size) {
   // host code
   bool retval = false;
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
@@ -59,10 +59,9 @@ bool GPUDataWarehouse::stagingVarExists(char const *label, int patchID,
 //
 void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
                                      char const *label, int patchID,
-                                     int matlIndx, int levelIndx, sycl::int3 offset,
-                                     sycl::int3 size) {
+                                     int matlIndx, int levelIndx, const int3& offset,
+                                     const int3& size) {
   // host code
-
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   auto it = varPointers->find(lpml);
   if (it != varPointers->end()) {
@@ -77,21 +76,11 @@ void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
       printf("GPUDataWarehouse::getStagingVar() - Didn't find a staging "
              "variable from the device for label %s patch %d matl %d level %d "
              "offset (%d, %d, %d) size (%d, %d, %d).",
-             label, patchID, matlIndx, levelIndx, offset.x(), offset.y(),
-             offset.z(), size.x(), size.y(), size.z());
+             label, patchID, matlIndx, levelIndx, offset.x, offset.y,
+             offset.z, size.x, size.y, size.z);
       exit(-1);
     }
   }
-}
-
-//______________________________________________________________________
-//
-
-void GPUDataWarehouse::getLevel(const GPUGridVariableBase &var,
-                                char const *label, int8_t matlIndx,
-                                int8_t levelIndx) {
-  // host code
-  get(var, label, -99999999, matlIndx, levelIndx);
 }
 
 //______________________________________________________________________
@@ -148,13 +137,15 @@ void GPUDataWarehouse::copySuperPatchInfo(char const *label,
 //______________________________________________________________________
 //
 void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
-                           const sycl::int3& GPUGridVariableBase_size,
-                           const sycl::int3& GPUGridVariableBase_offset,
+                           const int3& GPUGridVariableBase_size,
+                           const int3& GPUGridVariableBase_offset,
                            const std::size_t allocMemSize,
                            std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
                            int levelIndx, bool staging, GhostType gtype,
                            int numGhostCells) {
+
+  varLock->lock();
 
   // See if it already exists.  Also see if we need to update this into d_varDB.
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
@@ -165,6 +156,7 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
   if (iter == varPointers->end()) {
     printf("ERROR:\nGPUDataWarehouse::put()  Can't use put() for a host-side "
            "GPU DW without it first existing in the internal database.\n");
+    varLock->unlock();
     exit(-1);
   } else if (staging) {
     stagingVar sv;
@@ -175,6 +167,7 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
       printf("ERROR:\nGPUDataWarehouse::put()  Can't use put() for a "
              "host-side GPU DW without this staging var first existing in the "
              "internal database.\n");
+      varLock->unlock();
       exit(-1);
     }
   }
@@ -206,6 +199,7 @@ void GPUDataWarehouse::put(void* GPUGridVariableBase_ptr,
     iter->second.var->sizeOfDataType = sizeOfDataType;
   }
 
+  varLock->unlock();
 }
 
 void GPUDataWarehouse::put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
@@ -213,8 +207,8 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
                            int levelIndx, bool staging, GhostType gtype,
                            int numGhostCells) {
 
-  sycl::int3 var_offset{0, 0, 0}; // offset
-  sycl::int3 var_size{0, 0, 0};   // dimensions of GPUGridVariable
+  int3 var_offset{0, 0, 0}; // offset
+  int3 var_size{0, 0, 0};   // dimensions of GPUGridVariable
   void *var_ptr{nullptr};   // raw pointer to the memory
 
   var.getArray3(var_offset, var_size, var_ptr);
@@ -274,8 +268,8 @@ void GPUDataWarehouse::put(GPUGridVariableBase &var, std::size_t sizeOfDataType,
 // it as unallocated
 void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
                                                  int matlIndx, int levelIndx,
-                                                 bool staging, const sycl::int3& offset,
-                                                 const sycl::int3& size) {
+                                                 bool staging, const int3& offset,
+                                                 const int3& size) {
 
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
@@ -343,11 +337,11 @@ void GPUDataWarehouse::putUnallocatedIfNotExists(char const *label, int patchID,
 //
 void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
                                       void*& GPUGridVariableBase_ptr,
-                                      sycl::int3& GPUGridVariableBase_size,
-                                      sycl::int3& GPUGridVariableBase_offset,
+                                      int3& GPUGridVariableBase_size,
+                                      int3& GPUGridVariableBase_offset,
                                       char const *label, int patchID,
                                       int matlIndx, int levelIndx, bool staging,
-                                      const sycl::int3& low, const sycl::int3& high,
+                                      const int3& low, const int3& high,
                                       std::size_t sizeOfDataType, GhostType gtype,
                                       int numGhostCells) {
 
@@ -360,8 +354,8 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
   // loops and waits until the allocation complete.
 
   bool allocationNeeded = false;
-  sycl::int3 size = high - low;
-  sycl::int3 offset = low;
+  int3 size = make_int3(high.x-low.x, high.y-low.y, high.z-low.z);
+  int3 offset = low;
 
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
@@ -411,14 +405,16 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
       }
 
       // Sanity check to ensure we have correct size information.
+      varLock->lock();
       it = varPointers->find(lpml);
+      varLock->unlock();
 
-      if (it->second.var->device_offset.x() == low.x() &&
-          it->second.var->device_offset.y() == low.y() &&
-          it->second.var->device_offset.z() == low.z() &&
-          it->second.var->device_size.x() == size.x() &&
-          it->second.var->device_size.y() == size.y() &&
-          it->second.var->device_size.z() == size.z()) {
+      if (it->second.var->device_offset.x == low.x &&
+          it->second.var->device_offset.y == low.y &&
+          it->second.var->device_offset.z == low.z &&
+          it->second.var->device_size.x == size.x &&
+          it->second.var->device_size.y == size.y &&
+          it->second.var->device_size.z == size.z) {
 
         // Space for this var already exists.  Use that and return.
 
@@ -426,12 +422,12 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
         GPUGridVariableBase_offset = it->second.var->device_offset;
         GPUGridVariableBase_size = it->second.var->device_size;
         GPUGridVariableBase_ptr = it->second.var->device_ptr;
-      } else if (it->second.var->device_offset.x() <= low.x() &&
-                 it->second.var->device_offset.y() <= low.y() &&
-                 it->second.var->device_offset.z() <= low.z() &&
-                 it->second.var->device_size.x() >= size.x() &&
-                 it->second.var->device_size.y() >= size.y() &&
-                 it->second.var->device_size.z() >= size.z()) {
+      } else if (it->second.var->device_offset.x <= low.x &&
+                 it->second.var->device_offset.y <= low.y &&
+                 it->second.var->device_offset.z <= low.z &&
+                 it->second.var->device_size.x >= size.x &&
+                 it->second.var->device_size.y >= size.y &&
+                 it->second.var->device_size.z >= size.z) {
         // It fits inside.  Just use it.
 
         GPUGridVariableBase_offset = it->second.var->device_offset;
@@ -442,12 +438,12 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
                "database but of the wrong size.  This shouldn't ever happen. "
                "This needs low (%d, %d, %d) and size (%d, %d, %d), but in the "
                "database it is low (%d, %d, %d) and size (%d, %d, %d)\n",
-               label, low.x(), low.y(), low.z(), size.x(), size.y(), size.z(),
-               it->second.var->device_offset.x(),
-               it->second.var->device_offset.y(),
-               it->second.var->device_offset.z(),
-               it->second.var->device_size.x(), it->second.var->device_size.y(),
-               it->second.var->device_size.z());
+               label, low.x, low.y, low.z, size.x, size.y, size.z,
+               it->second.var->device_offset.x,
+               it->second.var->device_offset.y,
+               it->second.var->device_offset.z,
+               it->second.var->device_size.x, it->second.var->device_size.y,
+               it->second.var->device_size.z);
         exit(-1);
       }
     }
@@ -481,24 +477,24 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
 
   // Now allocate it
   if (allocationNeeded) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
 
     std::size_t memSize = 0;
     switch(type) {
     case TypeDescription::double_type : {
-      memSize = GPUGridVariableBase_size.x() * GPUGridVariableBase_size.y() * GPUGridVariableBase_size.z() * sizeof(double);
+      memSize = GPUGridVariableBase_size.x * GPUGridVariableBase_size.y * GPUGridVariableBase_size.z * sizeof(double);
       break;
     }
     case TypeDescription::float_type : {
-      memSize = GPUGridVariableBase_size.x() * GPUGridVariableBase_size.y() * GPUGridVariableBase_size.z() * sizeof(float);
+      memSize = GPUGridVariableBase_size.x * GPUGridVariableBase_size.y * GPUGridVariableBase_size.z * sizeof(float);
       break;
     }
     case TypeDescription::int_type : {
-      memSize = GPUGridVariableBase_size.x() * GPUGridVariableBase_size.y() * GPUGridVariableBase_size.z() * sizeof(int);
+      memSize = GPUGridVariableBase_size.x * GPUGridVariableBase_size.y * GPUGridVariableBase_size.z * sizeof(int);
       break;
     }
     case TypeDescription::Stencil7 : {
-      memSize = GPUGridVariableBase_size.x() * GPUGridVariableBase_size.y() * GPUGridVariableBase_size.z() * sizeof(GPUStencil7);
+      memSize = GPUGridVariableBase_size.x * GPUGridVariableBase_size.y * GPUGridVariableBase_size.z * sizeof(GPUStencil7);
       break;
     }
     default : {
@@ -531,7 +527,7 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
 void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
                                       char const *label, int patchID,
                                       int matlIndx, int levelIndx, bool staging,
-                                      const sycl::int3& low, const sycl::int3& high,
+                                      const int3& low, const int3& high,
                                       std::size_t sizeOfDataType, GhostType gtype,
                                       int numGhostCells) {
 
@@ -544,13 +540,15 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
   // loops and waits until the allocation complete.
 
   bool allocationNeeded = false;
-  sycl::int3 size = high - low;
-  sycl::int3 offset = low;
+  int3 size = make_int3(high.x-low.x, high.y-low.y, high.z-low.z);
+  int3 offset = low;
 
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, staging,
                             offset, size);
+
+  varLock->lock();
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator it =
@@ -590,26 +588,28 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
       }
 
       // Sanity check to ensure we have correct size information.
+      varLock->lock();
       it = varPointers->find(lpml);
+      varLock->unlock();
 
-      if (it->second.var->device_offset.x() == low.x() &&
-          it->second.var->device_offset.y() == low.y() &&
-          it->second.var->device_offset.z() == low.z() &&
-          it->second.var->device_size.x() == size.x() &&
-          it->second.var->device_size.y() == size.y() &&
-          it->second.var->device_size.z() == size.z()) {
+      if (it->second.var->device_offset.x == low.x &&
+          it->second.var->device_offset.y == low.y &&
+          it->second.var->device_offset.z == low.z &&
+          it->second.var->device_size.x == size.x &&
+          it->second.var->device_size.y == size.y &&
+          it->second.var->device_size.z == size.z) {
 
         // Space for this var already exists.  Use that and return.
 
         // Have this var use the existing memory address.
         var.setArray3(it->second.var->device_offset,
                       it->second.var->device_size, it->second.var->device_ptr);
-      } else if (it->second.var->device_offset.x() <= low.x() &&
-                 it->second.var->device_offset.y() <= low.y() &&
-                 it->second.var->device_offset.z() <= low.z() &&
-                 it->second.var->device_size.x() >= size.x() &&
-                 it->second.var->device_size.y() >= size.y() &&
-                 it->second.var->device_size.z() >= size.z()) {
+      } else if (it->second.var->device_offset.x <= low.x &&
+                 it->second.var->device_offset.y <= low.y &&
+                 it->second.var->device_offset.z <= low.z &&
+                 it->second.var->device_size.x >= size.x &&
+                 it->second.var->device_size.y >= size.y &&
+                 it->second.var->device_size.z >= size.z) {
         // It fits inside.  Just use it.
 
         var.setArray3(it->second.var->device_offset,
@@ -619,12 +619,12 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
                "database but of the wrong size.  This shouldn't ever happen. "
                "This needs low (%d, %d, %d) and size (%d, %d, %d), but in the "
                "database it is low (%d, %d, %d) and size (%d, %d, %d)\n",
-               label, low.x(), low.y(), low.z(), size.x(), size.y(), size.z(),
-               it->second.var->device_offset.x(),
-               it->second.var->device_offset.y(),
-               it->second.var->device_offset.z(),
-               it->second.var->device_size.x(), it->second.var->device_size.y(),
-               it->second.var->device_size.z());
+               label, low.x, low.y, low.z, size.x, size.y, size.z,
+               it->second.var->device_offset.x,
+               it->second.var->device_offset.y,
+               it->second.var->device_offset.z,
+               it->second.var->device_size.x, it->second.var->device_size.y,
+               it->second.var->device_size.z);
         exit(-1);
       }
     }
@@ -657,7 +657,7 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
 
   // Now allocate it
   if (allocationNeeded) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     addr = GPUMemoryPool::getInstance().allocate(d_device_id, var.getMemSize());
 
     // Also update the var object itself (i.e., addr)
@@ -683,8 +683,8 @@ void GPUDataWarehouse::allocateAndPut(GPUGridVariableBase &var,
 void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
                                           char const *label, int patchID,
                                           int matlIndx, int levelIndx,
-                                          bool staging, sycl::int3 offset,
-                                          sycl::int3 size) {
+                                          bool staging, int3 offset,
+                                          int3 size) {
 
   if (d_device_copy == nullptr) {
     printf("ERROR:\nGPUDataWarehouse::copyItemIntoTaskDW() - This method "
@@ -692,10 +692,13 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
     exit(-1);
   }
 
+  varLock->lock();
   if (d_numVarDBItems == MAX_VARDB_ITEMS) {
     printf("ERROR: Out of GPUDataWarehouse space");
+    varLock->unlock();
     exit(-1);
   }
+  varLock->unlock();
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   stagingVar sv;
@@ -703,6 +706,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
   sv.device_size = size;
 
   // Get the iterator(s) from the host side GPUDW.
+  hostSideGPUDW->varLock->lock();
 
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator
       hostSideGPUDW_iter = hostSideGPUDW->varPointers->find(lpml);
@@ -710,14 +714,19 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
   if (staging) {
     hostSideGPUDW_staging_iter = hostSideGPUDW_iter->second.var->stagingVars.find(sv);
     if (hostSideGPUDW_staging_iter == hostSideGPUDW_iter->second.var->stagingVars.end()) {
-      printf("ERROR:\nGPUDataWarehouse::copyItemIntoTaskDW() - No staging var "
+      printf("ERROR:\nGPUDataWarehouse::copyItemIntoTaskDW - No staging var "
              "was found for for %s patch %d material %d level %d offset (%d, "
              "%d, %d) size (%d, %d, %d) in the DW located at %p\n",
-             label, patchID, matlIndx, levelIndx, offset.x(), offset.y(),
-             offset.z(), size.x(), size.y(), size.z(), hostSideGPUDW);
+             label, patchID, matlIndx, levelIndx, offset.x, offset.y,
+             offset.z, size.x, size.y, size.z, hostSideGPUDW);
+      varLock->unlock();
       exit(-1);
     }
   }
+
+  hostSideGPUDW->varLock->unlock();
+
+  varLock->lock();
 
   std::map<labelPatchMatlLevel, allVarPointersInfo>::iterator iter = varPointers->find(lpml);
   // sanity check
@@ -726,6 +735,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
            "datawarehouse already had an entry for %s patch %d material %d "
            "level %d\n",
            label, patchID, matlIndx, levelIndx);
+    varLock->unlock();
     exit(-1);
   }
 
@@ -793,6 +803,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
       if (!ret.second) {
         printf("ERROR:\nGPUDataWarehouse::copyItemIntoTaskDW( ) Failure "
                "inserting into varPointers map.\n");
+        varLock->unlock();
         exit(-1);
       }
       iter = ret.first;
@@ -831,6 +842,7 @@ void GPUDataWarehouse::copyItemIntoTaskDW(GPUDataWarehouse *hostSideGPUDW,
   }
 
   d_dirty = true;
+  varLock->unlock();
 }
 
 //______________________________________________________________________
@@ -846,6 +858,8 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, std::size_t sizeOfData
                            char const *label, int patchID, int matlIndx,
                            int levelIndx) {
 
+  varLock->lock();
+
   void *var_ptr; // raw pointer to the memory
   var.getData(var_ptr);
 
@@ -858,6 +872,7 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, std::size_t sizeOfData
   if (iter == varPointers->end()) {
     printf("ERROR:\nGPUDataWarehouse::put( )  Can't use put() for a host-side "
            "GPU DW without it first existing in the internal database.\n");
+    varLock->unlock();
     exit(-1);
   }
 
@@ -867,13 +882,14 @@ void GPUDataWarehouse::put(GPUReductionVariableBase &var, std::size_t sizeOfData
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
-  sycl::int3 zeroValue{0};
+  int3 zeroValue{0, 0, 0};
   iter->second.var->device_offset = zeroValue;
   iter->second.var->device_size = zeroValue;
 
   // previously set, do not set here
   // iter->second.var->atomicStatusInGpuMemory =
 
+  varLock->unlock();
 }
 //______________________________________________________________________
 //
@@ -882,6 +898,7 @@ void GPUDataWarehouse::put(void* gpu_ptr, std::size_t sizeOfDataType,
                            char const *label, int patchID, int matlIndx,
                            int levelIndx) {
 
+  varLock->lock();
   void *var_ptr{nullptr}; // raw pointer to the memory
   var_ptr = gpu_ptr;
   //var.getData(var_ptr);
@@ -897,6 +914,7 @@ void GPUDataWarehouse::put(void* gpu_ptr, std::size_t sizeOfDataType,
            "GPU DW without it first existing in the internal database for %s "
            "patch %d matl %d.\n",
            label, patchID, matlIndx);
+    varLock->unlock();
     exit(-1);
   }
 
@@ -906,13 +924,17 @@ void GPUDataWarehouse::put(void* gpu_ptr, std::size_t sizeOfDataType,
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
-  sycl::int3 zeroValue{0};
+  int3 zeroValue;
+  zeroValue.x = 0;
+  zeroValue.y = 0;
+  zeroValue.z = 0;
   iter->second.var->device_offset = zeroValue;
   iter->second.var->device_size = zeroValue;
 
   // previously set, do not set here
   // iter->second.atomicStatusInGputMemory =
 
+  varLock->unlock();
 }
 
 void GPUDataWarehouse::put(GPUPerPatchBase &var, std::size_t sizeOfDataType,
@@ -942,7 +964,10 @@ void GPUDataWarehouse::put(GPUPerPatchBase &var, std::size_t sizeOfDataType,
   iter->second.var->gtype = None;
   iter->second.var->numGhostCells = 0;
   iter->second.var->atomicStatusInHostMemory = UNKNOWN;
-  sycl::int3 zeroValue{0};
+  int3 zeroValue;
+  zeroValue.x = 0;
+  zeroValue.y = 0;
+  zeroValue.z = 0;
   iter->second.var->device_offset = zeroValue;
   iter->second.var->device_size = zeroValue;
 
@@ -970,8 +995,8 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
   // loops and waits until the allocation complete.
 
   bool allocationNeeded = false;
-  sycl::int3 size{0, 0, 0};
-  sycl::int3 offset{0, 0, 0};
+  int3 size{0, 0, 0};
+  int3 offset{0, 0, 0};
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, false, offset, size);
@@ -1002,7 +1027,7 @@ void GPUDataWarehouse::allocateAndPut(const TypeDescription::Type& type,
     //var.setData(addr);
   } else {
     // We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
 
     std::size_t memSize = 0;
     switch(type) {
@@ -1058,8 +1083,8 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
   // loops and waits until the allocation complete.
 
   bool allocationNeeded = false;
-  sycl::int3 size = sycl::int3(0, 0, 0);
-  sycl::int3 offset = sycl::int3(0, 0, 0);
+  int3 size = int3(0, 0, 0);
+  int3 offset = int3(0, 0, 0);
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, false, offset,
@@ -1091,7 +1116,7 @@ void GPUDataWarehouse::allocateAndPut(GPUReductionVariableBase &var,
     var.setData(addr);
   } else {
     // We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     std::size_t memSize = var.getMemSize();
     addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
@@ -1123,8 +1148,8 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
   // loops and waits until the allocation complete.
 
   bool allocationNeeded = false;
-  sycl::int3 size = sycl::int3(0, 0, 0);
-  sycl::int3 offset = sycl::int3(0, 0, 0);
+  int3 size = int3(0, 0, 0);
+  int3 offset = int3(0, 0, 0);
   // This variable may not yet exist.  But we want to declare we're allocating
   // it.  So ensure there is an entry.
   putUnallocatedIfNotExists(label, patchID, matlIndx, levelIndx, false, offset,
@@ -1156,7 +1181,7 @@ void GPUDataWarehouse::allocateAndPut(GPUPerPatchBase &var, char const *label,
     var.setData(addr);
   } else {
     // We are the first task to request allocation.  Do it.
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     std::size_t memSize = var.getMemSize();
     addr = GPUMemoryPool::getInstance().allocate(d_device_id, memSize);
 
@@ -1217,7 +1242,7 @@ void GPUDataWarehouse::init_device(std::size_t objectSizeInBytes,
   this->objectSizeInBytes = objectSizeInBytes;
   this->d_maxdVarDBItems = d_maxdVarDBItems;
 
-  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+  gpuSetDevice(d_device_id);
   this->d_device_copy = reinterpret_cast<GPUDataWarehouse*>(GPUMemoryPool::getInstance().allocate(d_device_id, objectSizeInBytes));
 
   d_dirty = true;
@@ -1232,7 +1257,7 @@ void GPUDataWarehouse::syncto_device(gpuStream_t* gpu_stream) {
   }
 
   if (d_dirty) {
-    OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+    gpuSetDevice(d_device_id);
     // Even though this is in a writeLock state on the CPU, the nature of
     // multiple threads each with their own stream copying to a GPU means that
     // one stream might seemingly go out of order.  This is ok for two reasons.
@@ -1257,7 +1282,7 @@ void GPUDataWarehouse::syncto_device(gpuStream_t* gpu_stream) {
 //
 void GPUDataWarehouse::clear() {
 
-  OnDemandDataWarehouse::uintahSetGpuDevice(d_device_id);
+  gpuSetDevice(d_device_id);
 
   auto& memPool = GPUMemoryPool::getInstance();
   auto& streamPool = GPUStreamPool<>::getInstance();
@@ -1299,7 +1324,7 @@ void GPUDataWarehouse::clear() {
 void GPUDataWarehouse::deleteSelfOnDevice() {
   // Note: in SYCL no need to set the GPU active device before calling any SYCL APIs, unlike CUDA/HIP
   if (d_device_copy) {
-    OnDemandDataWarehouse::uintahSetGpuDevice( d_device_id );
+    gpuSetDevice( d_device_id );
     GPUMemoryPool::getInstance().deallocate(d_device_id, d_device_copy, objectSizeInBytes);
     d_device_copy = nullptr;
   }
@@ -1384,58 +1409,63 @@ void GPUDataWarehouse::copyGpuGhostCellsToGpuVars(sycl::nd_item<3> &item) {
       assignedCellID = blockID * numThreads + threadID;
       int destIndex = d_varDB[i].ghostItem.dest_varDB_index;
 
-      sycl::int3 ghostCellSize = d_varDB[i].ghostItem.sharedHighCoordinates -
-                           d_varDB[i].ghostItem.sharedLowCoordinates;
+      int3 ghostCellSize;
+      ghostCellSize.x = d_varDB[i].ghostItem.sharedHighCoordinates.x -
+                        d_varDB[i].ghostItem.sharedLowCoordinates.x;
+      ghostCellSize.y = d_varDB[i].ghostItem.sharedHighCoordinates.y -
+                        d_varDB[i].ghostItem.sharedLowCoordinates.y;
+      ghostCellSize.z = d_varDB[i].ghostItem.sharedHighCoordinates.z -
+                        d_varDB[i].ghostItem.sharedLowCoordinates.z;
 
       // while there's still work to do (this assigned ID is still within the
       // ghost cell)
       while (assignedCellID <
-             ghostCellSize.x() * ghostCellSize.y() * ghostCellSize.z()) {
-        int z = assignedCellID / (ghostCellSize.x() * ghostCellSize.y());
-        int temp = assignedCellID % (ghostCellSize.x() * ghostCellSize.y());
-        int y = temp / ghostCellSize.x();
-        int x = temp % ghostCellSize.x();
+             ghostCellSize.x * ghostCellSize.y * ghostCellSize.z) {
+        int z = assignedCellID / (ghostCellSize.x * ghostCellSize.y);
+        int temp = assignedCellID % (ghostCellSize.x * ghostCellSize.y);
+        int y = temp / ghostCellSize.x;
+        int x = temp % ghostCellSize.x;
 
         assignedCellID += totalThreads;
 
         // if we're in a valid x,y,z space for the variable.  (It's unlikely
         // every cell will perfectly map onto every available thread.)
-        if (x < ghostCellSize.x() && y < ghostCellSize.y() &&
-            z < ghostCellSize.z()) {
+        if (x < ghostCellSize.x && y < ghostCellSize.y &&
+            z < ghostCellSize.z) {
 
           // offset them to their true array coordinates, not relative
           // simulation cell coordinates When using virtual addresses, the
           // virtual offset is always applied to the source, but the destination
           // is correct.
           int x_source_real = x +
-                              d_varDB[i].ghostItem.sharedLowCoordinates.x() -
-                              d_varDB[i].ghostItem.virtualOffset.x() -
-                              d_varDB[i].var_offset.x();
+                              d_varDB[i].ghostItem.sharedLowCoordinates.x -
+                              d_varDB[i].ghostItem.virtualOffset.x -
+                              d_varDB[i].var_offset.x;
           int y_source_real = y +
-                              d_varDB[i].ghostItem.sharedLowCoordinates.y() -
-                              d_varDB[i].ghostItem.virtualOffset.y() -
-                              d_varDB[i].var_offset.y();
+                              d_varDB[i].ghostItem.sharedLowCoordinates.y -
+                              d_varDB[i].ghostItem.virtualOffset.y -
+                              d_varDB[i].var_offset.y;
           int z_source_real = z +
-                              d_varDB[i].ghostItem.sharedLowCoordinates.z() -
-                              d_varDB[i].ghostItem.virtualOffset.z() -
-                              d_varDB[i].var_offset.z();
+                              d_varDB[i].ghostItem.sharedLowCoordinates.z -
+                              d_varDB[i].ghostItem.virtualOffset.z -
+                              d_varDB[i].var_offset.z;
           // count over array slots.
           int sourceOffset =
               x_source_real +
-              d_varDB[i].var_size.x() *
-                  (y_source_real + z_source_real * d_varDB[i].var_size.y());
+              d_varDB[i].var_size.x *
+                  (y_source_real + z_source_real * d_varDB[i].var_size.y);
 
-          int x_dest_real = x + d_varDB[i].ghostItem.sharedLowCoordinates.x() -
-                            d_varDB[destIndex].var_offset.x();
-          int y_dest_real = y + d_varDB[i].ghostItem.sharedLowCoordinates.y() -
-                            d_varDB[destIndex].var_offset.y();
-          int z_dest_real = z + d_varDB[i].ghostItem.sharedLowCoordinates.z() -
-                            d_varDB[destIndex].var_offset.z();
+          int x_dest_real = x + d_varDB[i].ghostItem.sharedLowCoordinates.x -
+                            d_varDB[destIndex].var_offset.x;
+          int y_dest_real = y + d_varDB[i].ghostItem.sharedLowCoordinates.y -
+                            d_varDB[destIndex].var_offset.y;
+          int z_dest_real = z + d_varDB[i].ghostItem.sharedLowCoordinates.z -
+                            d_varDB[destIndex].var_offset.z;
 
           int destOffset =
               x_dest_real +
-              d_varDB[destIndex].var_size.x() *
-                  (y_dest_real + z_dest_real * d_varDB[destIndex].var_size.y());
+              d_varDB[destIndex].var_size.x *
+                  (y_dest_real + z_dest_real * d_varDB[destIndex].var_size.y);
 
           // copy all 8 bytes of a double in one shot
           if (d_varDB[i].sizeOfDataType == sizeof(double)) {
@@ -1502,20 +1532,22 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
                                     int destPatchID, int matlIndx,
                                     int levelIndx, bool sourceStaging,
                                     bool destStaging,
-                                    const sycl::int3& varOffset,
-                                    const sycl::int3& varSize,
-                                    const sycl::int3& sharedLowCoordinates,
-                                    const sycl::int3& sharedHighCoordinates,
-                                    const sycl::int3& virtualOffset) {
+                                    const int3& varOffset,
+                                    const int3& varSize,
+                                    const int3& sharedLowCoordinates,
+                                    const int3& sharedHighCoordinates,
+                                    const int3& virtualOffset) {
 
   // Add information describing a ghost cell that needs to be copied internally
   // from one chunk of data to the destination.  This covers a GPU -> same GPU
   // copy scenario.
+  varLock->lock();
   unsigned int i = d_numVarDBItems;
   if (i > d_maxdVarDBItems) {
     printf("ERROR: GPUDataWarehouse::putGhostCell( %s ). Exceeded maximum "
            "d_varDB entries.  Index is %d and max items is %d\n",
            label, i, d_maxdVarDBItems);
+    varLock->unlock();
     exit(-1);
   }
   int index = -1;
@@ -1556,8 +1588,9 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
              "matching all of the following: label %s patch %d matl %d level "
              "%d offset (%d, %d, %d) size (%d, %d, %d) on DW at %p.\n",
              label, nStageVars, label, sourcePatchID, matlIndx, levelIndx,
-             sv.device_offset.x(), sv.device_offset.y(), sv.device_offset.z(),
-             sv.device_size.x(), sv.device_size.y(), sv.device_size.z(), this);
+             sv.device_offset.x, sv.device_offset.y, sv.device_offset.z,
+             sv.device_size.x, sv.device_size.y, sv.device_size.z, this);
+      varLock->unlock();
       exit(-1);
     }
     // Find the d_varDB entry for this specific one.
@@ -1568,6 +1601,7 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
            "%d, matlIndx %d, levelIndex %d staging %s not found in GPU DW %p\n",
            label, sourcePatchID, matlIndx, levelIndx,
            sourceStaging ? "true" : "false", this);
+    varLock->unlock();
     exit(-1);
   }
 
@@ -1587,7 +1621,10 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
       // ghost coordinates.
       stagingVar sv;
       sv.device_offset = sharedLowCoordinates;
-      sv.device_size = sharedHighCoordinates - sharedLowCoordinates;
+      sv.device_size =
+          make_int3(sharedHighCoordinates.x - sharedLowCoordinates.x,
+                    sharedHighCoordinates.y - sharedLowCoordinates.y,
+                    sharedHighCoordinates.z - sharedLowCoordinates.z);
 
       std::map<stagingVar, stagingVarInfo>::iterator staging_it =
           it->second.var->stagingVars.find(sv);
@@ -1597,9 +1634,10 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
         printf("\nERROR:\nGPUDataWarehouse::putGhostCell() didn't find a "
                "staging variable from the device for offset (%d, %d, %d) and "
                "size (%d, %d, %d).\n",
-               sharedLowCoordinates.x(), sharedLowCoordinates.y(),
-               sharedLowCoordinates.z(), sv.device_size.x(), sv.device_size.y(),
-               sv.device_size.z());
+               sharedLowCoordinates.x, sharedLowCoordinates.y,
+               sharedLowCoordinates.z, sv.device_size.x, sv.device_size.y,
+               sv.device_size.z);
+        varLock->unlock();
         exit(-1);
       }
 
@@ -1612,10 +1650,12 @@ void GPUDataWarehouse::putGhostCell(char const *label, int sourcePatchID,
            "GPU DW variable database\n",
            label, destPatchID, matlIndx, levelIndx,
            destStaging ? "true" : "false");
+  varLock->unlock();
     exit(-1);
   }
 
   d_dirty = true;
+  varLock->unlock();
 }
 
 //______________________________________________________________________
@@ -1624,15 +1664,21 @@ void GPUDataWarehouse::getSizes(int3 &low, int3 &high, int3 &siz,
                                 GhostType &gtype, int &numGhostCells,
                                 char const *label, int patchID, int matlIndx,
                                 int levelIndx) {
+  varLock->lock();
+
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   if (varPointers->find(lpml) != varPointers->end()) {
     allVarPointersInfo info = varPointers->at(lpml);
     low = info.device_offset;
-    high = info.var->device_size + info.var->device_offset;
+    high.x = info.var->device_size.x + info.var->device_offset.x;
+    high.y = info.var->device_size.y + info.var->device_offset.y;
+    high.z = info.var->device_size.z + info.var->device_offset.z;
     siz = info.var->device_size;
     gtype = info.var->gtype;
     numGhostCells = info.var->numGhostCells;
   }
+
+  varLock->unlock();
 }
 //______________________________________________________________________
 // Deep copies (not shallow copies or moves) an entry from one data warehouse to
@@ -1675,6 +1721,8 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t* stream,
 
   // lock both data warehouses, no way to lock free this section,
   // you could get the dining philosophers problem.
+  from->varLock->lock();
+  this->varLock->lock();
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
 
@@ -1722,15 +1770,17 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t* stream,
     // copy.  Exiting...\n"); exit(-1);
   }
   if (!proceed) {
+    from->varLock->unlock();
+    this->varLock->unlock();
     return false;
   }
 
-  if (!(source_it->second.var->device_offset.x() == dest_it->second.var->device_offset.x() &&
-        source_it->second.var->device_offset.y() == dest_it->second.var->device_offset.y() &&
-        source_it->second.var->device_offset.z() == dest_it->second.var->device_offset.z() &&
-        source_it->second.var->device_size.x()   == dest_it->second.var->device_size.x() &&
-        source_it->second.var->device_size.y()   == dest_it->second.var->device_size.y() &&
-        source_it->second.var->device_size.z()   == dest_it->second.var->device_size.z())) {
+  if (!(source_it->second.var->device_offset.x == dest_it->second.var->device_offset.x &&
+        source_it->second.var->device_offset.y == dest_it->second.var->device_offset.y &&
+        source_it->second.var->device_offset.z == dest_it->second.var->device_offset.z &&
+        source_it->second.var->device_size.x   == dest_it->second.var->device_size.x &&
+        source_it->second.var->device_size.y   == dest_it->second.var->device_size.y &&
+        source_it->second.var->device_size.z   == dest_it->second.var->device_size.z)) {
 
     printf(
         "Error: GPUDataWarehouse::transferFrom() - The source and destination "
@@ -1739,19 +1789,21 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t* stream,
         label, patchID, matlIndx, levelIndx);
     printf("The source size is (%d, %d, %d) with offset (%d, %d, %d) and "
            "device size is (%d, %d, %d) with offset (%d, %d, %d)\n",
-           source_it->second.var->device_size.x(),
-           source_it->second.var->device_size.y(),
-           source_it->second.var->device_size.z(),
-           source_it->second.var->device_offset.x(),
-           source_it->second.var->device_offset.y(),
-           source_it->second.var->device_offset.z(),
-           dest_it->second.var->device_size.x(),
-           dest_it->second.var->device_size.y(),
-           dest_it->second.var->device_size.z(),
-           dest_it->second.var->device_offset.x(),
-           dest_it->second.var->device_offset.y(),
-           dest_it->second.var->device_offset.z());
+           source_it->second.var->device_size.x,
+           source_it->second.var->device_size.y,
+           source_it->second.var->device_size.z,
+           source_it->second.var->device_offset.x,
+           source_it->second.var->device_offset.y,
+           source_it->second.var->device_offset.z,
+           dest_it->second.var->device_size.x,
+           dest_it->second.var->device_size.y,
+           dest_it->second.var->device_size.z,
+           dest_it->second.var->device_offset.x,
+           dest_it->second.var->device_offset.y,
+           dest_it->second.var->device_offset.z);
 
+    from->varLock->unlock();
+    this->varLock->unlock();
     exit(-1);
 
   } else if (!(source_it->second.var->device_ptr)) {
@@ -1759,12 +1811,16 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t* stream,
     printf("Error: GPUDataWarehouse::transferFrom() - No source variable "
            "pointer found for variable %s patch %d matl %d level %d\n",
            label, patchID, matlIndx, levelIndx);
+    from->varLock->unlock();
+    this->varLock->unlock();
     exit(-1);
 
   } else if (!(dest_it->second.var->device_ptr)) {
     printf("Error: GPUDataWarehouse::transferFrom() - No destination variable "
            "pointer found for variable %s patch %d matl %d level %d\n",
            label, patchID, matlIndx, levelIndx);
+    from->varLock->unlock();
+    this->varLock->unlock();
     exit(-1);
 
   }
@@ -1777,12 +1833,17 @@ bool GPUDataWarehouse::transferFrom(gpuStream_t* stream,
 
   // cudaMemcpyDeviceToDevice
   // This is sort of device-to-device copy in SYCL on the same device.
+  // ABB: The ideal one would be to use USM::copy<T>() API for device-to-device
+  // copy. Given the datatype of `source_it->second.var` is a bit hard!!
   stream->memcpy(dest_it->second.var->device_ptr,
-                 source_it->second.var->device_ptr,
-                 source_it->second.var->device_size.x() *
-                 source_it->second.var->device_size.y() *
-                 source_it->second.var->device_size.z() *
-                 source_it->second.var->sizeOfDataType);
+               source_it->second.var->device_ptr,
+               source_it->second.var->device_size.x *
+               source_it->second.var->device_size.y *
+               source_it->second.var->device_size.z *
+               source_it->second.var->sizeOfDataType);
+
+  from->varLock->unlock();
+  this->varLock->unlock();
 
   // Let the caller know we found and transferred something.
   return true;
@@ -1869,21 +1930,25 @@ void GPUDataWarehouse::getStatusFlagsForVariableOnGPU(
     bool &validOnGPU, bool &gatheringGhostCells, bool &validWithGhostCellsOnGPU,
     bool &deallocating, bool &formingSuperPatch, bool &superPatch,
     char const *label, const int patchID, const int matlIndx,
-    const int levelIndx, const sycl::int3 &offset, const sycl::int3 &size) {
+    const int levelIndx, const int3 &offset, const int3 &size) {
+
+  varLock->lock();
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
 
   if (varPointers->find(lpml) != varPointers->end()) {
     // check the sizes
     allVarPointersInfo vp = varPointers->at(lpml);
-    sycl::int3 device_offset = vp.var->device_offset;
-    sycl::int3 device_size = vp.var->device_size;
+    int3 device_offset = vp.var->device_offset;
+    int3 device_size = vp.var->device_size;
+
+    // ABB: this logic is from `kokkos_dev` branch is slightly different to `master`
     // DS 12132019: GPU Resize fix. Changed condition == to <= (and >=). If
     // device variable is greater than host, its ok.
     correctSize =
-        (device_offset.x() <= offset.x() && device_offset.y() <= offset.y() &&
-         device_offset.z() <= offset.z() && device_size.x() >= size.x() &&
-         device_size.y() >= size.y() && device_size.z() >= size.z());
+        (device_offset.x <= offset.x && device_offset.y <= offset.y &&
+         device_offset.z <= offset.z && device_size.x >= size.x &&
+         device_size.y >= size.y && device_size.z >= size.z);
 
     // get the value
     atomicDataStatus varStatus =
@@ -1914,6 +1979,7 @@ void GPUDataWarehouse::getStatusFlagsForVariableOnGPU(
     superPatch = false;
   }
 
+  varLock->unlock();
 }
 
 //______________________________________________________________________
@@ -2131,47 +2197,19 @@ bool GPUDataWarehouse::checkValid(atomicDataStatus &status) {
 //
 bool GPUDataWarehouse::isAllocatedOnGPU(char const *label, int patchID,
                                         int matlIndx, int levelIndx) {
+  varLock->lock();
+
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   if (varPointers->find(lpml) != varPointers->end()) {
     bool retVal =
         ((__sync_fetch_and_or(
               &(varPointers->at(lpml).var->atomicStatusInGpuMemory), 0) &
           ALLOCATED) == ALLOCATED);
+    varLock->unlock();
     return retVal;
 
   } else {
-    return false;
-  }
-}
-
-//______________________________________________________________________
-//
-bool GPUDataWarehouse::isAllocatedOnGPU(char const *label, int patchID,
-                                        int matlIndx, int levelIndx,
-                                        sycl::int3 offset, sycl::int3 size) {
-
-  labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
-  if (varPointers->find(lpml) != varPointers->end()) {
-    // cout << "In isAllocatedOnGPU - For patchID " << patchID << " for the
-    // status is " <<
-    // getDisplayableStatusCodes(varPointers->at(lpml).atomicStatusInGpuMemory)
-    // << endl;
-    bool retVal =
-        ((__sync_fetch_and_or(
-              &(varPointers->at(lpml).var->atomicStatusInGpuMemory), 0) &
-          ALLOCATED) == ALLOCATED);
-    if (retVal) {
-      // now check the sizes
-      sycl::int3 device_offset = varPointers->at(lpml).var->device_offset;
-      sycl::int3 device_size = varPointers->at(lpml).var->device_size;
-      retVal =
-          (device_offset.x() == offset.x() && device_offset.y() == offset.y() &&
-           device_offset.z() == offset.z() && device_size.x() == size.x() &&
-           device_size.y() == size.y() && device_size.z() == size.z());
-    }
-    return retVal;
-
-  } else {
+    varLock->unlock();
     return false;
   }
 }
@@ -2232,8 +2270,8 @@ bool GPUDataWarehouse::compareAndSwapSetValidOnGPU(char const *const label,
 
 //______________________________________________________________________
 bool GPUDataWarehouse::compareAndSwapSetValidOnGPUStaging(
-    char const *label, int patchID, int matlIndx, int levelIndx, const sycl::int3& offset,
-    const sycl::int3& size) {
+    char const *label, int patchID, int matlIndx, int levelIndx, const int3& offset,
+    const int3& size) {
 
   bool settingValidOnStaging = false;
   while (!settingValidOnStaging) {
@@ -2502,8 +2540,8 @@ bool GPUDataWarehouse::compareAndSwapCopyingIntoCPU(char const *label,
 // into the GPU. returns true if we are the ones to manage this variable's ghost
 // data.
 bool GPUDataWarehouse::compareAndSwapCopyingIntoGPUStaging(
-    char const *label, int patchID, int matlIndx, int levelIndx, sycl::int3 offset,
-    sycl::int3 size) {
+    char const *label, int patchID, int matlIndx, int levelIndx, int3 offset,
+    int3 size) {
 
   atomicDataStatus *status;
 
@@ -2775,7 +2813,7 @@ bool GPUDataWarehouse::isSuperPatchGPU(char const *label, int patchID,
 //
 void GPUDataWarehouse::setSuperPatchLowAndSize(
     char const *const label, const int patchID, const int matlIndx,
-    const int levelIndx, const sycl::int3 &low, const sycl::int3 &size) {
+    const int levelIndx, const int3 &low, const int3 &size) {
 
   labelPatchMatlLevel lpml(label, patchID, matlIndx, levelIndx);
   auto it = varPointers->find(lpml);
@@ -2793,6 +2831,3 @@ void GPUDataWarehouse::setSuperPatchLowAndSize(
 
 //______________________________________________________________________
 //
-
-// void GPUDataWarehouse::print() {}
-// void *GPUDataWarehouse::getPlacementNewBuffer() { return placementNewBuffer; }

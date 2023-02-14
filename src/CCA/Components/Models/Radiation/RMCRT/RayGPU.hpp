@@ -23,8 +23,6 @@
  */
 
 #pragma once
-// #ifndef CCA_COMPONENTS_MODELS_RADIATION_RMCRT_RAYGPU_HPP
-// #define CCA_COMPONENTS_MODELS_RADIATION_RMCRT_RAYGPU_HPP
 
 #include <CCA/Components/Schedulers/GPUDataWarehouse.h>
 // #include <Core/Geometry/GPUVector.h>
@@ -45,120 +43,15 @@
 
 namespace Uintah {
 
-typedef sycl::int3 GPUIntVector;
-typedef sycl::double3 GPUVector;
-typedef sycl::double3 GPUPoint;
+// typedef sycl::int3 GPUIntVector;
+// typedef sycl::double3 GPUVector;
+// typedef sycl::double3 GPUPoint;
 
 //______________________________________________________________________
 //
 constexpr int d_MAXLEVELS = 5; // FIX ME!
 constexpr int d_MAX_RAYS = 500;
 constexpr int d_flowCell = -1; // HARDWIRED!
-//__________________________________
-
-//
-class unifiedMemory { // this should be moved upstream
-public:               // This only works for cuda > 6.X
-#if 0                 // turn off until titan has cuda > 6.0 installed
-  void *operator new(size_t len)
-  {
-    void *ptr;
-    cudaMallocManaged(&ptr, len);
-    return ptr;
-  }
-
-  void operator delete(void *ptr)
-  {
-    cudaFree(ptr);
-  }
-
-  void *operator new[] (size_t len)
-  {
-    void *ptr;
-    cudaMallocManaged(&ptr, len);
-    return ptr;
-  }
-
-  void operator delete[] (void* ptr)
-  {
-    cudaFree(ptr);
-  }
-#endif
-};
-#if 0 // turn off until titan has cuda > 6.0 installed
-//______________________________________________________________________
-//
-//  http://devblogs.nvidia.com/parallelforall/unified-memory-in-cuda-6/
-// String Class for unified managed Memory
-class GPUString : public unifiedMemory
-{
-  int length;
-  char *data;
-
-  public:
-    GPUString() : length(0), data(0) {}
-    // Constructor for C-GPUString initializer
-    GPUString(const char *s) : length(0), data(0)
-    {
-      _realloc(strlen(s));
-      strcpy(data, s);
-    }
-
-    // Copy constructor
-    GPUString(const GPUString& s) : length(0), data(0)
-    {
-      _realloc(s.length);
-      strcpy(data, s.data);
-    }
-
-    // destructor
-    ~GPUString() {
-      cudaFree(data);
-    }
-
-    // Assignment operator
-    GPUString& operator=(const char* s)
-    {
-      _realloc(strlen(s));
-      strcpy(data, s);
-      return *this;
-    }
-
-    // Element access (from host or device)
-    char& operator[](int pos)
-    {
-      return data[pos];
-    }
-
-    // C-String access host or device
-    const char* c_str() const
-    {
-      return data;
-    }
-
-  private:
-    void _realloc(int len)
-    {
-      cudaFree(data);
-      length = len;
-      cudaMallocManaged(&data, length+1);
-    }
-};
-#endif
-//______________________________________________________________________
-//
-struct varLabelNames : public unifiedMemory {
-public:
-#if 0 // turn off until titan has cuda > 6.0 installed
-    GPUString divQ;
-    GPUString abskg;
-    GPUString sigmaT4;
-    GPUString celltype;
-    GPUString VRFlux;
-    GPUString boundFlux;
-    GPUString radVolQ;
-#endif
-};
 
 //______________________________________________________________________
 //
@@ -487,5 +380,3 @@ void launchRayTraceDataOnionKernel(
     GPUDataWarehouse *celltype_gdw, GPUDataWarehouse *new_gdw);
 
 } // end namespace Uintah
-
-// #endif

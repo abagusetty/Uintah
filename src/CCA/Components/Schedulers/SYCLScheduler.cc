@@ -1546,7 +1546,7 @@ void SYCLScheduler::initiateH2DCopies(DetailedTask *dtask) {
   varIter = vars.begin();
   if (varIter != vars.end()) {
     device_id = GpuUtilities::getGpuIndexForPatch(varIter->second->getPatchesUnderDomain(dtask->getPatches())->get(0));
-    OnDemandDataWarehouse::uintahSetGpuDevice(device_id);
+    gpuSetDevice(device_id);
   }
 
   // Go through each unique dependent var and see if we should allocate space and/or queue it to be copied H2D.
@@ -2049,8 +2049,8 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
           case TypeDescription::SFCXVariable:
           case TypeDescription::SFCYVariable:
           case TypeDescription::SFCZVariable: {
-            sycl::int3 device_size{0, 0, 0};
-            sycl::int3 device_offset{0, 0, 0};
+            int3 device_size{0, 0, 0};
+            int3 device_offset{0, 0, 0};
 
             gpudw->allocateAndPut(
                 subtype, device_ptr, device_size, device_offset, label_cstr,
@@ -2244,7 +2244,7 @@ void SYCLScheduler::prepareDeviceVars(DetailedTask *dtask) {
 
                 if (host_ptr != nullptr && device_ptr != nullptr) {
                   // Perform the copy!
-                  OnDemandDataWarehouse::uintahSetGpuDevice(whichGPU);
+                  gpuSetDevice(whichGPU);
                   gpuStream_t* stream = dtask->getGpuStreamForThisTask(whichGPU);
                   if (it.second.m_varMemSize == 0) {
                     SCI_THROW(InternalError("Attempting to copy zero bytes to "
@@ -2322,8 +2322,8 @@ void SYCLScheduler::prepareTaskVarsIntoTaskDW(DetailedTask *dtask) {
           int matlIndx = it.first.m_matlIndx;
           int levelIndx = it.first.m_levelIndx;
 
-          sycl::int3 offset{0,0,0};
-          sycl::int3 size{0,0,0};
+          int3 offset{0,0,0};
+          int3 size{0,0,0};
           if (it.second.m_staging) {
             offset = make_int3(it.second.m_offset.x(), it.second.m_offset.y(),
                                it.second.m_offset.z());
@@ -2797,7 +2797,7 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
       void *device_ptr = nullptr; // device base pointer to raw data
       std::size_t host_bytes = 0; // raw byte count to copy to the device
 
-      sycl::int3 host_low, host_high, host_offset, host_size, host_strides;
+      int3 host_low, host_high, host_offset, host_size, host_strides;
 
       int numPatches = patches->size();
       int numMatls = matls->size();
@@ -2829,7 +2829,7 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
           const unsigned int deviceNum = GpuUtilities::getGpuIndexForPatch(patch);
           GPUDataWarehouse *gpudw = dw->getGPUDW(deviceNum);
           assert(gpudw != nullptr);
-          OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
+          gpuSetDevice(deviceNum);
           gpuStream_t *stream = dtask->getGpuStreamForThisTask(deviceNum);
 
           // It's not valid on the CPU but it is on the GPU.  Copy it on over.
@@ -2862,7 +2862,7 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                 // if needed to match what the CPU is expecting it to be.
                 // GPUGridVariableBase* gpuGridVar;
 
-                sycl::int3 low, high, size;
+                int3 low, high, size;
                 GPUDataWarehouse::GhostType tempgtype;
                 Ghost::GhostType gtype;
                 int numGhostCells;
@@ -2890,7 +2890,7 @@ void SYCLScheduler::initiateD2HForHugeGhostCells(DetailedTask *dtask) {
                 host_ptr = gridVar->getBasePointer();
                 host_bytes = gridVar->getDataSize();
 
-                sycl::int3 device_size, device_offset;
+                int3 device_size, device_offset;
                 GPUGridVariableBase *device_var = OnDemandDataWarehouse::createGPUGridVariable(datatype);
                 gpudw->get(*device_var, compVarName.c_str(), patchID, matlID, levelID);
                 device_var->getArray3(device_offset, device_size, device_ptr);
@@ -3041,7 +3041,7 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
 
     unsigned int deviceNum = GpuUtilities::getGpuIndexForPatch(patch);
     GPUDataWarehouse *gpudw = dw->getGPUDW(deviceNum);
-    OnDemandDataWarehouse::uintahSetGpuDevice(deviceNum);
+    gpuSetDevice(deviceNum);
     gpuStream_t *stream = dtask->getGpuStreamForThisTask(deviceNum);
 
     const std::string varName = dependantVar->m_var->getName();
@@ -3105,10 +3105,10 @@ void SYCLScheduler::initiateD2H(DetailedTask *dtask) {
 
             // The device will have our best knowledge of the exact
             // dimensions/ghost cells of the variable, so lets get those values.
-            sycl::int3 device_low;
-            sycl::int3 device_offset;
-            sycl::int3 device_high;
-            sycl::int3 device_size;
+            int3 device_low;
+            int3 device_offset;
+            int3 device_high;
+            int3 device_size;
             GPUDataWarehouse::GhostType tempgtype;
             Ghost::GhostType gtype;
             int numGhostCells;
@@ -3569,8 +3569,8 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
   //     IntVector ghostSize(ghostHigh.x() - ghostLow.x(),
   //                         ghostHigh.y() - ghostLow.y(),
   //                         ghostHigh.z() - ghostLow.z());
-  //     sycl::int3 device_source_offset;
-  //     sycl::int3 device_source_size;
+  //     int3 device_source_offset;
+  //     int3 device_source_size;
 
   //     // get the source variable from the source GPU DW
   //     void *device_source_ptr;
@@ -3592,8 +3592,8 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
 
   //     // Get the destination variable from the destination GPU DW
   //     gpudw = dw->getGPUDW(it.second.m_destDeviceNum);
-  //     sycl::int3 device_dest_offset;
-  //     sycl::int3 device_dest_size;
+  //     int3 device_dest_offset;
+  //     int3 device_dest_size;
   //     void *device_dest_ptr;
   //     GPUGridVariableBase *device_dest_var =
   //         OnDemandDataWarehouse::createGPUGridVariable(it.second.m_datatype);
@@ -3616,7 +3616,7 @@ void SYCLScheduler::copyAllGpuToGpuDependences(DetailedTask *dtask) {
   //     //   Note: If we move to UVA, then we could just do a straight memcpy
 
   //     gpuStream_t* stream = dtask->getGpuStreamForThisTask(it.second.m_destDeviceNum);
-  //     OnDemandDataWarehouse::uintahSetGpuDevice(it.second.m_destDeviceNum);
+  //     gpuSetDevice(it.second.m_destDeviceNum);
 
   //     auto gpuP2Pcopy = stream->memcpy(device_dest_ptr, device_source_ptr, memSize); // SYCL P2P memcpy
   //   }
@@ -3647,8 +3647,8 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
       void *device_ptr = nullptr; // device base pointer to raw data
       std::size_t host_bytes = 0;
       IntVector host_low, host_high, host_offset, host_size, host_strides;
-      sycl::int3 device_offset;
-      sycl::int3 device_size;
+      int3 device_offset;
+      int3 device_size;
 
       // We created a temporary host variable for this earlier,
       // and the deviceVars collection knows about it.  It's set as a foreign
@@ -3694,7 +3694,7 @@ void SYCLScheduler::copyAllExtGpuDependenciesToHost(DetailedTask *dtask) {
           device_size.z() == host_size.z()) {
 
         // Since we know we need a stream, obtain one.
-        OnDemandDataWarehouse::uintahSetGpuDevice(it.second.m_sourceDeviceNum);
+        gpuSetDevice(it.second.m_sourceDeviceNum);
         gpuStream_t *stream = dtask->getGpuStreamForThisTask(it.second.m_sourceDeviceNum);
         // aysnc
         dtask->pushbackGpuEvents( stream->memcpy(host_ptr, device_ptr, host_bytes) );

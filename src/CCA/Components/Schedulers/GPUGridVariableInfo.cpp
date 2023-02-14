@@ -23,12 +23,7 @@
  */
 
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
-#ifdef HAVE_SYCL
-  #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
-#else
-  #include <CCA/Components/Schedulers/UnifiedScheduler.h>
-#endif
-
+#include <CCA/Components/Schedulers/UnifiedScheduler.h>
 #include <Core/Parallel/MasterLock.h>
 
 using LabelPatchMatlLevelDW = GpuUtilities::LabelPatchMatlLevelDw;

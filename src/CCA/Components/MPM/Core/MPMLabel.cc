@@ -50,7 +50,7 @@ MPMLabel::MPMLabel()
   // delta t
   VarLabel* nonconstDelt =
     VarLabel::create(delT_name, delt_vartype::getTypeDescription() );
-  nonconstDelt->allowMultipleComputes();
+  nonconstDelt->schedReductionTask(false);
   delTLabel = nonconstDelt;
 
 
@@ -442,16 +442,6 @@ MPMLabel::MPMLabel()
   gSp_vol_srcLabel =  VarLabel::create("g.sp_vol_src",
                         NCVariable<double>::getTypeDescription());
 
-  // Interaction with Arches, Fluid Mechanics
-
-  AccArchesNCLabel = VarLabel::create("AccArchesNC",
-                        NCVariable<Vector>::getTypeDescription() );
-
-  // Interaction with Arches, Heat Transfer
-
-  heaTranSolid_NCLabel = VarLabel::create("heaTranSolid_NC",
-                                         NCVariable<double>::getTypeDescription() );
-
   frictionalWorkLabel = VarLabel::create("frictionalWork",
                         NCVariable<double>::getTypeDescription());
 
@@ -477,8 +467,12 @@ MPMLabel::MPMLabel()
   TotalMassLabel = VarLabel::create( "TotalMass",
                                  sum_vartype::getTypeDescription() );
 
+  TotalMomentOfInertiaLabel = VarLabel::create( "TotalMomentOfInertia",
+                                 sum_vartype::getTypeDescription() );
+
   NeedAddMPMMaterialLabel = VarLabel::create("NeedAddMPMMaterial",
                                  sum_vartype::getTypeDescription());
+
   for(int iside=0;iside<6;iside++) {
       string label_name = Patch::getFaceName( (Patch::FaceType) iside ); // FIXME: assumes face indices
       
@@ -499,6 +493,12 @@ MPMLabel::MPMLabel()
   CenterOfMassPositionLabel = VarLabel::create( "CenterOfMassPosition",
                                  sumvec_vartype::getTypeDescription() );
 
+  SumTransmittedForceLabel = VarLabel::create( "SumTransmittedForce",
+                                 sumvec_vartype::getTypeDescription() );
+
+  SumTransmittedTorqueLabel = VarLabel::create( "SumTransmittedTorque",
+                                 sumvec_vartype::getTypeDescription() );
+
   TotalMomentumLabel = VarLabel::create( "TotalMomentum",
                                  sumvec_vartype::getTypeDescription() );
 
@@ -516,7 +516,6 @@ MPMLabel::MPMLabel()
   pCellNAPIDLabel =
     VarLabel::create("cellNAPID", CCVariable<int>::getTypeDescription());
 
-  // for Fracture ----------------------------
   pDispLabel = VarLabel::create("p.displacement",
                   ParticleVariable<Vector>::getTypeDescription());
   pDispLabel_preReloc = VarLabel::create( "p.displacement+",
@@ -675,8 +674,6 @@ MPMLabel::~MPMLabel()
   VarLabel::destroy(gradPAccNCLabel);
   VarLabel::destroy(dTdt_NCLabel);
   VarLabel::destroy(massBurnFractionLabel);
-  VarLabel::destroy(AccArchesNCLabel);
-  VarLabel::destroy(heaTranSolid_NCLabel);
   VarLabel::destroy(frictionalWorkLabel);
   VarLabel::destroy(gNumNearParticlesLabel);
 
@@ -687,6 +684,7 @@ MPMLabel::~MPMLabel()
   VarLabel::destroy(KineticEnergyLabel);
   VarLabel::destroy(ThermalEnergyLabel);
   VarLabel::destroy(TotalMassLabel);
+  VarLabel::destroy(TotalMomentOfInertiaLabel);
   VarLabel::destroy(NeedAddMPMMaterialLabel);
   VarLabel::destroy(TotalVolumeDeformedLabel);
   for(int iside=0;iside<6;iside++) {
@@ -696,13 +694,14 @@ MPMLabel::~MPMLabel()
       VarLabel::destroy(BndyTractionLabel[iside]);
   }
   VarLabel::destroy(CenterOfMassPositionLabel);
+  VarLabel::destroy(SumTransmittedForceLabel);
+  VarLabel::destroy(SumTransmittedTorqueLabel);
   VarLabel::destroy(TotalMomentumLabel);
   VarLabel::destroy(RigidReactionForceLabel);
   VarLabel::destroy(RigidReactionTorqueLabel);
   VarLabel::destroy(TotalLocalizedParticleLabel);
   VarLabel::destroy(pCellNAPIDLabel);
 
- // for Fracture --------------
   VarLabel::destroy(pDispLabel);
   VarLabel::destroy(pDispLabel_preReloc);
   VarLabel::destroy(gDisplacementLabel);

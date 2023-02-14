@@ -35,6 +35,7 @@
 // put here to avoid template problems
 #include <Core/Math/Matrix3.h>
 #include <Core/Math/Short27.h>
+#include <CCA/Components/Application/ApplicationCommon.h>
 #include <CCA/Components/MPM/Core/MPMLabel.h>
 #include <CCA/Components/MPM/Materials/Contact/Contact.h>
 #include <CCA/Components/MPM/MPMCommon.h>
@@ -83,7 +84,7 @@ WARNING
   
 ****************************************/
 
-  class SerialMPM : public MPMCommon {
+  class SerialMPM : public ApplicationCommon, public MPMCommon {
 public:
     SerialMPM(const ProcessorGroup* myworld,
               const MaterialManagerP materialManager);
@@ -113,8 +114,6 @@ public:
 
   virtual void scheduleRestartInitialize(const LevelP& level,
                                          SchedulerP& sched);
-
-  virtual void restartInitialize();
 
   void schedulePrintParticleCount(const LevelP& level, SchedulerP& sched);
   
@@ -340,6 +339,14 @@ protected:
                                                DataWarehouse* new_dw);
 
   //////////
+  // Insert Documentation Here:
+  virtual void computeGridVelocityForFTM(const ProcessorGroup*,
+                                         const PatchSubset* patches,
+                                         const MaterialSubset* matls,
+                                               DataWarehouse* old_dw,
+                                               DataWarehouse* new_dw);
+
+  //////////
   // Insert Documentation Here:                            
   void setGridBoundaryConditions(const ProcessorGroup*,
                                  const PatchSubset* patches,
@@ -513,6 +520,10 @@ protected:
   virtual void scheduleExMomIntegrated(SchedulerP&, const PatchSet*,
                                        const MaterialSet*);
 
+  virtual void scheduleComputeGridVelocityForFTM(SchedulerP&,
+                                                 const PatchSet*,
+                                                 const MaterialSet*);
+
   void scheduleSetGridBoundaryConditions(SchedulerP&, const PatchSet*,
                                          const MaterialSet* matls);
                                                  
@@ -549,6 +560,10 @@ protected:
   virtual void scheduleComputeParticleScaleFactor(SchedulerP&, 
                                                   const PatchSet*,
                                                   const MaterialSet*);
+  virtual void scheduleReduceVars( SchedulerP&, 
+                                   const PatchSet*,
+                                   const MaterialSet* );
+
 
   // JBH -- Scalar Diffusion Related
   virtual void scheduleConcInterpolated(        SchedulerP  &

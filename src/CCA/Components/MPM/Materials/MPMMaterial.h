@@ -144,6 +144,9 @@ WARNING
    bool getIsRigid() const;
    void setIsRigid(const bool is_rigid);
 
+   bool getIsFTM() const;
+   void setIsFTM(const bool is_ftm);
+
    bool getIsActive() const;
    void setIsActive(const bool is_active);
    double getActivationTime() const;
@@ -190,7 +193,7 @@ WARNING
    double d_specificHeat;
    double d_thermalConductivity;
    bool   d_pLocalizedComputed  =  false;        // set to true if any task computes pLocalizedMPM or pLocalizedMPM_preReloc
-
+   bool   d_allTriGeometry = false;
 
    // Specific heats at constant pressure and constant volume
    // (values at room temperature - [273.15 + 20] K)
@@ -200,8 +203,11 @@ WARNING
    double d_troom;
    double d_tmelt;
 
-   // for implicit rigid body contact
+   // for rigid body contact
    bool d_is_rigid;
+
+   // for undeformable force transmission
+   bool d_is_force_transmitting_material;
 
    // for insert particles
    bool d_is_active;

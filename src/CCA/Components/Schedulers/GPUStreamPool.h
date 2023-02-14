@@ -26,22 +26,10 @@
 
 #include <sci_defs/gpu_defs.h>
 
-#if defined(HAVE_SYCL)
-auto sycl_asynchandler = [](sycl::exception_list exceptions) {
-  for (std::exception_ptr const &e : exceptions) {
-    try {
-      std::rethrow_exception(e);
-    } catch (sycl::exception const &ex) {
-      std::cout << "Caught asynchronous SYCL exception:" << std::endl
-                << ex.what() << ", SYCL code: " << ex.code() << std::endl;
-    }
-  }
-};
-#endif // HAVE_SYCL
-
 namespace Uintah {
 
-/* MasterLock streampool_mutex{}; */
+  // This is a 0th-device stream-pool not a multi-device stream pool
+/* TODO: MasterLock streampool_mutex{}; */
 #if defined(HAVE_CUDA)
 template <int N = 32>
 #elif defined(HAVE_HIP)
@@ -62,7 +50,7 @@ protected:
   // "valid" because when that task's stream completes, then we can infer the
   // variable is ready to go.  More about how a task claims a stream can be
   // found in DetailedTasks.cc
-  gpuStream_t* s_idle_streams{nullptr};
+  gpuStream_t** s_streams{nullptr};
 
   // thread-safe, GPU-specific counter for getting a round-robin stream/queue
   // from pool
@@ -74,47 +62,69 @@ private:
   GPUStreamPool() {
     GPU_RT_SAFE_CALL( gpuGetDeviceCount(&s_ngpus) );
     s_count = new unsigned int[s_ngpus];
+    s_streams = new gpuStream_t*[N * s_ngpus];
 
+    int32_t count{0};
     for (int devID = 0; devID < s_ngpus; devID++) { // # of GPUs per node
       GPU_RT_SAFE_CALL( gpuSetDevice(devID) );
       s_count[devID] = 0;
-      s_idle_streams = new gpuStream_t[N];
+
       for (int streamID = 0; streamID < N; streamID++) { // # of streams per GPU
 #if defined(HAVE_CUDA)
-        GPU_RT_SAFE_CALL(cudaStreamCreateWithFlags(&s_idle_streams[streamID], cudaStreamNonBlocking));
+        GPU_RT_SAFE_CALL(cudaStreamCreateWithFlags(s_streams[count], cudaStreamNonBlocking));
 #elif defined(HAVE_HIP)
-        GPU_RT_SAFE_CALL(hipStreamCreateWithFlags(&s_idle_streams[streamID], hipStreamNonBlocking));
+        GPU_RT_SAFE_CALL(hipStreamCreateWithFlags(s_streams[count], hipStreamNonBlocking));
 #elif defined(HAVE_SYCL)
-        s_idle_streams[streamID] = new sycl::queue(*sycl_get_context(devID),
-                                                   *sycl_get_device(devID),
-                                                   sycl_asynchandler);
+        s_streams[count] = new sycl::queue(*sycl_get_context(devID),
+                                           *sycl_get_device(devID),
+                                           [=](sycl::exception_list exceptions) {
+                                             for (const auto& e : exceptions) {
+                                               try {
+                                                 std::rethrow_exception(e);
+                                               } catch (sycl::exception const &ex) {
+                                                 std::cout << "Caught asynchronous SYCL exception:" << std::endl
+                                                 << ex.what() << ", SYCL code: " << ex.code() << std::endl;
+                                               }
+                                             }
+                                           });
 #endif
+        count++;
       } // streamID
     } // devID
   }
 
-  ~GPUStreamPool() {}
+  ~GPUStreamPool() {
+    // ABB: TODO free streams
+  }
 
   void check_device(int deviceID) {
-    if(deviceID > s_ngpus) {
-      std::cout << "Caught INVALID deviceID passed to getStreams(): " << std::endl
+
+    if(deviceID != 0) {
+      std::cout << "Caught INVALID deviceID (!=0) passed to getStreams(): " << std::endl
                 << deviceID << std::endl;
       std::exit(-1);
     }
+
+    // ABB: Enable the following when multi-device, multi-device stream is supported
+    // if(deviceID > s_ngpus) {
+    //   std::cout << "Caught INVALID deviceID passed to getStreams(): " << std::endl
+    //             << deviceID << std::endl;
+    //   std::exit(-1);
+    // }
   }
 
 public:
   /// Returns a default/first GPU stream
   gpuStream_t* getDefaultGpuStreamFromPool(int deviceID) {
     check_device(deviceID);
-    return &(s_idle_streams[deviceID*N + 0]);
+    return s_streams[deviceID*N + 0];
   }
 
   /// Returns a GPU stream in a round-robin fashion
   gpuStream_t* getGpuStreamFromPool(int deviceID) {
     check_device(deviceID);
     unsigned short int counter = (s_count[deviceID])++ % N;
-    return &(s_idle_streams[deviceID*N + counter]);
+    return s_streams[deviceID*N + counter];
   }
 
   /// Returns the instance of device manager singleton.
@@ -131,11 +141,3 @@ public:
 };
 
 } // namespace Uintah
-
-// #if defined(HAVE_CUDA)
-// template class Uintah::GPUStreamPool<32>;
-// #elif defined(HAVE_HIP)
-// template class Uintah::GPUStreamPool<4>;
-// #elif defined(HAVE_SYCL)
-// template class Uintah::GPUStreamPool<1>;
-// #endif
