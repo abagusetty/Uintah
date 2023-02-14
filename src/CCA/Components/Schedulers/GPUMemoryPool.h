@@ -58,17 +58,15 @@ private:
 
 public:
   void *allocate(int device_id, std::size_t memSize) {
-    auto &streamPool = GPUStreamPool<>::getInstance();
     void *addr = per_device_mr_[device_id].get()->allocate(
-        memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
+        memSize, GPUStreamPool<>::getInstance().getDefaultGpuStreamFromPool(device_id));
     return addr;
   }
   // TODO: ABB 08/27/22 check to ensure that the pointer, memSize returned to
   // the pool were obtained using the above API
   void deallocate(int device_id, void *addr, std::size_t memSize) {
-    auto &streamPool = GPUStreamPool<>::getInstance();
     per_device_mr_[device_id].get()->deallocate(
-        addr, memSize, streamPool.getDefaultGpuStreamFromPool(device_id));
+        addr, memSize, GPUStreamPool<>::getInstance().getDefaultGpuStreamFromPool(device_id));
   }
 
   /// Returns the instance of GPUMemoryPool singleton.
