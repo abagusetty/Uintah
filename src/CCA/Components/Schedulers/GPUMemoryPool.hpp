@@ -39,7 +39,7 @@ public:
 #elif defined(HAVE_HIP)
       GPU_RT_SAFE_CALL( hipMalloc(&ret, size) );
 #elif defined(HAVE_DPCPP)
-      gpuStream_t* stream = Uintah::GPUStreamPool::getInstance().getDefaultGpuStreamFromPool();
+      gpuStream_t* stream = Uintah::GPUStreamPool<>::getInstance().getDefaultGpuStreamFromPool();
       ret                 = sycl::malloc_device(size, *stream);
 #endif
 
@@ -60,18 +60,14 @@ public:
   }
 
   void gpuMemset(void** ptr, size_t sizeInBytes) {
- 
-   // gpuStream_t* stream = Uintah::GPUStreamPool::getInstance().getDefaultGpuStreamFromPool();
+    gpuStream_t* stream = Uintah::GPUStreamPool<>::getInstance().getDefaultGpuStreamFromPool();
 
 #if defined(USE_DPCPP)
-    gpuStream_t* stream = Uintah::GPUStreamPool<1>::getInstance().getDefaultGpuStreamFromPool();
-    stream.memset(*ptr, 0, sizeInBytes);
+    stream->memset(*ptr, 0, sizeInBytes);
 #elif defined(USE_HIP)
-    gpuStream_t* stream = Uintah::GPUStreamPool<4>::getInstance().getDefaultGpuStreamFromPool();
-    hipMemsetAsync(*ptr, 0, sizeInBytes);
+    hipMemsetAsync(*ptr, 0, sizeInBytes, *stream);
 #elif defined(USE_CUDA)
-    gpuStream_t* stream = Uintah::GPUStreamPool<32>::getInstance().getDefaultGpuStreamFromPool();
-    cudaMemsetAsync(*ptr, 0, sizeInBytes, stream);
+    cudaMemsetAsync(*ptr, 0, sizeInBytes, *stream);
 #endif
   }
   
@@ -83,7 +79,7 @@ public:
 #elif defined(HAVE_HIP)
         GPU_RT_SAFE_CALL(hipFree(j));
 #elif defined(HAVE_DPCPP)
-        gpuStream_t* stream = Uintah::GPUStreamPool::getInstance().getDefaultGpuStreamFromPool();
+        gpuStream_t* stream = Uintah::GPUStreamPool<>::getInstance().getDefaultGpuStreamFromPool();
         stream->wait();
         sycl::free(j, *stream);
 #endif

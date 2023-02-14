@@ -71,7 +71,7 @@ bool GPUDataWarehouse::stagingVarExists(char const *label,
 void GPUDataWarehouse::getStagingVar(const GPUGridVariableBase &var,
                                      char const *label, int patchID,
                                      int matlIndx, int levelIndx,
-                                     int3 offset, int3 size) {
+                                     const int3& offset, const int3& size) {
   // host code
   varLock->lock();
 
