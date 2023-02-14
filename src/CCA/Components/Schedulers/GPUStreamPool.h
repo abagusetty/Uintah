@@ -115,9 +115,12 @@ private:
 
 public:
   /// Returns a default/first GPU stream
-  gpuStream_t* getDefaultGpuStreamFromPool(int deviceID) {
-    check_device(deviceID);
-    return s_streams[deviceID*N + 0];
+  gpuStream_t* getDefaultGpuStreamFromPool() {
+    int active_device=0;
+    GPU_RT_SAFE_CALL( gpuGetDevice(&active_device) );
+
+    check_device(active_device);
+    return s_streams[active_device*N + 0];
   }
 
   /// Returns a GPU stream in a round-robin fashion
