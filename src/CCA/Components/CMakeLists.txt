@@ -9,11 +9,14 @@ add_subdirectory( Schedulers )
 add_subdirectory( SimulationController )
 add_subdirectory( Solvers )
 add_subdirectory( SwitchingCriteria )
+add_subdirectory( OnTheFlyAnalysis )
+#add_subdirectory( Models )
 
 set( LIB_COLLECTION
         CCA_Components_Application
         CCA_Components_DataArchiver
         CCA_Components_LoadBalancers
+        CCA_Components_OnTheFlyAnalysis
         CCA_Components_Parent
         CCA_Components_PostProcessUda
         CCA_Components_ProblemSpecification
@@ -24,6 +27,7 @@ set( LIB_COLLECTION
         CCA_Components_SwitchingCriteria
         CCA_Ports
      )
+#        CCA_Components_Models
 
 # Build components as requested in configuration
 set( NO_COMPONENTS True )
@@ -39,6 +43,22 @@ if( ENABLE_EXAMPLES )
     add_subdirectory( Examples )
     list( APPEND LIB_COLLECTION CCA_Components_Examples )
 endif( ENABLE_EXAMPLES )
+
+if( ENABLE_FVM )
+    set( NO_COMPONENTS False )
+    add_subdirectory( Examples )
+    list( APPEND LIB_COLLECTION CCA_Components_FVM )
+    if( ENABLE_MPM_FVM )
+        add_subdirectory( MPMFVM )
+        list( APPEND LIB_COLLECTION CCA_Components_MPMFVM )
+    endif( ENABLE_MPM_FVM )
+endif( ENABLE_FVM )
+
+if( ENABLE_HEAT )
+    set( NO_COMPONENTS False )
+    add_subdirectory( Examples )
+    list( APPEND LIB_COLLECTION CCA_Components_Heat )
+endif( ENABLE_HEAT )
 
 if( ENABLE_ICE )
     set( NO_COMPONENTS False )
@@ -56,21 +76,27 @@ if( ENABLE_MPM )
     list( APPEND LIB_COLLECTION CCA_Components_MPM )
 endif( ENABLE_MPM )
 
+if( ENABLE_PHASEFIELD )
+    set( NO_COMPONENTS False )
+    add_subdirectory( PhaseField )
+    list( APPEND LIB_COLLECTION CCA_Components_PhaseField )
+endif( ENABLE_PHASEFIELD )
+
 if( ENABLE_WASATCH )
     set( NO_COMPONENTS False )
     add_subdirectory( Wasatch )
     list( APPEND LIB_COLLECTION CCA_Components_Wasatch )
 endif( ENABLE_WASATCH )
 
-if( NOT NO_COMPONENTS )
-    add_subdirectory( OnTheFlyAnalysis )
-    add_subdirectory( Models )
+# if( NOT NO_COMPONENTS )
+#     add_subdirectory( OnTheFlyAnalysis )
+#     add_subdirectory( Models )
 
-    list( APPEND LIB_COLLECTION
-            CCA_Components_Models
-            CCA_Components_OnTheFlyAnalysis
-        )
-endif( NOT NO_COMPONENTS )
+#     list( APPEND LIB_COLLECTION
+#             CCA_Components_Models
+#             CCA_Components_OnTheFlyAnalysis
+#         )
+# endif( NOT NO_COMPONENTS )
 
 # create a library that is just a collection of all of the components we need to link against
 # when components are activated, they can add themselves to this interface

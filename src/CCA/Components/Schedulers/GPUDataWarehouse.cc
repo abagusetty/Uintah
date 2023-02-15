@@ -28,7 +28,6 @@
 #include <CCA/Components/Schedulers/GPUMemoryPool.hpp>
 #include <CCA/Components/Schedulers/SchedulerCommon.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
-#include <CCA/Components/Schedulers/SYCLScheduler.hpp>
 
 #include <Core/Parallel/Parallel.h>
 #include <Core/Parallel/ProcessorGroup.h>

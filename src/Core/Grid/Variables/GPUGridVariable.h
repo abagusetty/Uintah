@@ -32,7 +32,7 @@
 
 namespace Uintah {
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 template <class T> class GPUArray3 {
 
 public:

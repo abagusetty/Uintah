@@ -52,6 +52,10 @@ option( ENABLE_ICE      "Enable the ICE component"           OFF )
 option( ENABLE_MPM      "Enable the MPM component"           OFF )
 option( ENABLE_WASATCH  "Enable the Wasatch component"       OFF )
 option( ENABLE_RAY_SCATTER "Enable the ray scattering tools" OFF )
+option( ENABLE_MPM_FVM "Enable the MPM & FVM components"     OFF )
+option( ENABLE_MPM_ICE "Enable the MPM & ICE components"     OFF )
+option( ENABLE_HEAT    "Enable the Heat components"          OFF )
+option( ENABLE_PHASEFIELD "Enable the Phasefield components" OFF )
 
 #----------------------------------------------------------
 #               Set up GPU dependencies

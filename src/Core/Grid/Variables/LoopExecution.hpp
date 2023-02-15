@@ -66,13 +66,14 @@ parallel_reduce_sum( gpuStream_t& execStream, BlockRange const & r, const Functo
   ReductionType* result_device = sycl::malloc_device<ReductionType>(1, execStream);
   
   auto reduction_event = execStream.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::range<1>{array_size},
-                     // Reduction object, to perform summation - initialises the result to zero
-                     sycl::reduction(result_device, std::plus<T>(), sycl::property::reduction::initialize_to_identity{}),
-                     [=](sycl::id<1> idx, auto& sum) {
-                       sum.combine();
-                       sum += ka[idx] * kb[idx];
-                     });
+      auto reduce_sum = sycl::reduction(result_device, std::plus<T>(), sycl::property::reduction::initialize_to_identity{}); 
+      cgh.parallel_for(sycl::range<1>{array_size},
+                       // Reduction object, to perform summation - initialises the result to zero
+                       
+                       [=](sycl::id<1> idx, auto& sum) {
+                         sum.combine();
+                         sum += ka[idx] * kb[idx];
+                       });
     });
 
   execStream.memcpy(red, result_device, sizeof(ReductionType), reduction_event);

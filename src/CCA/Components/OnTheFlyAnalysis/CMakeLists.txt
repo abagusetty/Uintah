@@ -1,15 +1,16 @@
 set ( OTF_SRC
-        AnalysisModule.cc
         AnalysisModuleFactory.cc
-        FileInfoVar.cc
-        MinMax.cc
-        controlVolFluxes.cc
+        AnalysisModule.cc
         controlVolume.cc
+        controlVolFluxes.cc
+        FileInfoVar.cc
         lineExtract.cc
         meanTurbFluxes.cc
+        MinMax.cc
         momentumAnalysis.cc
         planeAverage.cc
         planeExtract.cc
+        spatialAvg.cc
         statistics.cc
 	turbulentFluxes.cc
     )
@@ -17,17 +18,21 @@ set ( OTF_SRC
 # Collect list of library dependencies
 set( LIB_DEPS
         CCA_Ports
-        Core_Grid
+        Core_Disclosure
         Core_Exceptions
+        Core_Geometry
+        Core_GeometryPiece
+        Core_Grid
         Core_Math
         Core_OS
         Core_Parallel
+        Core_ProblemSpec
         Core_Util
     )
 
 if( ENABLE_ICE )
     list( APPEND OTF_SRC vorticity.cc )
-    list( APPEND LIB_DEPS CCA_Components_ICE_Core )
+    list( APPEND LIB_DEPS CCA_Components_ICE_Core CCA_Components_ICE_Materials )
 endif()
 if( ENABLE_MPM )
     list( APPEND OTF_SRC flatPlate_heatFlux.cc particleExtract.cc )
@@ -38,7 +43,7 @@ if( ENABLE_MPM_ICE )
 endif()
 
 add_library( CCA_Components_OnTheFlyAnalysis ${OTF_SRC} )
-
+message(STATUS "libdeps ${LIB_DEPS}")
 target_link_libraries( CCA_Components_OnTheFlyAnalysis PUBLIC ${LIB_DEPS} )
 
 target_include_directories( CCA_Components_OnTheFlyAnalysis

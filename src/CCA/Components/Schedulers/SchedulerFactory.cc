@@ -28,9 +28,9 @@
 #include <CCA/Components/Schedulers/DynamicMPIScheduler.h>
 #include <CCA/Components/Schedulers/KokkosOpenMPScheduler.h>
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
-#ifdef HAVE_SYCL
-#include <CCA/Components/Schedulers/SYCLScheduler.hpp>
-#endif
+// #ifdef HAVE_SYCL
+// #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
+// #endif
 
 #include <Core/Exceptions/ProblemSetupException.h>
 #include <Core/Parallel/Parallel.h>
@@ -100,11 +100,11 @@ SchedulerFactory::create( const ProblemSpecP   & ps
     sch = scinew UnifiedScheduler(world, nullptr);
   }
 
-  #ifdef HAVE_SYCL
-  else if (scheduler == "SYCL") {
-    sch = scinew SYCLScheduler(world, nullptr);
-  }
-  #endif
+  // #ifdef HAVE_SYCL
+  // else if (scheduler == "SYCL") {
+  //   sch = scinew SYCLScheduler(world, nullptr);
+  // }
+  // #endif
 
   else if (scheduler == "KokkosOpenMP") {
     sch = scinew KokkosOpenMPScheduler(world, nullptr);

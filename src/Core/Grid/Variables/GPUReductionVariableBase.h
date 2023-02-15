@@ -36,7 +36,7 @@ class GPUReductionVariableBase : public GPUVariable {
 
   friend class GPUDataWarehouse;  // allow DataWarehouse set/get data members
   //friend class SYCLScheduler;
-  //friend class UnifiedScheduler;
+  friend class UnifiedScheduler;
 
   public:
     HOST_DEVICE virtual ~GPUReductionVariableBase() {}

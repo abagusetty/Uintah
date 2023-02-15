@@ -59,10 +59,10 @@
 #include <CCA/Components/Solvers/SolverFactory.h>
 #include <CCA/Ports/SolverInterface.h>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP)
+#if defined(UINTAH_ENABLE_DEVICE)
 #  include <CCA/Components/Schedulers/UnifiedScheduler.h>
-#elif defined(HAVE_SYCL)
-#  include <CCA/Components/Schedulers/SYCLScheduler.hpp>
+// #elif defined(HAVE_SYCL)
+// #  include <CCA/Components/Schedulers/SYCLScheduler.hpp>
 #endif
 
 #include <Core/Exceptions/Exception.h>

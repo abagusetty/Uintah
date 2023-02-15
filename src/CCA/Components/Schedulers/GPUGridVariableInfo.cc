@@ -23,9 +23,6 @@
  */
 
 #include <CCA/Components/Schedulers/GPUGridVariableInfo.h>
-#ifdef HAVE_SYCL
-  #include <CCA/Components/Schedulers/SYCLScheduler.hpp>
-#endif
 #include <CCA/Components/Schedulers/UnifiedScheduler.h>
 
 #include <Core/Parallel/MasterLock.h>
@@ -511,10 +508,8 @@ GpuUtilities::getGpuIndexForPatch(const Patch* patch)
   auto it = patchAcceleratorLocation.find(patch);
   if (it != patchAcceleratorLocation.end()) {
     if (it->second >= 0) {
-      std::cout << "value of getGpuIndexforPatch: " << it->second << std::endl;
       return it->second;
-    } else {
-      std::exit(-1);
     }
+    std::exit(-1);
   }
 }

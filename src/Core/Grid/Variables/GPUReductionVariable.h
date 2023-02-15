@@ -29,8 +29,6 @@
 
 #include <Core/Grid/Variables/GPUReductionVariableBase.h>
 #include <sci_defs/gpu_defs.h>
-#include <sci_defs/gpu_defs.h>
-
 #include <string>
 
 namespace Uintah {
@@ -38,7 +36,7 @@ namespace Uintah {
 template<class T>
 class GPUReductionVariable : public GPUReductionVariableBase {
 
-  friend class SYCLScheduler;
+  //friend class SYCLScheduler;
   friend class UnifiedScheduler;
 
   public:
