@@ -2,7 +2,7 @@ add_subdirectory( Benchmarks )
 add_subdirectory( tools )
 
 add_executable( compare_uda compare_uda.cc )
-target_link_libraries( compare_uda UintahCore )
+target_link_libraries( compare_uda UintahCore std::mdspan )
 
 #------------------------------ BUILD SUS -------------------------------
 add_executable( sus sus.cc )
