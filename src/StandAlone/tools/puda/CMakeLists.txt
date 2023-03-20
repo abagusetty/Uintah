@@ -24,4 +24,4 @@ add_executable( puda
 target_link_libraries( puda Core_DataArchive Core_Datatypes Core_Parallel )
 
 add_executable( grid_reader grid_reader.cc )
-target_link_libraries( grid_reader Core_Parallel )
+target_link_libraries( grid_reader Core_Parallel std::mdspan )

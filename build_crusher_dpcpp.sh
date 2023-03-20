@@ -1,19 +1,15 @@
 #!/bin/bash
 
-module unload craype-accel-amd-gfx90a
-module load PrgEnv-amd
-module load rocm
-module unload cray-libsci
-module load cmake
+module load cmake libxml2
 module load openblas/0.3.17
 module -t list
 
-rm -rf build
-mkdir build
+rm -rf build_sycl
+mkdir build_sycl
 
-cd build
+cd build_sycl
 
-cmake -DCMAKE_C_COMPILER=/gpfs/alpine/gen243/proj-shared/holmenjk/crusher/llvm/build_5.2.0/bin/clang -DCMAKE_CXX_COMPILER=/gpfs/alpine/gen243/proj-shared/holmenjk/crusher/llvm/build_5.2.0/bin/clang++ -DENABLE_SYCL=ON -DENABLE_EXAMPLES=ON -DCMAKE_CXX_FLAGS="-std=c++17 -O3 -sycl-std=2020 -fsycl -fsycl-targets=amdgcn-amd-amdhsa -Xsycl-target-backend --offload-arch=gfx90a -I/opt/cray/pe/mpich/8.1.17/ofi/cray/10.0/include" ../src/
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DENABLE_SYCL=ON -DENABLE_EXAMPLES=OFF -DCMAKE_CXX_FLAGS="-std=c++17 -O3 -sycl-std=2020 -fsycl -fsycl-targets=amdgcn-amd-amdhsa -Xsycl-target-backend --offload-arch=gfx90a -I/opt/cray/pe/mpich/8.1.17/ofi/cray/10.0/include" ../src/
 
 cmake --build . -j 32
 

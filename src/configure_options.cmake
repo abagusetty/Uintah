@@ -136,7 +136,24 @@ if( ENABLE_SYCL )
 
   # set SYCL flags for AoT compilation for ATS, PVC devices
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -sycl-std=2020 -fsycl-device-code-split=per_kernel")
-  # -lze_loader")
+
+  # Downlaod and install Kokkos/mdspan
+  find_package(mdspan QUIET)
+  if (NOT mdspan_FOUND)
+      message(STATUS "No installed mdspan found, fetching from Github")
+      include(FetchContent)
+      FetchContent_Declare(
+          mdspan
+          GIT_REPOSITORY  https://github.com/kokkos/mdspan.git
+          GIT_TAG         stable
+          GIT_PROGRESS    TRUE
+      )
+      FetchContent_MakeAvailable(mdspan)
+  endif()
+
+  if(NOT TARGET std::mdspan)
+      find_package(mdspan REQUIRED)
+  endif()
 
   if( ENABLE_OCCL )
     find_dependency( OCCL )

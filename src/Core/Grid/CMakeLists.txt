@@ -88,6 +88,7 @@ target_link_libraries( Core_Grid
         Core_Parallel
         Core_ProblemSpec
         Core_Util
+        std::mdspan
     )
 
 # jcs what about PIDX here?
