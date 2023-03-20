@@ -336,7 +336,7 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
           it->second = ngc;
         }
       } else {
-        max_ghost_for_varlabelmap.emplace(labelLevel, ngc);
+        max_ghost_for_varlabelmap.insert({labelLevel, ngc});
       }
     }
 
@@ -366,7 +366,7 @@ TaskGraph::createDetailedTasks(bool useInternalDeps, const GridP &grid,
           it->second = ngc;
         }
       } else {
-        max_ghost_for_varlabelmap.emplace(labelLevel, ngc);
+        max_ghost_for_varlabelmap.insert({labelLevel, ngc});
       }
     }
 

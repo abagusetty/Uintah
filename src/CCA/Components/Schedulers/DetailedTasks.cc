@@ -40,7 +40,7 @@
 #include <sci_defs/gpu_defs.h>
 #include <sci_defs/visit_defs.h>
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UNITAH_ENABLE_DEVICE)
 #include <Core/Parallel/CrowdMonitor.hpp>
 #endif
 
@@ -1249,7 +1249,7 @@ bool DetailedTaskPriorityComparison::operator()(DetailedTask *&ltask,
   //  }
 }
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
 bool DetailedTasks::getDeviceValidateRequiresCopiesTask(DetailedTask *&dtask) {
   // This function should ONLY be called within runTasks() part 1.
@@ -1835,4 +1835,4 @@ DetailedDep *DetailedTasks::findMatchingInternalDetailedDep(
   return valid_dep;
 }
 
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif // UINTAH_ENABLE_DEVICE

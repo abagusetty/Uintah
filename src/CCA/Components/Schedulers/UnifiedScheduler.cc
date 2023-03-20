@@ -108,7 +108,7 @@ DebugStream gpudbg(
 } // namespace Uintah
 #endif // HAVE_CUDA, HAVE_HIP
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 namespace {
 Uintah::MasterLock
     g_GridVarSuperPatch_mutex{}; // An ugly hack to get superpatches for host
@@ -252,37 +252,37 @@ UnifiedScheduler::UnifiedScheduler(const ProcessorGroup *myworld,
   if (Uintah::Parallel::usingDevice()) {
     gpuInitialize();
 
-    // disable memory windowing on variables.  This will ensure that
-    // each variable is allocated its own memory on each patch,
-    // precluding memory blocks being defined across multiple patches.
-    Uintah::OnDemandDataWarehouse::s_combine_memory = false;
+    // // disable memory windowing on variables.  This will ensure that
+    // // each variable is allocated its own memory on each patch,
+    // // precluding memory blocks being defined across multiple patches.
+    // Uintah::OnDemandDataWarehouse::s_combine_memory = false;
 
-    // get the true numDevices (in case we have the simulation turned on)
-    int numDevices{};
-    GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
-    int can_access = 0;
-    for (int i = 0; i < numDevices; i++) {
-      GPU_RT_SAFE_CALL(gpuSetDevice(i));
-      for (int j = 0; j < numDevices; j++) {
-        if (i != j) {
-          GPU_RT_SAFE_CALL(gpuDeviceCanAccessPeer(&can_access, i, j));
-          if (can_access) {
-            printf("UnifiedScheduler: GPU device #%d can access GPU device #%d\n", i, j);
-            GPU_RT_SAFE_CALL(gpuDeviceEnablePeerAccess(j, 0));
-          } else {
-            printf("ERROR\n GPU device #%d cannot access GPU device #%d\n.  "
-                   "Uintah is not yet configured to work with multiple GPUs in "
-                   "different NUMA regions.  For now, use the environment "
-                   "variable GPU_VISIBLE_DEVICES and don't list GPU device "
-                   "#%d\n.",
-                   i, j, j);
-            SCI_THROW(InternalError(
-                "** GPUs in multiple NUMA regions are currently unsupported.",
-                __FILE__, __LINE__));
-          }
-        }
-      }
-    }
+    // // get the true numDevices (in case we have the simulation turned on)
+    // int numDevices{};
+    // GPU_RT_SAFE_CALL(gpuGetDeviceCount(&numDevices));
+    // int can_access = 0;
+    // for (int i = 0; i < numDevices; i++) {
+    //   GPU_RT_SAFE_CALL(gpuSetDevice(i));
+    //   for (int j = 0; j < numDevices; j++) {
+    //     if (i != j) {
+    //       GPU_RT_SAFE_CALL(gpuDeviceCanAccessPeer(&can_access, i, j));
+    //       if (can_access) {
+    //         printf("UnifiedScheduler: GPU device #%d can access GPU device #%d\n", i, j);
+    //         GPU_RT_SAFE_CALL(gpuDeviceEnablePeerAccess(j, 0));
+    //       } else {
+    //         printf("ERROR\n GPU device #%d cannot access GPU device #%d\n.  "
+    //                "Uintah is not yet configured to work with multiple GPUs in "
+    //                "different NUMA regions.  For now, use the environment "
+    //                "variable GPU_VISIBLE_DEVICES and don't list GPU device "
+    //                "#%d\n.",
+    //                i, j, j);
+    //         SCI_THROW(InternalError(
+    //             "** GPUs in multiple NUMA regions are currently unsupported.",
+    //             __FILE__, __LINE__));
+    //       }
+    //     }
+    //   }
+    // }
   }    // using Device
 #endif // HAVE_CUDA, HAVE_HIP
 
@@ -526,7 +526,7 @@ void UnifiedScheduler::runTask(DetailedTask *dtask, int iteration,
   // For CPU and postGPU task runs, post MPI sends and call task->done;
   if (event == Task::CallBackEvent::CPU || event == Task::CallBackEvent::postGPU) {
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
     if (Uintah::Parallel::usingDevice()) {
 
       // TODO: Don't make every task run through this
@@ -575,7 +575,7 @@ void UnifiedScheduler::runTask(DetailedTask *dtask, int iteration,
 
     MPIScheduler::postMPISends(dtask, iteration);
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
     if (Uintah::Parallel::usingDevice()) {
       dtask->deleteTaskGpuDataWarehouses();
     }
@@ -914,7 +914,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
 
     bool havework = false;
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
     bool usingDevice = Uintah::Parallel::usingDevice();
     bool gpuInitReady = false;
     bool gpuValidateRequiresCopies = false;
@@ -954,7 +954,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
           havework = true;
           markTaskConsumed(m_num_tasks_done, m_curr_phase, m_num_phases,
                            readyTask);
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
           cpuRunReady = true;
 #endif
         }
@@ -976,7 +976,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
        */
       else if ((readyTask = m_detailed_tasks->getNextExternalReadyTask())) {
         havework = true;
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
         /*
          * (1.2.1)
          *
@@ -1046,7 +1046,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
         }
       }
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
       else if (usingDevice) {
         /*
          * (1.4)
@@ -1054,7 +1054,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
          * Check if highest priority GPU task's asynchronous H2D copies are
          * completed. If so, then reclaim the streams and events it used for
          * these operations, and mark as valid the vars for which this task was
-         * responsible.  (If the vars are awaiting ghost cells then those vars
+         * responsible. (If the vars are awaiting ghost cells then those vars
          * will be updated with a status to reflect they aren't quite valid yet)
          *
          * gpuVerifyDataTransferCompletion = true
@@ -1197,7 +1197,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
           break;
         }
       }
-#endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
+#endif // UINTAH_ENABLE_DEVICE
       /*
        * (1.6)
        *
@@ -1238,7 +1238,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
         if (readyTask->getTask()->getType() == Task::TaskType::Reduction) {
         MPIScheduler::initiateReduction(readyTask);
       }
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
       else if (gpuInitReady) {
         // prepare to run a GPU task.
 
@@ -1322,7 +1322,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
 #endif // HAVE_CUDA, HAVE_HIP, HAVE_SYCL
       else {
         // prepare to run a CPU task.
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
         if (cpuInitReady) {
 
           // Some CPU tasks still interact with the GPU.  For example,
@@ -1406,7 +1406,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
           // run CPU task.
           runTask(readyTask, m_curr_iteration, thread_id, Task::CallBackEvent::CPU);
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
           // See note above near cpuInitReady.  Some CPU tasks may internally
           // interact with GPUs without modifying the structure of the data
           // warehouse. GPUMemoryPool::reclaimGpuStreamsIntoPool(readyTask);
@@ -1422,7 +1422,7 @@ void UnifiedScheduler::runTasks(int thread_id) {
   ASSERT(m_num_tasks_done == m_num_tasks);
 }
 
-#if defined(HAVE_CUDA) || defined(HAVE_HIP) || defined(HAVE_SYCL)
+#if defined(UINTAH_ENABLE_DEVICE)
 
 //______________________________________________________________________
 //

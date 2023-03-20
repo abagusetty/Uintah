@@ -291,12 +291,12 @@
 #include <unistd.h>
 #include <utility>
 
-#if __has_include(<sycl/sycl.hpp>)
+// #if __has_include(<sycl/sycl.hpp>)
 #include <sycl/sycl.hpp>
-#else
-#include <CL/sycl.hpp>
-namespace sycl = cl::sycl;
-#endif
+// #else
+// #include <CL/sycl.hpp>
+// namespace sycl = cl::sycl;
+// #endif
 
 #define HOST_DEVICE
 #define __host__

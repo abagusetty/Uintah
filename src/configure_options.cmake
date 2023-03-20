@@ -135,7 +135,8 @@ if( ENABLE_SYCL )
   set(CMAKE_CXX_STANDARD 17)
 
   # set SYCL flags for AoT compilation for ATS, PVC devices
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -sycl-std=2020 -fsycl-device-code-split=per_kernel -lze_loader")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -sycl-std=2020 -fsycl-device-code-split=per_kernel")
+  # -lze_loader")
 
   if( ENABLE_OCCL )
     find_dependency( OCCL )

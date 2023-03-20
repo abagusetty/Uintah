@@ -112,7 +112,7 @@ void DeviceGridVariables::add(const Patch *patchPointer, int matlIndx,
     // contiguous array calculations
     di.totalSize = entrySize;
     di.totalSizeForDataWarehouse[dep->mapDataWarehouse()] = entrySize;
-    deviceInfoMap.try_emplace(whichGPU, std::move(di));
+    deviceInfoMap.insert({whichGPU, std::move(di)});
   } else {
     DeviceInfo &di = deviceInfoMap[whichGPU];
     di.totalVars[dep->mapDataWarehouse()] += 1;
@@ -155,7 +155,7 @@ void DeviceGridVariables::add(const Patch *patchPointer, int matlIndx,
       // contiguous array calculations
       di.totalSize = entrySize;
       di.totalSizeForDataWarehouse[dep->mapDataWarehouse()] = entrySize;
-      deviceInfoMap.try_emplace(whichGPU, std::move(di));
+      deviceInfoMap.insert({whichGPU, std::move(di)});
     } else {
       DeviceInfo &di = deviceInfoMap[whichGPU];
       di.totalVars[dep->mapDataWarehouse()] += 1;
@@ -244,7 +244,7 @@ void DeviceGridVariables::addTaskGpuDWVar(const Patch *patchPointer,
     DeviceInfo di;
     di.totalVars[dep->mapDataWarehouse()] = 1;
     totalVars = 1;
-    deviceInfoMap.try_emplace(whichGPU, std::move(di));
+    deviceInfoMap.insert({whichGPU, std::move(di)});
   } else {
     DeviceInfo &di = deviceInfoMap[whichGPU];
     di.totalVars[dep->mapDataWarehouse()] += 1;
@@ -288,7 +288,7 @@ void DeviceGridVariables::addTaskGpuDWStagingVar(
     DeviceInfo di;
     di.totalVars[dep->mapDataWarehouse()] = 1;
     totalVars = 1;
-    deviceInfoMap.try_emplace(whichGPU, std::move(di));
+    deviceInfoMap.insert({whichGPU, std::move(di)});
   } else {
     DeviceInfo &di = deviceInfoMap[whichGPU];
     di.totalVars[dep->mapDataWarehouse()] += 1;

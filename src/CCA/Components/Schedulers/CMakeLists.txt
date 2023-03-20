@@ -7,7 +7,7 @@ if( ENABLE_CUDA OR ENABLE_HIP )
 endif()
 
 if( ENABLE_SYCL )
-    add_compile_options(-lze_loader)
+    #add_compile_options(-lze_loader)
     set( GPU_SRC
             GPUDataWarehouse.cc
             GPUGridVariableGhosts.cc

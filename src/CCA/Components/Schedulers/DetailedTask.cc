@@ -750,7 +750,7 @@ void DetailedTask::setGpuStreamForThisTask(int device_id) {
   // if the device_id already exists and a valid stream is assigned skip this and return
   if (deviceNums_.find(device_id) == deviceNums_.end()) {
     deviceNums_.insert(device_id);
-    d_gpuStreams.try_emplace(device_id, GPUStreamPool<>::getInstance().getGpuStreamFromPool(device_id));
+    d_gpuStreams.insert({device_id, GPUStreamPool<>::getInstance().getGpuStreamFromPool(device_id)});
   }
   return;
 };
@@ -792,7 +792,7 @@ void DetailedTask::setTaskGpuDataWarehouse(const int whichDevice,
     temp.TaskGpuDW[0] = nullptr;
     temp.TaskGpuDW[1] = nullptr;
     temp.TaskGpuDW[static_cast<int>(DW)] = TaskDW;
-    TaskGpuDWs.try_emplace(whichDevice, temp);
+    TaskGpuDWs.insert({whichDevice, temp});
   }
 }
 
