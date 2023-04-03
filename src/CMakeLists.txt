@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 3.10 )
 enable_language( CXX )
-set( CMAKE_CXX_STANDARD 11 ) # minimum C++ compiler standard conformity
+set( CMAKE_CXX_STANDARD 17 ) # minimum C++ compiler standard conformity
 
 project( Uintah )
 
