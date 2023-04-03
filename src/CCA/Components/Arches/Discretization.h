@@ -22,26 +22,24 @@
  * IN THE SOFTWARE.
  */
 
-
 #ifndef Uintah_Components_Arches_Discretization_h
 #define Uintah_Components_Arches_Discretization_h
 
 //#include <CCA/Components/Arches/StencilMatrix.h>
 //#include <Core/Grid/Variables/CCVariable.h>
 //#include <Core/Grid/FCVariable.h>
-#include <CCA/Ports/SchedulerP.h>
+#include <CCA/Components/Arches/ArchesConstVariables.h>
+#include <CCA/Components/Arches/ArchesVariables.h>
+#include <CCA/Components/Arches/Filter.h>
 #include <CCA/Ports/DataWarehouseP.h>
+#include <CCA/Ports/SchedulerP.h>
 #include <Core/Grid/LevelP.h>
 #include <Core/Grid/Patch.h>
 #include <Core/Grid/Variables/VarLabel.h>
-#include <CCA/Components/Arches/ArchesVariables.h>
-#include <CCA/Components/Arches/ArchesConstVariables.h>
-#include <CCA/Components/Arches/Filter.h>
-
 
 namespace Uintah {
-  class ProcessorGroup;
-  class PhysicalConstants;
+class ProcessorGroup;
+class PhysicalConstants;
 
 /**************************************
 
@@ -81,57 +79,39 @@ WARNING
 class Discretization {
 
 public:
-
   enum MOMCONV { UPWIND, WALLUPWIND, HYBRID, CENTRAL, OLD };
 
-  Discretization(PhysicalConstants* physConst);
+  Discretization(PhysicalConstants *physConst);
 
   virtual ~Discretization();
 
-  void calculateVelocityCoeff(const Patch* patch,
-                              double delta_t,
-                              bool lcentral,
-                              CellInformation* cellinfo,
-                              ArchesVariables* vars,
-                              ArchesConstVariables* constvars,
-                              constCCVariable<double>* volFraction,
-                              SFCXVariable<double>* conv_scheme_x,
-                              SFCYVariable<double>* conv_scheme_y,
-                              SFCZVariable<double>* conv_scheme_z,
-                              MOMCONV scheme, double re_limit );
+  void calculateVelocityCoeff(const Patch *patch, double delta_t, bool lcentral,
+                              CellInformation *cellinfo, ArchesVariables *vars,
+                              ArchesConstVariables *constvars,
+                              constCCVariable<double> *volFraction,
+                              SFCXVariable<double> *conv_scheme_x,
+                              SFCYVariable<double> *conv_scheme_y,
+                              SFCZVariable<double> *conv_scheme_z,
+                              MOMCONV scheme, double re_limit);
 
-  template<class T>
-  void compute_Ap(CellIterator iter,
-                  CCVariable<Stencil7>& A,
-                  T& source);
+  template <class T>
+  void compute_Ap(CellIterator iter, CCVariable<Stencil7> &A, T &source);
 
-   template<class T>
-   void compute_Ap_stencilMatrix(CellIterator iter,
-                                 StencilMatrix<T>& A,
-                                 T& source);
+  void calculateVelDiagonal(const Patch *patch, ArchesVariables *vars);
 
+  void calculatePressDiagonal(const Patch *patch, ArchesVariables *vars);
 
-  void calculateVelDiagonal(const Patch* patch,
-                            ArchesVariables* vars);
-
-  void calculatePressDiagonal(const Patch* patch,
-                              ArchesVariables* vars);
-
-  inline void setFilter(Filter* filter) {
-    d_filter = filter;
-  }
+  inline void setFilter(Filter *filter) { d_filter = filter; }
 
   inline void setTurbulentPrandtlNumber(double turbPrNo) {
     d_turbPrNo = turbPrNo;
   }
 
 protected:
-
 private:
-
-      Filter* d_filter;
-      double d_turbPrNo;
-      PhysicalConstants* d_physicalConsts;
+  Filter *d_filter;
+  double d_turbPrNo;
+  PhysicalConstants *d_physicalConsts;
 
 }; // end class Discretization
 
