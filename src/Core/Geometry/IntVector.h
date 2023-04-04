@@ -33,8 +33,7 @@
  *
  */
 
-#ifndef CORE_GEOMETRY_INTVECTOR_H
-#define CORE_GEOMETRY_INTVECTOR_H
+#pragma once
 
 #include <Core/Geometry/Point.h>
 #include <Core/Geometry/Vector.h>
@@ -47,21 +46,16 @@ namespace Uintah {
 class IntVector {
 
 public:
-  inline IntVector() {}
-  inline ~IntVector() {}
+  IntVector() = default;
 
-  inline IntVector(const IntVector &copy) {
-    for (int indx = 0; indx < 3; indx++) {
-      m_value[indx] = copy.m_value[indx];
-    }
-  }
-
-  inline IntVector &operator=(const IntVector &copy) {
-    for (int indx = 0; indx < 3; indx++) {
-      m_value[indx] = copy.m_value[indx];
-    }
-    return *this;
-  }
+  // Copy of a IntVector object
+  IntVector(const IntVector &other) noexcept = default;
+  // Move of a IntVector object
+  IntVector(IntVector &&other) noexcept = default;
+  // Copy-assign of a IntVector object
+  IntVector &operator=(const IntVector &rhs) noexcept = default;
+  // Move-assign of a IntVector object
+  IntVector &operator=(IntVector &&rhs) noexcept = default;
 
   inline explicit IntVector(const Point &p) {
     m_value[0] = static_cast<int>(p.x());
@@ -162,7 +156,6 @@ public:
   //   --tan
   inline int operator()(int i) const { return m_value[i]; }
   inline int &operator()(int i) { return m_value[i]; }
-
   inline int operator[](int i) const { return m_value[i]; }
   inline int &operator[](int i) { return m_value[i]; }
 
@@ -174,6 +167,7 @@ public:
   inline void y(int y) { m_value[1] = y; }
   inline void z(int z) { m_value[2] = z; }
 
+  // ABB: this needs to be removed
   inline int &modifiable_x() { return m_value[0]; }
   inline int &modifiable_y() { return m_value[1]; }
   inline int &modifiable_z() { return m_value[2]; }
@@ -191,9 +185,6 @@ public:
   friend inline Vector operator*(const Vector &, const IntVector &);
   friend inline Vector operator*(const IntVector &, const Vector &);
   friend inline IntVector Abs(const IntVector &v);
-
-  //! support dynamic compilation
-  static const std::string &get_h_file_path();
 
   friend std::ostream &operator<<(std::ostream &, const Uintah::IntVector &);
 
@@ -253,5 +244,3 @@ inline IntVector roundNearest(const Vector &v) {
 }
 
 } // End namespace Uintah
-
-#endif // CORE_GEOMETRY_INTVECTOR_H
