@@ -14,8 +14,8 @@ static void fort_arrass( Uintah::Array3<double> & aa,
                          Uintah::IntVector & valid_lo,
                          Uintah::IntVector & valid_hi )
 {
-  Uintah::IntVector aa_low = aa.getWindow()->getOffset();
-  Uintah::IntVector aa_high = aa.getWindow()->getData()->size() + aa_low - Uintah::IntVector(1, 1, 1);
+  Uintah::IntVector aa_low = aa.offset();
+  Uintah::IntVector aa_high = aa.size() + aa_low - Uintah::IntVector(1, 1, 1);
   int aa_low_x = aa_low.x();
   int aa_high_x = aa_high.x();
   int aa_low_y = aa_low.y();
