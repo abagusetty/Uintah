@@ -35,11 +35,10 @@ if( CMAKE_BUILD_TYPE EQUAL Release )
 elseif( CMAKE_BUILD_TYPE EQUAL Debug )
     set( ASSERTION_LEVEL 3 )
 endif()
-option( ENABLE_UNIT_TESTS "Turn on the unit tests." ON )  # jcs check this
+option( ENABLE_UNIT_TESTS "Turn on the unit tests." OFF )  # jcs check this
 option( ENABLE_MINIMAL "Build a minimal set of libraries" OFF ) # jcs keep this?
 
 # COMPONENT ACTIVATION
-# jcs expand this.
 option( ENABLE_CUDA     "Enable CUDA Bindings"               OFF )
 option( ENABLE_HIP      "Enable HIP Bindings"                OFF )
 option( ENABLE_SYCL     "Enable SYCL Bindings"               OFF )
@@ -56,6 +55,24 @@ option( ENABLE_MPM_FVM "Enable the MPM & FVM components"     OFF )
 option( ENABLE_MPM_ICE "Enable the MPM & ICE components"     OFF )
 option( ENABLE_HEAT    "Enable the Heat components"          OFF )
 option( ENABLE_PHASEFIELD "Enable the Phasefield components" OFF )
+
+
+# Downlaod and install Kokkos/mdspan
+find_package(mdspan QUIET)
+if (NOT mdspan_FOUND)
+    message(STATUS "No installed mdspan found, fetching from Github")
+    include(FetchContent)
+    FetchContent_Declare(
+        mdspan
+        GIT_REPOSITORY  https://github.com/kokkos/mdspan.git
+        GIT_TAG         stable
+        GIT_PROGRESS    TRUE
+    )
+    FetchContent_MakeAvailable(mdspan)
+endif()
+if(NOT TARGET std::mdspan)
+    find_package(mdspan REQUIRED)
+endif()
 
 #----------------------------------------------------------
 #               Set up GPU dependencies
@@ -136,24 +153,6 @@ if( ENABLE_SYCL )
 
   # set SYCL flags for AoT compilation for ATS, PVC devices
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -sycl-std=2020 -fsycl-device-code-split=per_kernel")
-
-  # Downlaod and install Kokkos/mdspan
-  find_package(mdspan QUIET)
-  if (NOT mdspan_FOUND)
-      message(STATUS "No installed mdspan found, fetching from Github")
-      include(FetchContent)
-      FetchContent_Declare(
-          mdspan
-          GIT_REPOSITORY  https://github.com/kokkos/mdspan.git
-          GIT_TAG         stable
-          GIT_PROGRESS    TRUE
-      )
-      FetchContent_MakeAvailable(mdspan)
-  endif()
-
-  if(NOT TARGET std::mdspan)
-      find_package(mdspan REQUIRED)
-  endif()
 
   if( ENABLE_OCCL )
     find_dependency( OCCL )

@@ -10,6 +10,8 @@ include( CheckCXXSourceCompiles )
 include( CheckTypeSize )  # CMake module for type introspection - https://cmake.org/cmake/help/latest/module/CheckTypeSize.html
 include( ProcessorCount )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 ProcessorCount( NUMBER_OF_PROCESSORS )
 
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -236,13 +238,41 @@ endif()
 
 ##----------------------------- HYPRE --------------------------------
 unset( HAVE_HYPRE )
-find_package( HYPRE )
+find_package( HYPRE REQUIRED )
 if( HYPRE_FOUND )
-    message( STATUS "HYPRE:"
-        "\n\tVERSION: ${HYPRE_VERSION}"
-        "\n\tInclude dir: ${HYPRE_INCLUDE_DIR}"
-        )
-    set( HAVE_HYPRE true )
+  set( HAVE_HYPRE true )
+else()
+  message( STATUS "HYPRE not found")
+  set( HYPRE_VER 2.28.0 )
+
+  # message(STATUS "**No installed HYPRE found, fetching v${HYPRE_VER} from Github")
+  # FetchContent_Declare(
+  #   hypre_content
+  #   URL https://github.com/hypre-space/hypre/archive/v${HYPRE_VER}.tar.gz )
+  # FetchContent_GetProperties(hypre_content)
+  # if (NOT hypre_content_POPULATED)
+  #   FetchContent_Populate(hypre_content)
+  # endif()
+  # set(HYPRE_SOURCE_DIR ${hypre_content_SOURCE_DIR})
+  # set(HYPRE_BINARY_DIR ${hypre_content_BINARY_DIR})
+
+
+
+  set(HYPRE_WITH_MPI      ON CACHE INTERNAL "" FORCE)
+  set(HYPRE_PRINT_ERRORS  ON CACHE INTERNAL "" FORCE)
+  set(HYPRE_BIGINT        ON CACHE INTERNAL "" FORCE)
+  set(HYPRE_USING_FEI    OFF CACHE INTERNAL "" FORCE)
+  set(HYPRE_USING_OPENMP  ON CACHE INTERNAL "" FORCE)
+  set(HYPRE_SHARED       OFF CACHE INTERNAL "" FORCE)
+  FetchContent_Declare(
+    hypre
+    GIT_REPOSITORY https://github.com/hypre-space/hypre.git
+    GIT_TAG v2.28.0
+    GIT_SHALLOW TRUE
+    )
+  FetchContent_MakeAvailable(hypre)
+
+  set( HAVE_HYPRE true )
 endif()
 ##----------------------------- HYPRE --------------------------------
 

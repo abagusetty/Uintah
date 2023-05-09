@@ -4,25 +4,16 @@ set( HYPRE_FOUND false )
 
 find_path( HYPRE_INCLUDE_DIR
     NAMES HYPRE.h
-    PATHS
-        ENV HYPRE_DIR
-        ENV HYPRE_INC
-        ${HYPRE_INC}
-        ${HYPRE_DIR}/include
-    DOC
-        "Hypre root Directory"
-    )
+    HINTS ENV HYPRE_DIR ${HYPRE_DIR}/include ${_HYPRE_INCLUDE_DIR}
+    PATH PATHS /usr/include /usr/local/include /opt/local/include
+    PATH_SUFFIXES include )
 
 find_library(
     HYPRE_LIBRARY
     NAMES libHYPRE.a libHYPRE.so
-    PATHS
-        ENV HYPRE_DIR
-        ENV HYPRE_LIB
-        ${HYPRE_LIB}
-        ${HYPRE_DIR}/lib
-        ${HYPRE_DIR}
-    )
+    HINTS ENV HYPRE_DIR ${HYPRE_DIR}/lib ${_HYPRE_LIBRARY_DIR}
+    PATH PATHS /usr/lib /usr/local/lib /opt/local/lib
+    PATH_SUFFIXES lib )
 
 if( NOT (${HYPRE_LIBRARY} STREQUAL "HYPRE_LIBRARY-NOTFOUND") )
     ## Version information
